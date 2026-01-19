@@ -2,6 +2,18 @@
 
 Personal dotfiles managed with GNU Stow.
 
+## Structure
+
+The `home` directory mirrors the home directory structure:
+
+```
+home/
+├── .config/
+│   └── nvim/       → ~/.config/nvim
+└── .claude/
+    └── CLAUDE.md   → ~/.claude/CLAUDE.md
+```
+
 ## Usage
 
 Install stow:
@@ -9,19 +21,17 @@ Install stow:
 brew install stow
 ```
 
-From this directory, stow a package to create symlinks in home directory:
+From this directory, stow to create symlinks in home directory:
 ```bash
-stow nvim    # Links ~/.config/nvim
-stow claude  # Links ~/.claude/CLAUDE.md
+stow home -t ~
 ```
 
 To remove symlinks:
 ```bash
-stow -D nvim
-stow -D claude
+stow -D home -t ~
 ```
 
-## Packages
+## Contents
 
 - **nvim** - Neovim configuration (LazyVim-based)
-- **claude** - Claude Code configuration
+- **claude** - Claude Code CLAUDE.md
