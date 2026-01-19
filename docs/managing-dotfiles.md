@@ -45,14 +45,6 @@ ls -la ~/.zshrc
 # Should show: .zshrc -> Projects/dotfiles/home/.zshrc
 ```
 
-### 4. Commit the changes
-
-```bash
-git add home/.zshrc
-git commit -m "Add zshrc"
-git push
-```
-
 ## Adding a Directory
 
 For directories like `~/.config/alacritty`:
@@ -81,14 +73,11 @@ To stop managing a file:
 # Unstow first
 stow -D home -t ~
 
-# Remove from repo
+# Remove from dotfiles
 rm home/.zshrc
 
 # Restow remaining configs
 stow home -t ~
-
-# Optionally restore original file
-# (you'll need to recreate it or restore from backup)
 ```
 
 ## Common Commands
@@ -100,18 +89,6 @@ stow home -t ~
 | `stow -R home -t ~` | Restow (remove and recreate symlinks) |
 | `stow -n home -t ~` | Dry run (show what would happen) |
 
-## Setting Up on a New Machine
+## Notes
 
-```bash
-# Clone the repo
-git clone https://github.com/aaron-pak/dotfiles.git ~/Projects/dotfiles
-
-# Install stow
-brew install stow
-
-# Create symlinks
-cd ~/Projects/dotfiles
-stow home -t ~
-```
-
-**Note:** If files already exist at the target locations, stow will refuse to overwrite them. Back up and remove existing files first, or use `--adopt` to pull existing files into the repo (use with caution).
+If files already exist at the target locations, stow will refuse to overwrite them. Back up and remove existing files first, or use `--adopt` to pull existing files into the dotfiles (use with caution).
