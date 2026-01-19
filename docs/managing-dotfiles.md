@@ -42,7 +42,7 @@ stow -R home -t ~
 
 ```bash
 ls -la ~/.zshrc
-# Should show: .zshrc -> Projects/dotfiles/home/.zshrc
+# Should show: .zshrc -> ../Projects/dotfiles/home/.zshrc
 ```
 
 ## Adding a Directory
