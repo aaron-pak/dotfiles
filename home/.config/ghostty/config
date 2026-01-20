@@ -1,5 +1,6 @@
 # Appearence
 theme = Cursor Dark
+# background = #1a1a1a
 background-opacity = 0.92
 background-blur-radius = 50
 

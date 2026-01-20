@@ -19,7 +19,7 @@ const dot = Command.make("dot", {}, () =>
 const cli = Command.run(dot, { name: "dot", version: "0.1.0" })
 
 // Layer composition
-const MainLayer = Layer.provideMerge(Stow.layer, BunContext.layer)
+const MainLayer = Layer.provideMerge(Stow.Default, BunContext.layer)
 
 // Run
 cli(process.argv).pipe(Effect.provide(MainLayer), BunRuntime.runMain)

@@ -39,6 +39,16 @@ Topics: quick-start, project-setup, tsconfig, basics, services-and-layers, data-
 
 Never guess at Effect patterns - check the guide first.
 
+**Override:** Prefer `Effect.Service` over `Context.Tag` (interface inferred, `.Default` auto-generated):
+
+```typescript
+class Foo extends Effect.Service<Foo>()("Foo", {
+  effect: Effect.gen(function* () {
+    return { bar: Effect.fn("Foo.bar")(function* () { ... }) }
+  }),
+}) {}
+```
+
 <!-- effect-solutions:end -->
 
 ## Local Effect Source

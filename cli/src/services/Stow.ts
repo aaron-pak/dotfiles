@@ -1,11 +1,10 @@
 import {
   Command,
   CommandExecutor,
-  Error as PlatformErrors,
   FileSystem,
   Path,
 } from "@effect/platform"
-import { Console, Context, Effect, Layer, Option, Schema, Stream } from "effect"
+import { Console, Effect, Option, Schema, Stream } from "effect"
 import * as os from "node:os"
 
 // -------------------------------------------------------------------------------------
@@ -73,136 +72,119 @@ export type ConflictChoice = "backup" | "delete" | "abort"
 // Service
 // -------------------------------------------------------------------------------------
 
-export class Stow extends Context.Tag("@dotfiles/Stow")<
-  Stow,
-  {
+export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
+  effect: Effect.gen(function* () {
+    const executor = yield* CommandExecutor.CommandExecutor
+    const fs = yield* FileSystem.FileSystem
+    const path = yield* Path.Path
+
+    // Compute the dotfiles root directory
+    // import.meta.dirname gives us the directory of this file (cli/src/services)
+    // We need to go up 3 levels to get to the dotfiles root
+    // In Bun, import.meta.dirname is always defined
+    const dotfilesRoot = path.resolve(
+      import.meta.dirname ?? process.cwd(),
+      "..",
+      "..",
+      ".."
+    )
+    const homeDir = os.homedir()
+
+    /** Run a stow command and capture stderr. */
+    const runStow = (args: string[]) =>
+      Effect.gen(function* () {
+        const cmd = Command.make("stow", ...args).pipe(
+          Command.workingDirectory(dotfilesRoot)
+        )
+
+        // Effect.scoped: executor.start returns Effect<Process, ..., Scope>.
+        // Scope manages process lifecycle - when scope closes, process is
+        // cleaned up (killed if running, file descriptors closed).
+        // Effect.scoped creates scope, runs effect, then closes - ensuring
+        // cleanup even on error. Without it, Scope leaks to callers.
+        const result = yield* Effect.scoped(
+          Effect.gen(function* () {
+            const process = yield* executor.start(cmd)
+
+            // process.stderr is Stream<Uint8Array> - bytes arriving over time.
+            // decodeText: Uint8Array -> string chunks
+            // runFold: like Array.reduce for streams - starts with "",
+            // concatenates each chunk, returns final string when stream ends.
+            const stderr = yield* process.stderr.pipe(
+              Stream.decodeText(),
+              Stream.runFold("", (acc, chunk) => acc + chunk)
+            )
+
+            const exitCode = yield* process.exitCode
+
+            return { exitCode, stderr }
+          })
+        ).pipe(
+          Effect.catchAll((error) =>
+            StowError.make({
+              message: `Failed to execute stow: ${error}`,
+            })
+          )
+        )
+
+        return result
+      })
+
     /**
      * Run a dry-run of stow and return any conflicts.
      */
-    readonly dryRun: () => Effect.Effect<StowResult, StowError>
+    const dryRun = Effect.fn("Stow.dryRun")(function* () {
+      const { stderr } = yield* runStow(["-n", "-v", "home", "-t", homeDir])
+
+      // Exit code 1 with conflicts is expected during dry-run
+      // Parse conflicts from stderr regardless of exit code
+      const conflicts = parseConflicts(stderr)
+
+      return StowResult.make({ conflicts })
+    })
+
+    /**
+     * Actually sync the dotfiles using stow.
+     */
+    const sync = Effect.fn("Stow.sync")(function* () {
+      const { exitCode, stderr } = yield* runStow(["home", "-t", homeDir])
+
+      if (exitCode !== 0) {
+        return yield* StowError.make({
+          message: `Stow failed with exit code ${exitCode}: ${stderr}`,
+        })
+      }
+    })
 
     /**
      * Resolve conflicts by backing up or deleting conflicting files.
      * Returns true if sync should proceed, false if aborted.
      */
-    readonly resolveConflicts: (
+    const resolveConflicts = Effect.fn("Stow.resolveConflicts")(function* (
       conflicts: readonly StowConflict[],
       choice: ConflictChoice
-    ) => Effect.Effect<boolean, PlatformErrors.PlatformError>
+    ) {
+      if (choice === "abort") {
+        yield* Console.log("Aborted. No changes were made.")
+        return false
+      }
 
-    /**
-     * Actually sync the dotfiles using stow.
-     */
-    readonly sync: () => Effect.Effect<void, StowError>
-  }
->() {
-  static readonly layer = Layer.effect(
-    Stow,
-    Effect.gen(function* () {
-      // Acquire dependencies at layer construction time
-      const executor = yield* CommandExecutor.CommandExecutor
-      const fs = yield* FileSystem.FileSystem
-      const path = yield* Path.Path
+      for (const { target } of conflicts) {
+        const fullPath = path.join(homeDir, target)
 
-      // Compute the dotfiles root directory
-      // import.meta.dirname gives us the directory of this file (cli/src/services)
-      // We need to go up 3 levels to get to the dotfiles root
-      // In Bun, import.meta.dirname is always defined
-      const dotfilesRoot = path.resolve(
-        import.meta.dirname ?? process.cwd(),
-        "..",
-        "..",
-        ".."
-      )
-      const homeDir = os.homedir()
-
-      /** Run a stow command and capture stderr. */
-      const runStow = (args: string[]) =>
-        Effect.gen(function* () {
-          const cmd = Command.make("stow", ...args).pipe(
-            Command.workingDirectory(dotfilesRoot)
-          )
-
-          // Effect.scoped: executor.start returns Effect<Process, ..., Scope>.
-          // Scope manages process lifecycle - when scope closes, process is
-          // cleaned up (killed if running, file descriptors closed).
-          // Effect.scoped creates scope, runs effect, then closes - ensuring
-          // cleanup even on error. Without it, Scope leaks to callers.
-          const result = yield* Effect.scoped(
-            Effect.gen(function* () {
-              const process = yield* executor.start(cmd)
-
-              // process.stderr is Stream<Uint8Array> - bytes arriving over time.
-              // decodeText: Uint8Array -> string chunks
-              // runFold: like Array.reduce for streams - starts with "",
-              // concatenates each chunk, returns final string when stream ends.
-              const stderr = yield* process.stderr.pipe(
-                Stream.decodeText(),
-                Stream.runFold("", (acc, chunk) => acc + chunk)
-              )
-
-              const exitCode = yield* process.exitCode
-
-              return { exitCode, stderr }
-            })
-          ).pipe(
-            Effect.catchAll((error) =>
-              StowError.make({
-                message: `Failed to execute stow: ${error}`,
-              })
-            )
-          )
-
-          return result
-        })
-
-      // Public API
-      const dryRun = Effect.fn("Stow.dryRun")(function* () {
-        const { stderr } = yield* runStow(["-n", "-v", "home", "-t", homeDir])
-
-        // Exit code 1 with conflicts is expected during dry-run
-        // Parse conflicts from stderr regardless of exit code
-        const conflicts = parseConflicts(stderr)
-
-        return StowResult.make({ conflicts })
-      })
-
-      const sync = Effect.fn("Stow.sync")(function* () {
-        const { exitCode, stderr } = yield* runStow(["home", "-t", homeDir])
-
-        if (exitCode !== 0) {
-          return yield* StowError.make({
-            message: `Stow failed with exit code ${exitCode}: ${stderr}`,
-          })
+        if (choice === "backup") {
+          const backupPath = `${fullPath}.bak`
+          yield* Console.log(`  Backing up: ${target} -> ${target}.bak`)
+          yield* fs.rename(fullPath, backupPath)
+        } else if (choice === "delete") {
+          yield* Console.log(`  Deleting: ${target}`)
+          yield* fs.remove(fullPath)
         }
-      })
+      }
 
-      const resolveConflicts = Effect.fn("Stow.resolveConflicts")(function* (
-        conflicts: readonly StowConflict[],
-        choice: ConflictChoice
-      ) {
-        if (choice === "abort") {
-          yield* Console.log("Aborted. No changes were made.")
-          return false
-        }
-
-        for (const { target } of conflicts) {
-          const fullPath = path.join(homeDir, target)
-
-          if (choice === "backup") {
-            const backupPath = `${fullPath}.bak`
-            yield* Console.log(`  Backing up: ${target} -> ${target}.bak`)
-            yield* fs.rename(fullPath, backupPath)
-          } else if (choice === "delete") {
-            yield* Console.log(`  Deleting: ${target}`)
-            yield* fs.remove(fullPath)
-          }
-        }
-
-        return true
-      })
-
-      return Stow.of({ dryRun, resolveConflicts, sync })
+      return true
     })
-  )
-}
+
+    return { dryRun, resolveConflicts, sync }
+  }),
+}) {}
