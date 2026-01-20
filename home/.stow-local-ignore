@@ -1,0 +1,21 @@
+# Default stow ignores (must re-include when using .stow-local-ignore)
+RCS
+.+,v
+CVS
+\.\#.+
+\.cvsignore
+\.svn
+_darcs
+\.hg
+\.git
+\.gitignore
+\.gitmodules
+\.swp$
+~$
+^\#.*\#$
+^README.*
+^LICENSE.*
+^COPYING
+
+# macOS
+\.DS_Store
