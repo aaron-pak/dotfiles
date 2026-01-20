@@ -1,5 +1,11 @@
-import { Command, CommandExecutor, Path } from "@effect/platform"
-import { Context, Effect, Layer, Option, Schema, Stream } from "effect"
+import {
+  Command,
+  CommandExecutor,
+  Error as PlatformErrors,
+  FileSystem,
+  Path,
+} from "@effect/platform"
+import { Console, Context, Effect, Layer, Option, Schema, Stream } from "effect"
 import * as os from "node:os"
 
 // -------------------------------------------------------------------------------------
@@ -61,6 +67,8 @@ export class StowError extends Schema.TaggedError<StowError>()("StowError", {
   message: Schema.String,
 }) {}
 
+export type ConflictChoice = "backup" | "delete" | "abort"
+
 // -------------------------------------------------------------------------------------
 // Service
 // -------------------------------------------------------------------------------------
@@ -74,6 +82,15 @@ export class Stow extends Context.Tag("@dotfiles/Stow")<
     readonly dryRun: () => Effect.Effect<StowResult, StowError>
 
     /**
+     * Resolve conflicts by backing up or deleting conflicting files.
+     * Returns true if sync should proceed, false if aborted.
+     */
+    readonly resolveConflicts: (
+      conflicts: readonly StowConflict[],
+      choice: ConflictChoice
+    ) => Effect.Effect<boolean, PlatformErrors.PlatformError>
+
+    /**
      * Actually sync the dotfiles using stow.
      */
     readonly sync: () => Effect.Effect<void, StowError>
@@ -84,6 +101,7 @@ export class Stow extends Context.Tag("@dotfiles/Stow")<
     Effect.gen(function* () {
       // Acquire dependencies at layer construction time
       const executor = yield* CommandExecutor.CommandExecutor
+      const fs = yield* FileSystem.FileSystem
       const path = yield* Path.Path
 
       // Compute the dotfiles root directory
@@ -159,7 +177,32 @@ export class Stow extends Context.Tag("@dotfiles/Stow")<
         }
       })
 
-      return Stow.of({ dryRun, sync })
+      const resolveConflicts = Effect.fn("Stow.resolveConflicts")(function* (
+        conflicts: readonly StowConflict[],
+        choice: ConflictChoice
+      ) {
+        if (choice === "abort") {
+          yield* Console.log("Aborted. No changes were made.")
+          return false
+        }
+
+        for (const { target } of conflicts) {
+          const fullPath = path.join(homeDir, target)
+
+          if (choice === "backup") {
+            const backupPath = `${fullPath}.bak`
+            yield* Console.log(`  Backing up: ${target} -> ${target}.bak`)
+            yield* fs.rename(fullPath, backupPath)
+          } else if (choice === "delete") {
+            yield* Console.log(`  Deleting: ${target}`)
+            yield* fs.remove(fullPath)
+          }
+        }
+
+        return true
+      })
+
+      return Stow.of({ dryRun, resolveConflicts, sync })
     })
   )
 }

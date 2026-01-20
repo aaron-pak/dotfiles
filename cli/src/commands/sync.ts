@@ -1,7 +1,6 @@
 import { Command, Prompt } from "@effect/cli"
 import { Console, Effect } from "effect"
-import { type ConflictChoice, resolveConflicts } from "../lib/conflicts.js"
-import { Stow } from "../services/Stow.js"
+import { type ConflictChoice, Stow } from "../services/Stow.js"
 
 export const sync = Command.make("sync", {}, () =>
   Effect.gen(function* () {
@@ -47,7 +46,7 @@ export const sync = Command.make("sync", {}, () =>
     })
 
     // Resolve conflicts
-    const shouldSync = yield* resolveConflicts(result.conflicts, choice)
+    const shouldSync = yield* stow.resolveConflicts(result.conflicts, choice)
 
     if (shouldSync) {
       yield* Console.log("\nSyncing dotfiles...")
