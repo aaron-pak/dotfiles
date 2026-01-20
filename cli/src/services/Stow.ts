@@ -96,19 +96,10 @@ export class Stow extends Context.Tag("@dotfiles/Stow")<
               const process = yield* executor.start(cmd)
 
               // Read stderr as string
-              const stderrBytes = yield* Stream.runCollect(process.stderr)
-              const stderrArrays = Array.from(stderrBytes)
-              const totalLength = stderrArrays.reduce(
-                (acc, arr) => acc + arr.length,
-                0
+              const stderr = yield* process.stderr.pipe(
+                Stream.decodeText(),
+                Stream.runFold("", (acc, chunk) => acc + chunk)
               )
-              const combined = new Uint8Array(totalLength)
-              let offset = 0
-              for (const arr of stderrArrays) {
-                combined.set(arr, offset)
-                offset += arr.length
-              }
-              const stderr = new TextDecoder().decode(combined)
 
               // Wait for process to complete
               const exitCode = yield* process.exitCode
