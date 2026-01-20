@@ -1,12 +1,23 @@
 # Appearence
+theme = Catppuccin Mocha
 background-opacity = 0.92
 background-blur-radius = 50
-background = #1a1a1a
+
+# Window Settings
+# window-width = 90
+# window-height = 30
+# window-colorspace = display-p3
+# window-padding-color = background
+# window-padding-balance = true
+# window-padding-x = 0
+# window-padding-y = 0
 
 # Updates
 auto-update-channel = tip
 
-
 # Clipboard settings
 clipboard-read = allow
 clipboard-write = allow
+
+# MacOS Settings
+macos-titlebar-proxy-icon = hidden
