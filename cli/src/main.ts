@@ -1,17 +1,25 @@
 import { Command } from "@effect/cli"
 import { BunContext, BunRuntime } from "@effect/platform-bun"
-import { Console, Effect } from "effect"
+import { Console, Effect, Layer } from "effect"
+import { add } from "./commands/add.js"
+import { init } from "./commands/init.js"
+import { remove } from "./commands/remove.js"
+import { sync } from "./commands/sync.js"
+import { Stow } from "./services/Stow.js"
 
-// Main CLI command
-const command = Command.make("dotfiles", {}, () =>
-  Console.log("🏠 dotfiles-cli - Manage your dotfiles with ease")
+// Root command
+const dot = Command.make("dot", {}, () =>
+  Console.log("Dotfiles manager\n\nUse --help for available commands.")
+).pipe(
+  Command.withDescription("Manage your dotfiles with ease"),
+  Command.withSubcommands([sync, add, remove, init])
 )
 
 // CLI application
-const cli = Command.run(command, {
-  name: "dotfiles",
-  version: "0.1.0",
-})
+const cli = Command.run(dot, { name: "dot", version: "0.1.0" })
 
-// Run with Bun runtime
-cli(process.argv).pipe(Effect.provide(BunContext.layer), BunRuntime.runMain)
+// Layer composition
+const MainLayer = Layer.provideMerge(Stow.layer, BunContext.layer)
+
+// Run
+cli(process.argv).pipe(Effect.provide(MainLayer), BunRuntime.runMain)

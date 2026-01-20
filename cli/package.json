@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "bin": {
-    "dotfiles": "./dist/main.js"
+    "dot": "./dist/main.js"
   },
   "scripts": {
     "build": "tsc",
