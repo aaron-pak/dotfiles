@@ -1,0 +1,27 @@
+{
+  "name": "dotfiles-cli",
+  "version": "0.1.0",
+  "description": "CLI for managing dotfiles - syncing, checking differences, and initializing on new devices",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "dotfiles": "./dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepare": "effect-language-service patch",
+    "dev": "bun run src/main.ts"
+  },
+  "devDependencies": {
+    "@effect/language-service": "^0.71.0",
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@effect/cli": "^0.73.0",
+    "@effect/platform": "^0.94.1",
+    "@effect/platform-bun": "^0.87.0",
+    "effect": "^3.19.14"
+  }
+}
