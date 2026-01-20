@@ -1,0 +1,12 @@
+# Appearence
+background-opacity = 0.92
+background-blur-radius = 50
+background = #1a1a1a
+
+# Updates
+auto-update-channel = tip
+
+
+# Clipboard settings
+clipboard-read = allow
+clipboard-write = allow

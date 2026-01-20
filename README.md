@@ -1,37 +1,82 @@
 # Dotfiles
 
-Personal dotfiles managed with GNU Stow.
+Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/).
 
-## Structure
+## Setup
 
-The `home` directory mirrors the home directory structure:
+```bash
+# Install stow
+brew install stow
 
-```
-home/
-├── .config/
-│   └── nvim/       → ~/.config/nvim
-└── .claude/
-    └── CLAUDE.md   → ~/.claude/CLAUDE.md
+# Clone repo
+git clone <repo-url> ~/projects/dotfiles
+cd ~/projects/dotfiles
+
+# Create symlinks
+stow home -t ~
 ```
 
 ## Usage
 
-Install stow:
+### Adding a config file
+
 ```bash
-brew install stow
+# Example: ~/.zshrc
+mv ~/.zshrc home/.zshrc
+stow -R home -t ~
+
+# Verify
+ls -la ~/.zshrc  # should show symlink
 ```
 
-From this directory, stow to create symlinks in home directory:
+### Adding a config directory
+
 ```bash
-stow home -t ~
+# Example: ~/.config/alacritty
+mkdir -p home/.config
+mv ~/.config/alacritty home/.config/alacritty
+stow -R home -t ~
 ```
 
-To remove symlinks:
+### Removing a config
+
 ```bash
-stow -D home -t ~
+# Remove from dotfiles
+rm home/.zshrc
+stow -R home -t ~
 ```
 
-## Contents
+### Updating symlinks
 
-- **nvim** - Neovim configuration (LazyVim-based)
-- **claude** - Claude Code CLAUDE.md
+After any change to the `home/` structure:
+
+```bash
+stow -R home -t ~
+```
+
+### Preview changes
+
+```bash
+stow -n home -t ~
+```
+
+## Commands Reference
+
+| Command | Description |
+|---------|-------------|
+| `stow home -t ~` | Create symlinks |
+| `stow -D home -t ~` | Remove all symlinks |
+| `stow -R home -t ~` | Restow (refresh symlinks) |
+| `stow -n home -t ~` | Dry run |
+
+## What's Included
+
+- **Neovim** - LazyVim config with VSCode-Neovim support
+- **Claude Code** - Global instructions, settings, agents, skills
+- **Ghostty** - Terminal config
+- **Ripgrep** - Search config
+
+## Notes
+
+- If target files exist, stow will error. Back them up and remove first.
+- Edits to symlinked files (e.g., `~/.config/nvim/`) edit this repo directly.
