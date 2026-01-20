@@ -19,8 +19,8 @@ export const sync = Command.make("sync", {}, () =>
 
     // Show conflicts
     yield* Console.log(`\nFound ${result.conflicts.length} conflict(s):`)
-    for (const conflict of result.conflicts) {
-      yield* Console.log(`  - ${conflict}`)
+    for (const { target } of result.conflicts) {
+      yield* Console.log(`  - ${target}`)
     }
     yield* Console.log("")
 

@@ -1,5 +1,5 @@
 import { Command, CommandExecutor, Path } from "@effect/platform"
-import { Context, Effect, Layer, Schema, Stream } from "effect"
+import { Context, Effect, Layer, Option, Schema, Stream } from "effect"
 import * as os from "node:os"
 
 // -------------------------------------------------------------------------------------
@@ -7,11 +7,51 @@ import * as os from "node:os"
 // -------------------------------------------------------------------------------------
 
 /**
+ * Parsed from stow stderr line:
+ * "* cannot stow <source> over existing target <target> since <reason>"
+ */
+export class StowConflict extends Schema.Class<StowConflict>("StowConflict")({
+  source: Schema.String,
+  target: Schema.String,
+  reason: Schema.String,
+}) {}
+
+/**
+ * Schema parser for stow conflict lines using TemplateLiteralParser.
+ * Extracts source path, target path, and reason from stderr output.
+ */
+const ConflictLine = Schema.TemplateLiteralParser(
+  "* cannot stow ",
+  Schema.String,
+  " over existing target ",
+  Schema.String,
+  " since ",
+  Schema.String
+)
+
+const decodeConflictLine = Schema.decodeUnknownOption(ConflictLine)
+
+/**
+ * Parse stow stderr output for conflicts.
+ * Lines matching the ConflictLine schema are decoded into StowConflict instances.
+ */
+const parseConflicts = (stderr: string): readonly StowConflict[] =>
+  stderr.split("\n").flatMap((line) =>
+    decodeConflictLine(line).pipe(
+      Option.map(
+        ([, source, , target, , reason]) =>
+          new StowConflict({ source, target, reason })
+      ),
+      Option.toArray
+    )
+  )
+
+/**
  * Represents the result of a stow dry-run.
- * Contains an array of conflicting file paths relative to the target directory.
+ * Contains an array of parsed conflict details.
  */
 export class StowResult extends Schema.Class<StowResult>("StowResult")({
-  conflicts: Schema.Array(Schema.String),
+  conflicts: Schema.Array(StowConflict),
 }) {}
 
 /**
@@ -58,50 +98,31 @@ export class Stow extends Context.Tag("@dotfiles/Stow")<
       )
       const homeDir = os.homedir()
 
-      /**
-       * Parse stow stderr output for conflict paths.
-       * Stow conflict lines look like:
-       *   * cannot stow ../home/.config/foo over existing target .config/foo since...
-       * We extract the target path (.config/foo in this example).
-       */
-      const parseConflicts = (stderr: string): string[] => {
-        const conflicts: string[] = []
-        const lines = stderr.split("\n")
-
-        for (const line of lines) {
-          // Match: "* cannot stow ... over existing target <path> since..."
-          const match = line.match(
-            /\* cannot stow .+ over existing target (.+) since/
-          )
-          if (match && match[1]) {
-            conflicts.push(match[1])
-          }
-        }
-
-        return conflicts
-      }
-
-      /**
-       * Run a stow command and capture stderr.
-       */
+      /** Run a stow command and capture stderr. */
       const runStow = (args: string[]) =>
         Effect.gen(function* () {
           const cmd = Command.make("stow", ...args).pipe(
             Command.workingDirectory(dotfilesRoot)
           )
 
-          // Start the process and capture stderr
+          // Effect.scoped: executor.start returns Effect<Process, ..., Scope>.
+          // Scope manages process lifecycle - when scope closes, process is
+          // cleaned up (killed if running, file descriptors closed).
+          // Effect.scoped creates scope, runs effect, then closes - ensuring
+          // cleanup even on error. Without it, Scope leaks to callers.
           const result = yield* Effect.scoped(
             Effect.gen(function* () {
               const process = yield* executor.start(cmd)
 
-              // Read stderr as string
+              // process.stderr is Stream<Uint8Array> - bytes arriving over time.
+              // decodeText: Uint8Array -> string chunks
+              // runFold: like Array.reduce for streams - starts with "",
+              // concatenates each chunk, returns final string when stream ends.
               const stderr = yield* process.stderr.pipe(
                 Stream.decodeText(),
                 Stream.runFold("", (acc, chunk) => acc + chunk)
               )
 
-              // Wait for process to complete
               const exitCode = yield* process.exitCode
 
               return { exitCode, stderr }
