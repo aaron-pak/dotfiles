@@ -1,27 +1,27 @@
-import { Command, Prompt } from "@effect/cli"
-import { Console, Effect } from "effect"
-import { type ConflictChoice, Stow } from "../services/Stow.js"
+import { Command, Prompt } from "@effect/cli";
+import { Console, Effect } from "effect";
+import { type ConflictChoice, Stow } from "../services/Stow.js";
 
 export const sync = Command.make("sync", {}, () =>
   Effect.gen(function* () {
-    const stow = yield* Stow
+    const stow = yield* Stow;
 
-    yield* Console.log("Checking for conflicts...")
-    const result = yield* stow.dryRun()
+    yield* Console.log("Checking for conflicts...");
+    const result = yield* stow.dryRun();
 
     if (result.conflicts.length === 0) {
-      yield* Console.log("No conflicts found. Syncing dotfiles...")
-      yield* stow.sync()
-      yield* Console.log("Dotfiles synced successfully!")
-      return
+      yield* Console.log("No conflicts found. Syncing dotfiles...");
+      yield* stow.sync();
+      yield* Console.log("Dotfiles synced successfully!");
+      return;
     }
 
     // Show conflicts
-    yield* Console.log(`\nFound ${result.conflicts.length} conflict(s):`)
+    yield* Console.log(`\nFound ${result.conflicts.length} conflict(s):`);
     for (const { target } of result.conflicts) {
-      yield* Console.log(`  - ${target}`)
+      yield* Console.log(`  - ${target}`);
     }
-    yield* Console.log("")
+    yield* Console.log("");
 
     // Prompt user for resolution
     const choice = yield* Prompt.select<ConflictChoice>({
@@ -43,15 +43,17 @@ export const sync = Command.make("sync", {}, () =>
           description: "Do nothing and exit",
         },
       ],
-    })
+    });
 
     // Resolve conflicts
-    const shouldSync = yield* stow.resolveConflicts(result.conflicts, choice)
+    const shouldSync = yield* stow.resolveConflicts(result.conflicts, choice);
 
     if (shouldSync) {
-      yield* Console.log("\nSyncing dotfiles...")
-      yield* stow.sync()
-      yield* Console.log("Dotfiles synced successfully!")
+      yield* Console.log("\nSyncing dotfiles...");
+      yield* stow.sync();
+      yield* Console.log("Dotfiles synced successfully!");
     }
-  })
-).pipe(Command.withDescription("Sync dotfiles to home directory using GNU Stow"))
+  }),
+).pipe(
+  Command.withDescription("Sync dotfiles to home directory using GNU Stow"),
+);

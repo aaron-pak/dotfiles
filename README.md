@@ -62,12 +62,12 @@ stow -n home -t ~
 
 ## Commands Reference
 
-| Command | Description |
-|---------|-------------|
-| `stow home -t ~` | Create symlinks |
-| `stow -D home -t ~` | Remove all symlinks |
+| Command             | Description               |
+| ------------------- | ------------------------- |
+| `stow home -t ~`    | Create symlinks           |
+| `stow -D home -t ~` | Remove all symlinks       |
 | `stow -R home -t ~` | Restow (refresh symlinks) |
-| `stow -n home -t ~` | Dry run |
+| `stow -n home -t ~` | Dry run                   |
 
 ## What's Included
 

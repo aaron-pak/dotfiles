@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    // Build Performance
+    "incremental": true,
+    "composite": true,
+
     // Environment
     "lib": ["ESNext"],
     "target": "ES2022",
@@ -19,9 +23,15 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
 
-    // No emit - editor/typecheck only
-    "noEmit": true,
+    // Development
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "skipLibCheck": true,
+
+    // Output
+    "outDir": "dist",
+    "rootDir": "src",
 
     // Effect Language Service
     "plugins": [
@@ -30,6 +40,6 @@
       }
     ]
   },
-  "include": ["src/**/*", "tests/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
