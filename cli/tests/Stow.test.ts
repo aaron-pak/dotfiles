@@ -5,6 +5,7 @@ import {
   Path,
 } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
+import assert from "node:assert";
 import { Effect, Inspectable, Layer, Sink, Stream } from "effect";
 import {
   AlreadyManaged,
@@ -66,6 +67,21 @@ const mockExecutor = (exitCode: number, stderr: string) =>
     ),
   );
 
+const mockExecutorFailure = () =>
+  Layer.succeed(
+    CommandExecutor.CommandExecutor,
+    CommandExecutor.makeExecutor(() =>
+      Effect.fail(
+        new PlatformError.SystemError({
+          reason: "NotFound",
+          module: "Command",
+          method: "spawn",
+          pathOrDescriptor: "stow",
+        }),
+      ),
+    ),
+  );
+
 // Helper to create mock FileSystem
 type FsState = {
   exists: Set<string>;
@@ -117,6 +133,14 @@ const mockFileSystem = (state: FsState) =>
 const makeTestLayer = (exitCode: number, stderr: string, fsState: FsState) =>
   Stow.Default.pipe(
     Layer.provideMerge(mockExecutor(exitCode, stderr)),
+    Layer.provideMerge(mockFileSystem(fsState)),
+    Layer.provideMerge(TestStowConfig),
+    Layer.provideMerge(TestPath),
+  );
+
+const makeTestLayerWithFailingExecutor = (fsState: FsState) =>
+  Stow.Default.pipe(
+    Layer.provideMerge(mockExecutorFailure()),
     Layer.provideMerge(mockFileSystem(fsState)),
     Layer.provideMerge(TestStowConfig),
     Layer.provideMerge(TestPath),
@@ -292,6 +316,57 @@ describe("Stow service", () => {
         expect(result).toBeInstanceOf(AlreadyManaged);
       }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
     });
+
+    it.effect("empty path -> InvalidPath", () => {
+      const fsState = makeFsState();
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.checkAddable("").pipe(Effect.flip);
+
+        assert(result._tag === "InvalidPath");
+        expect(result.reason).toBe("path is empty");
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("absolute path -> InvalidPath", () => {
+      const fsState = makeFsState();
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow
+          .checkAddable("/etc/passwd")
+          .pipe(Effect.flip);
+
+        assert(result._tag === "InvalidPath");
+        expect(result.reason).toBe("path must be relative to home");
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("path with .. -> InvalidPath", () => {
+      const fsState = makeFsState();
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow
+          .checkAddable(".config/../../../etc/passwd")
+          .pipe(Effect.flip);
+
+        assert(result._tag === "InvalidPath");
+        expect(result.reason).toBe("path cannot contain '..'");
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("normalizes ./ prefix", () => {
+      const fsState = makeFsState({ exists: new Set(["/test/home/.bashrc"]) });
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.checkAddable("./.bashrc");
+
+        expect(result).toBe(".bashrc");
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
   });
 
   describe("addDotfile", () => {
@@ -313,6 +388,49 @@ describe("Stow service", () => {
           },
         ]);
       }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("root level file (no nested parent)", () => {
+      const fsState = makeFsState({ exists: new Set(["/test/home/.bashrc"]) });
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.addDotfile(".bashrc");
+
+        expect(result).toBe(".bashrc");
+        expect(fsState.mkdirs).toContain("/test/dotfiles/home");
+        expect(fsState.renamed).toEqual([
+          {
+            from: "/test/home/.bashrc",
+            to: "/test/dotfiles/home/.bashrc",
+          },
+        ]);
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("propagates SourceNotFound", () => {
+      const fsState = makeFsState();
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.addDotfile(".nonexistent").pipe(Effect.flip);
+
+        expect(result).toBeInstanceOf(SourceNotFound);
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+  });
+
+  describe("runStow error handling", () => {
+    it.effect("executor failure -> StowError", () => {
+      const fsState = makeFsState();
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.dryRun().pipe(Effect.flip);
+
+        expect(result).toBeInstanceOf(StowError);
+        expect(result.message).toContain("Failed to execute stow");
+      }).pipe(Effect.provide(makeTestLayerWithFailingExecutor(fsState)));
     });
   });
 });
