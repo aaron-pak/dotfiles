@@ -8,6 +8,8 @@ Effect-based CLI for managing dotfiles - syncing, checking differences, and init
 bun run dev        # Run CLI in development
 bun run build      # Compile TypeScript
 bun run typecheck  # Type check without emitting
+bun run test       # Run tests (vitest)
+bun run format     # Format with prettier
 ```
 
 ## Project Structure
@@ -15,8 +17,11 @@ bun run typecheck  # Type check without emitting
 ```
 cli/
 ├── src/
-│   └── main.ts    # CLI entry point
-├── dist/          # Compiled output
+│   ├── main.ts        # CLI entry point
+│   ├── commands/      # CLI commands (add, remove, sync, init)
+│   └── services/      # Stow, StowConfig
+├── tests/             # Vitest tests
+├── dist/              # Compiled output
 └── package.json
 ```
 
@@ -50,6 +55,10 @@ class Foo extends Effect.Service<Foo>()("Foo", {
 ```
 
 <!-- effect-solutions:end -->
+
+## Testing Patterns
+
+- Avoid chained `Effect.provide` (TS18 warning) - use `Layer.provideMerge` to compose, then single `Effect.provide`
 
 ## Local Effect Source
 
