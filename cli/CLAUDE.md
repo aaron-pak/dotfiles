@@ -2,26 +2,36 @@
 
 Effect-based CLI for managing dotfiles - syncing, checking differences, and initializing on new devices.
 
-## Commands
+## Dev Scripts
 
 ```bash
-bun run dev        # Run CLI in development
-bun run build      # Compile TypeScript
-bun run typecheck  # Type check without emitting
-bun run test       # Run tests (vitest)
-bun run format     # Format with prettier
+bun run dev          # Run CLI in development
+bun run build        # Compile TypeScript to dist/
+bun run build:bin    # Compile native binary to ../dot
+bun run typecheck    # Type check without emitting
+bun run test         # Run tests (vitest)
+bun run format       # Format with prettier
+bun run format:check # Check formatting
 ```
+
+## CLI Commands
+
+- `sync` - Sync dotfiles via stow, handles conflicts interactively
+- `add <path>...` - Move file from ~/ to home/, run stow (-n for dry-run)
+- `remove` - [not implemented]
+- `init` - [not implemented]
 
 ## Project Structure
 
 ```
 cli/
 ├── src/
-│   ├── main.ts        # CLI entry point
-│   ├── commands/      # CLI commands (add, remove, sync, init)
-│   └── services/      # Stow, StowConfig
-├── tests/             # Vitest tests
-├── dist/              # Compiled output
+│   ├── main.ts           # CLI entry, layer composition
+│   ├── commands/         # add, remove, sync, init
+│   └── services/
+│       ├── Stow.ts       # dryRun, sync, resolveConflicts, addDotfile, checkAddable
+│       └── StowConfig.ts # dotfilesRoot, homeDir paths
+├── tests/
 └── package.json
 ```
 
