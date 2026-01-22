@@ -6,14 +6,16 @@ import {
 } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
 import assert from "node:assert";
-import { Effect, Inspectable, Layer, Sink, Stream } from "effect";
+import { Effect, Inspectable, Layer, Option, Sink, Stream } from "effect";
 import {
   AlreadyManaged,
   AlreadySymlink,
+  ConflictResolution,
   SourceNotFound,
   Stow,
   StowConflict,
   StowError,
+  StowLink,
 } from "../src/services/Stow.js";
 import { StowConfig } from "../src/services/StowConfig.js";
 
@@ -189,10 +191,35 @@ describe("Stow service", () => {
   });
 
   describe("sync", () => {
-    it.effect("succeeds on exit code 0", () =>
+    it.effect("returns parsed links on exit code 0", () =>
       Effect.gen(function* () {
         const stow = yield* Stow;
-        yield* stow.sync();
+        const links = yield* stow.sync();
+
+        expect(links).toHaveLength(2);
+        expect(links[0]).toEqual(
+          new StowLink({ target: ".bashrc", source: "home/.bashrc" }),
+        );
+        expect(links[1]).toEqual(
+          new StowLink({ target: ".zshrc", source: "home/.zshrc" }),
+        );
+      }).pipe(
+        Effect.provide(
+          makeTestLayer(
+            0,
+            "LINK: .bashrc => home/.bashrc\nLINK: .zshrc => home/.zshrc",
+            makeFsState(),
+          ),
+        ),
+      ),
+    );
+
+    it.effect("returns empty links when no output", () =>
+      Effect.gen(function* () {
+        const stow = yield* Stow;
+        const links = yield* stow.sync();
+
+        expect(links).toHaveLength(0);
       }).pipe(Effect.provide(makeTestLayer(0, "", makeFsState()))),
     );
 
@@ -221,14 +248,30 @@ describe("Stow service", () => {
       }),
     ];
 
-    it.effect("backup: renames files with .bak suffix", () => {
+    it.effect("backup: renames files, returns Resolved with resolutions", () => {
       const fsState = makeFsState();
 
       return Effect.gen(function* () {
         const stow = yield* Stow;
-        const shouldSync = yield* stow.resolveConflicts(conflicts, "backup");
+        const result = yield* stow.resolveConflicts(conflicts, "backup");
 
-        expect(shouldSync).toBe(true);
+        expect(result._tag).toBe("Resolved");
+        assert(result._tag === "Resolved");
+        expect(result.resolutions).toHaveLength(2);
+        expect(result.resolutions[0]).toEqual(
+          new ConflictResolution({
+            target: ".bashrc",
+            action: "backup",
+            backupPath: Option.some(".bashrc.bak"),
+          }),
+        );
+        expect(result.resolutions[1]).toEqual(
+          new ConflictResolution({
+            target: ".zshrc",
+            action: "backup",
+            backupPath: Option.some(".zshrc.bak"),
+          }),
+        );
         expect(fsState.renamed).toEqual([
           { from: "/test/home/.bashrc", to: "/test/home/.bashrc.bak" },
           { from: "/test/home/.zshrc", to: "/test/home/.zshrc.bak" },
@@ -237,14 +280,30 @@ describe("Stow service", () => {
       }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
     });
 
-    it.effect("delete: removes files", () => {
+    it.effect("delete: removes files, returns Resolved with resolutions", () => {
       const fsState = makeFsState();
 
       return Effect.gen(function* () {
         const stow = yield* Stow;
-        const shouldSync = yield* stow.resolveConflicts(conflicts, "delete");
+        const result = yield* stow.resolveConflicts(conflicts, "delete");
 
-        expect(shouldSync).toBe(true);
+        expect(result._tag).toBe("Resolved");
+        assert(result._tag === "Resolved");
+        expect(result.resolutions).toHaveLength(2);
+        expect(result.resolutions[0]).toEqual(
+          new ConflictResolution({
+            target: ".bashrc",
+            action: "delete",
+            backupPath: Option.none(),
+          }),
+        );
+        expect(result.resolutions[1]).toEqual(
+          new ConflictResolution({
+            target: ".zshrc",
+            action: "delete",
+            backupPath: Option.none(),
+          }),
+        );
         expect(fsState.removed).toEqual([
           "/test/home/.bashrc",
           "/test/home/.zshrc",
@@ -253,14 +312,14 @@ describe("Stow service", () => {
       }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
     });
 
-    it.effect("abort: no fs calls, returns false", () => {
+    it.effect("abort: no fs calls, returns Abort", () => {
       const fsState = makeFsState();
 
       return Effect.gen(function* () {
         const stow = yield* Stow;
-        const shouldSync = yield* stow.resolveConflicts(conflicts, "abort");
+        const result = yield* stow.resolveConflicts(conflicts, "abort");
 
-        expect(shouldSync).toBe(false);
+        expect(result._tag).toBe("Abort");
         expect(fsState.renamed).toHaveLength(0);
         expect(fsState.removed).toHaveLength(0);
       }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));

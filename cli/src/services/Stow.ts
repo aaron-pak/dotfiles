@@ -1,5 +1,5 @@
 import { Command, CommandExecutor, FileSystem, Path } from "@effect/platform";
-import { Console, Effect, Option, Schema, Stream } from "effect";
+import { Console, Data, Effect, Option, Schema, Stream } from "effect";
 import { StowConfig } from "./StowConfig.js";
 
 // -------------------------------------------------------------------------------------
@@ -45,6 +45,58 @@ export const parseConflicts = (stderr: string): readonly StowConflict[] =>
       Option.toArray,
     ),
   );
+
+/**
+ * Parsed from stow verbose output: "LINK: <target> => <source>"
+ */
+export class StowLink extends Schema.Class<StowLink>("StowLink")({
+  target: Schema.String,
+  source: Schema.String,
+}) {}
+
+/**
+ * Schema parser for stow link lines using TemplateLiteralParser.
+ * Extracts target and source paths from verbose stderr output.
+ */
+const LinkLine = Schema.TemplateLiteralParser(
+  "LINK: ",
+  Schema.String,
+  " => ",
+  Schema.String,
+);
+
+const decodeLinkLine = Schema.decodeUnknownOption(LinkLine);
+
+/**
+ * Parse stow stderr output for LINK lines.
+ */
+export const parseLinks = (stderr: string): readonly StowLink[] =>
+  stderr.split("\n").flatMap((line) =>
+    decodeLinkLine(line).pipe(
+      Option.map(([, target, , source]) => new StowLink({ target, source })),
+      Option.toArray,
+    ),
+  );
+
+/**
+ * Track what happened to each conflict.
+ */
+export class ConflictResolution extends Schema.Class<ConflictResolution>(
+  "ConflictResolution",
+)({
+  target: Schema.String,
+  action: Schema.Literal("backup", "delete"),
+  backupPath: Schema.OptionFromNullOr(Schema.String),
+}) {}
+
+/**
+ * Result of conflict resolution.
+ */
+export type ResolveResult = Data.TaggedEnum<{
+  Abort: {};
+  Resolved: { readonly resolutions: readonly ConflictResolution[] };
+}>;
+export const ResolveResult = Data.taggedEnum<ResolveResult>();
 
 /**
  * Represents the result of a stow dry-run.
@@ -161,20 +213,23 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
 
     /**
      * Actually sync the dotfiles using stow.
+     * Returns the links that were created.
      */
     const sync = Effect.fn("Stow.sync")(function* () {
-      const { exitCode, stderr } = yield* runStow(["home", "-t", homeDir]);
+      const { exitCode, stderr } = yield* runStow(["-v", "home", "-t", homeDir]);
 
       if (exitCode !== 0) {
         return yield* StowError.make({
           message: `Stow failed with exit code ${exitCode}: ${stderr}`,
         });
       }
+
+      return parseLinks(stderr);
     });
 
     /**
      * Resolve conflicts by backing up or deleting conflicting files.
-     * Returns true if sync should proceed, false if aborted.
+     * Returns Abort or Resolved with resolution details.
      */
     const resolveConflicts = Effect.fn("Stow.resolveConflicts")(function* (
       conflicts: readonly StowConflict[],
@@ -182,8 +237,10 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
     ) {
       if (choice === "abort") {
         yield* Console.log("Aborted. No changes were made.");
-        return false;
+        return ResolveResult.Abort() as ResolveResult;
       }
+
+      const resolutions: ConflictResolution[] = [];
 
       for (const { target } of conflicts) {
         const fullPath = path.join(homeDir, target);
@@ -192,13 +249,27 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
           const backupPath = `${fullPath}.bak`;
           yield* Console.log(`  Backing up: ${target} -> ${target}.bak`);
           yield* fs.rename(fullPath, backupPath);
+          resolutions.push(
+            new ConflictResolution({
+              target,
+              action: "backup",
+              backupPath: Option.some(`${target}.bak`),
+            }),
+          );
         } else if (choice === "delete") {
           yield* Console.log(`  Deleting: ${target}`);
           yield* fs.remove(fullPath);
+          resolutions.push(
+            new ConflictResolution({
+              target,
+              action: "delete",
+              backupPath: Option.none(),
+            }),
+          );
         }
       }
 
-      return true;
+      return ResolveResult.Resolved({ resolutions });
     });
 
     /**

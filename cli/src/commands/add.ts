@@ -38,8 +38,13 @@ export const add = Command.make("add", { paths, dryRun }, ({ paths, dryRun }) =>
     }
 
     if (!dryRun) {
-      yield* stow.sync();
-      yield* Console.log("Symlinks created.");
+      const links = yield* stow.sync();
+      if (links.length > 0) {
+        yield* Console.log("\nSymlinks created:");
+        for (const { target } of links) {
+          yield* Console.log(`  ${target}`);
+        }
+      }
     }
   }).pipe(
     Effect.catchTags({

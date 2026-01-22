@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import {
+  ResolveResult,
   Stow,
   StowConflict,
   StowResult,
@@ -21,7 +22,7 @@ type CallLog = {
 const mockStow = (
   conflicts: readonly StowConflict[],
   callLog: CallLog,
-  resolveResult: boolean = true,
+  resolveAbort: boolean = false,
 ) =>
   Layer.succeed(Stow, {
     _tag: "@dotfiles/Stow",
@@ -31,14 +32,16 @@ const mockStow = (
         return StowResult.make({ conflicts });
       }),
     sync: () =>
-      Effect.gen(function* () {
+      Effect.sync(() => {
         callLog.sync++;
-        return undefined;
+        return [];
       }),
     resolveConflicts: (c: readonly StowConflict[], choice: ConflictChoice) =>
       Effect.sync(() => {
         callLog.resolveConflicts.push({ conflicts: c, choice });
-        return resolveResult;
+        return resolveAbort
+          ? ResolveResult.Abort()
+          : ResolveResult.Resolved({ resolutions: [] });
       }),
     checkAddable: () => Effect.succeed(""),
     addDotfile: () => Effect.succeed(""),
@@ -88,11 +91,11 @@ describe("sync command", () => {
           const result = yield* stow.dryRun();
 
           if (result.conflicts.length > 0) {
-            const shouldSync = yield* stow.resolveConflicts(
+            const resolveResult = yield* stow.resolveConflicts(
               result.conflicts,
               "backup",
             );
-            if (shouldSync) {
+            if (resolveResult._tag === "Resolved") {
               yield* stow.sync();
             }
           }
@@ -124,11 +127,11 @@ describe("sync command", () => {
           const result = yield* stow.dryRun();
 
           if (result.conflicts.length > 0) {
-            const shouldSync = yield* stow.resolveConflicts(
+            const resolveResult = yield* stow.resolveConflicts(
               result.conflicts,
               "delete",
             );
-            if (shouldSync) {
+            if (resolveResult._tag === "Resolved") {
               yield* stow.sync();
             }
           }
@@ -158,12 +161,11 @@ describe("sync command", () => {
         const result = yield* stow.dryRun();
 
         if (result.conflicts.length > 0) {
-          // resolveConflicts returns false for abort
-          const shouldSync = yield* stow.resolveConflicts(
+          const resolveResult = yield* stow.resolveConflicts(
             result.conflicts,
             "abort",
           );
-          if (shouldSync) {
+          if (resolveResult._tag === "Resolved") {
             yield* stow.sync();
           }
         }
@@ -172,7 +174,7 @@ describe("sync command", () => {
         expect(callLog.resolveConflicts).toHaveLength(1);
         expect(callLog.resolveConflicts.at(0)?.choice).toBe("abort");
         expect(callLog.sync).toBe(0); // No sync!
-      }).pipe(Effect.provide(mockStow(conflicts, callLog, false)));
+      }).pipe(Effect.provide(mockStow(conflicts, callLog, true)));
     });
   });
 });
