@@ -45,6 +45,9 @@ const mockStow = (
       }),
     checkAddable: () => Effect.succeed(""),
     addDotfile: () => Effect.succeed(""),
+    checkRemovable: () =>
+      Effect.succeed({ normalized: "", isDirectory: false, itemCount: 0 }),
+    removeDotfile: () => Effect.succeed(""),
   });
 
 describe("sync command", () => {

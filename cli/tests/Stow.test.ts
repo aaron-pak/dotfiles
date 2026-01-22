@@ -11,11 +11,14 @@ import {
   AlreadyManaged,
   AlreadySymlink,
   ConflictResolution,
+  NotManaged,
+  NotSymlink,
   SourceNotFound,
   Stow,
   StowConflict,
   StowError,
   StowLink,
+  SymlinkMismatch,
 } from "../src/services/Stow.js";
 import { StowConfig } from "../src/services/StowConfig.js";
 
@@ -87,18 +90,22 @@ const mockExecutorFailure = () =>
 // Helper to create mock FileSystem
 type FsState = {
   exists: Set<string>;
-  symlinks: Set<string>;
+  symlinks: Map<string, string>; // path -> link target
+  directories: Set<string>;
   renamed: Array<{ from: string; to: string }>;
   removed: string[];
   mkdirs: string[];
+  directoryContents: Map<string, string[]>; // dir path -> entries
 };
 
 const makeFsState = (overrides: Partial<FsState> = {}): FsState => ({
   exists: new Set(),
-  symlinks: new Set(),
+  symlinks: new Map(),
+  directories: new Set(),
   renamed: [],
   removed: [],
   mkdirs: [],
+  directoryContents: new Map(),
   ...overrides,
 });
 
@@ -113,10 +120,12 @@ const notFound = (method: string, path: string) =>
 const mockFileSystem = (state: FsState) =>
   FileSystem.layerNoop({
     exists: (path) => Effect.succeed(state.exists.has(path)),
-    readLink: (path) =>
-      state.symlinks.has(path)
-        ? Effect.succeed("/some/target")
-        : Effect.fail(notFound("readLink", path)),
+    readLink: (path) => {
+      const target = state.symlinks.get(path);
+      return target
+        ? Effect.succeed(target)
+        : Effect.fail(notFound("readLink", path));
+    },
     rename: (from, to) =>
       Effect.sync(() => {
         state.renamed.push({ from, to });
@@ -129,6 +138,33 @@ const mockFileSystem = (state: FsState) =>
       Effect.sync(() => {
         state.mkdirs.push(path);
       }),
+    stat: (path) =>
+      state.exists.has(path)
+        ? Effect.succeed({
+            type: state.directories.has(path)
+              ? ("Directory" as const)
+              : ("File" as const),
+            mtime: Option.some(new Date()),
+            atime: Option.some(new Date()),
+            birthtime: Option.some(new Date()),
+            dev: 0,
+            ino: Option.some(0),
+            mode: 0,
+            nlink: Option.some(0),
+            uid: Option.some(0),
+            gid: Option.some(0),
+            rdev: Option.some(0),
+            size: FileSystem.Size(0n),
+            blksize: Option.some(FileSystem.Size(0n)),
+            blocks: Option.some(0),
+          })
+        : Effect.fail(notFound("stat", path)),
+    readDirectory: (path) => {
+      const contents = state.directoryContents.get(path);
+      return contents
+        ? Effect.succeed(contents)
+        : Effect.fail(notFound("readDirectory", path));
+    },
   });
 
 // Compose all test dependencies into single layer
@@ -358,7 +394,7 @@ describe("Stow service", () => {
     it.effect("already symlink -> AlreadySymlink", () => {
       const fsState = makeFsState({
         exists: new Set(["/test/home/.bashrc"]),
-        symlinks: new Set(["/test/home/.bashrc"]),
+        symlinks: new Map([["/test/home/.bashrc", "/some/target"]]),
       });
 
       return Effect.gen(function* () {
@@ -496,6 +532,110 @@ describe("Stow service", () => {
         expect(result).toBeInstanceOf(StowError);
         expect(result.message).toContain("Failed to execute stow");
       }).pipe(Effect.provide(makeTestLayerWithFailingExecutor(fsState)));
+    });
+  });
+
+  describe("checkRemovable", () => {
+    it.effect("valid managed file succeeds", () => {
+      const fsState = makeFsState({
+        exists: new Set(["/test/dotfiles/home/.bashrc", "/test/home/.bashrc"]),
+        symlinks: new Map([["/test/home/.bashrc", "../dotfiles/home/.bashrc"]]),
+      });
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.checkRemovable(".bashrc");
+
+        expect(result.normalized).toBe(".bashrc");
+        expect(result.isDirectory).toBe(false);
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("not managed -> NotManaged", () => {
+      const fsState = makeFsState();
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.checkRemovable(".bashrc").pipe(Effect.flip);
+
+        expect(result).toBeInstanceOf(NotManaged);
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("not a symlink -> NotSymlink", () => {
+      const fsState = makeFsState({
+        exists: new Set(["/test/dotfiles/home/.bashrc", "/test/home/.bashrc"]),
+        // No symlink entry - readLink will fail
+      });
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.checkRemovable(".bashrc").pipe(Effect.flip);
+
+        expect(result).toBeInstanceOf(NotSymlink);
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("symlink mismatch -> SymlinkMismatch", () => {
+      const fsState = makeFsState({
+        exists: new Set(["/test/dotfiles/home/.bashrc", "/test/home/.bashrc"]),
+        symlinks: new Map([["/test/home/.bashrc", "/some/other/path"]]),
+      });
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.checkRemovable(".bashrc").pipe(Effect.flip);
+
+        expect(result).toBeInstanceOf(SymlinkMismatch);
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("empty path -> InvalidPath", () => {
+      const fsState = makeFsState();
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.checkRemovable("").pipe(Effect.flip);
+
+        assert(result._tag === "InvalidPath");
+        expect(result.reason).toBe("path is empty");
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+  });
+
+  describe("removeDotfile", () => {
+    it.effect("removes symlink and moves file back", () => {
+      const fsState = makeFsState({
+        exists: new Set(["/test/dotfiles/home/.bashrc", "/test/home/.bashrc"]),
+        symlinks: new Map([["/test/home/.bashrc", "../dotfiles/home/.bashrc"]]),
+      });
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow.removeDotfile(".bashrc");
+
+        expect(result).toBe(".bashrc");
+        // Should remove symlink first
+        expect(fsState.removed).toContain("/test/home/.bashrc");
+        // Should move file back
+        expect(fsState.renamed).toContainEqual({
+          from: "/test/dotfiles/home/.bashrc",
+          to: "/test/home/.bashrc",
+        });
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+    });
+
+    it.effect("propagates NotManaged", () => {
+      const fsState = makeFsState();
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        const result = yield* stow
+          .removeDotfile(".nonexistent")
+          .pipe(Effect.flip);
+
+        expect(result).toBeInstanceOf(NotManaged);
+      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
     });
   });
 });

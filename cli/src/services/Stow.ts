@@ -146,6 +146,28 @@ export class InvalidPath extends Schema.TaggedError<InvalidPath>()(
   { path: Schema.String, reason: Schema.String },
 ) {}
 
+/**
+ * Path is not managed (doesn't exist in home/)
+ */
+export class NotManaged extends Schema.TaggedError<NotManaged>()("NotManaged", {
+  path: Schema.String,
+}) {}
+
+/**
+ * Source at ~/ is not a symlink
+ */
+export class NotSymlink extends Schema.TaggedError<NotSymlink>()("NotSymlink", {
+  path: Schema.String,
+}) {}
+
+/**
+ * Source symlink points to unexpected location
+ */
+export class SymlinkMismatch extends Schema.TaggedError<SymlinkMismatch>()(
+  "SymlinkMismatch",
+  { path: Schema.String, actual: Schema.String, expected: Schema.String },
+) {}
+
 export type ConflictChoice = "backup" | "delete" | "abort";
 
 // -------------------------------------------------------------------------------------
@@ -359,6 +381,292 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
       return normalized;
     });
 
-    return { dryRun, resolveConflicts, sync, checkAddable, addDotfile };
+    // -------------------------------------------------------------------------------------
+    // Remove operations
+    // -------------------------------------------------------------------------------------
+
+    const homeRoot = path.join(dotfilesRoot, "home");
+
+    type ManagedItem = { path: string; isDirectory: boolean };
+
+    /**
+     * Recursively collect all files in a directory.
+     * Returns paths relative to homeRoot with type info.
+     */
+    const collectManagedItems = (
+      targetDir: string,
+    ): Effect.Effect<readonly ManagedItem[], never, never> =>
+      Effect.gen(function* () {
+        const items: ManagedItem[] = [];
+
+        const walk = (dir: string): Effect.Effect<void, never, never> =>
+          Effect.gen(function* () {
+            const entries = yield* fs
+              .readDirectory(dir)
+              .pipe(Effect.orElseSucceed(() => [] as string[]));
+
+            for (const entry of entries) {
+              const fullPath = path.join(dir, entry);
+              const stat = yield* fs
+                .stat(fullPath)
+                .pipe(Effect.orElseSucceed(() => null));
+
+              if (stat === null) continue;
+
+              const relativePath = fullPath.slice(homeRoot.length + 1);
+              const isDir = stat.type === "Directory";
+              items.push({ path: relativePath, isDirectory: isDir });
+
+              if (isDir) {
+                yield* walk(fullPath);
+              }
+            }
+          });
+
+        yield* walk(targetDir);
+        return items;
+      });
+
+    /**
+     * Remove empty parent directories up to home/ root.
+     * Uses non-recursive remove which fails on non-empty dirs.
+     */
+    const cleanupEmptyDirs = (targetPath: string) =>
+      Effect.gen(function* () {
+        let dir = path.dirname(targetPath);
+
+        while (dir !== homeRoot && dir.startsWith(homeRoot + "/")) {
+          const removed = yield* fs.remove(dir).pipe(
+            Effect.as(true),
+            Effect.catchAll(() => Effect.succeed(false)),
+          );
+
+          if (!removed) break;
+
+          dir = path.dirname(dir);
+        }
+      });
+
+    /**
+     * Normalize path for remove operation (shared with add).
+     */
+    const normalizePath = (p: string) =>
+      Effect.gen(function* () {
+        const normalized = p.replace(/^\.\//, "").replace(/^\//, "");
+
+        if (normalized.length === 0) {
+          return yield* InvalidPath.make({
+            path: p,
+            reason: "path is empty",
+          });
+        }
+
+        if (path.isAbsolute(p)) {
+          return yield* InvalidPath.make({
+            path: p,
+            reason: "path must be relative to home",
+          });
+        }
+
+        if (normalized.includes("..")) {
+          return yield* InvalidPath.make({
+            path: p,
+            reason: "path cannot contain '..'",
+          });
+        }
+
+        return normalized;
+      });
+
+    /**
+     * Validate a single item can be removed (is a symlink pointing to repo).
+     */
+    const validateSingleRemovable = (normalized: string) =>
+      Effect.gen(function* () {
+        const sourcePath = path.join(homeDir, normalized);
+        const targetPath = path.join(homeRoot, normalized);
+
+        // Check symlink exists at source
+        const linkTarget = yield* fs
+          .readLink(sourcePath)
+          .pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+        if (linkTarget === null) {
+          return yield* NotSymlink.make({ path: normalized });
+        }
+
+        // Resolve and compare - symlink should point to our target
+        const resolvedLink = path.resolve(path.dirname(sourcePath), linkTarget);
+        if (resolvedLink !== targetPath) {
+          return yield* SymlinkMismatch.make({
+            path: normalized,
+            actual: linkTarget,
+            expected: targetPath,
+          });
+        }
+
+        return { normalized, sourcePath, targetPath };
+      });
+
+    /**
+     * Validate path for remove operation.
+     * Handles both single files and directories.
+     */
+    const validateRemovable = (p: string) =>
+      Effect.gen(function* () {
+        const normalized = yield* normalizePath(p);
+
+        const sourcePath = path.join(homeDir, normalized);
+        const targetPath = path.join(homeRoot, normalized);
+
+        // Check target exists in repo
+        const targetExists = yield* fs.exists(targetPath);
+        if (!targetExists) {
+          return yield* NotManaged.make({ path: normalized });
+        }
+
+        // Check if it's a directory
+        const stat = yield* fs.stat(targetPath);
+        const isDirectory = stat.type === "Directory";
+
+        if (isDirectory) {
+          // Collect all items and validate each
+          const items = yield* collectManagedItems(targetPath);
+
+          // Validate each file has a matching symlink
+          for (const item of items) {
+            if (!item.isDirectory) {
+              yield* validateSingleRemovable(item.path);
+            }
+          }
+
+          return {
+            normalized,
+            sourcePath,
+            targetPath,
+            isDirectory: true,
+            items,
+          };
+        } else {
+          // Single file - validate it's a symlink pointing to repo
+          yield* validateSingleRemovable(normalized);
+          return {
+            normalized,
+            sourcePath,
+            targetPath,
+            isDirectory: false,
+            items: [] as readonly ManagedItem[],
+          };
+        }
+      });
+
+    /**
+     * Check if a path can be removed (dry-run validation).
+     */
+    const checkRemovable = Effect.fn("Stow.checkRemovable")(function* (
+      p: string,
+    ) {
+      const result = yield* validateRemovable(p);
+      return {
+        normalized: result.normalized,
+        isDirectory: result.isDirectory,
+        itemCount: result.items.length,
+      };
+    });
+
+    /**
+     * Remove a dotfile from management by moving it back to ~/.
+     */
+    const removeDotfile = Effect.fn("Stow.removeDotfile")(function* (
+      p: string,
+    ) {
+      const { normalized, isDirectory, items } = yield* validateRemovable(p);
+
+      if (isDirectory) {
+        // Separate files and directories using pre-computed type info
+        const files = items.filter((item) => !item.isDirectory);
+        const dirs = items.filter((item) => item.isDirectory);
+
+        // Sort by depth (deepest first) for proper removal order
+        const sortByDepth = (a: ManagedItem, b: ManagedItem) =>
+          b.path.split("/").length - a.path.split("/").length;
+        files.sort(sortByDepth);
+        dirs.sort(sortByDepth);
+
+        // Remove files first
+        for (const item of files) {
+          const itemSourcePath = path.join(homeDir, item.path);
+          const itemTargetPath = path.join(homeRoot, item.path);
+
+          // Delete symlink
+          yield* fs.remove(itemSourcePath);
+
+          // Ensure parent dir exists at ~/
+          yield* fs.makeDirectory(path.dirname(itemSourcePath), {
+            recursive: true,
+          });
+
+          // Move file back
+          yield* fs.rename(itemTargetPath, itemSourcePath);
+        }
+
+        // Remove directories (now empty in repo)
+        for (const item of dirs) {
+          const itemSourcePath = path.join(homeDir, item.path);
+          const itemTargetPath = path.join(homeRoot, item.path);
+
+          // Only remove symlink if it exists (dir might already exist at ~/)
+          const isSymlink = yield* fs.readLink(itemSourcePath).pipe(
+            Effect.as(true),
+            Effect.catchAll(() => Effect.succeed(false)),
+          );
+          if (isSymlink) {
+            yield* fs.remove(itemSourcePath);
+          }
+
+          // Ensure dir exists at ~/
+          yield* fs.makeDirectory(itemSourcePath, { recursive: true });
+
+          // Remove the now-empty dir from repo
+          yield* fs
+            .remove(itemTargetPath)
+            .pipe(Effect.catchAll(() => Effect.void));
+        }
+
+        // Clean up the root directory
+        const rootTargetPath = path.join(homeRoot, normalized);
+        yield* fs
+          .remove(rootTargetPath)
+          .pipe(Effect.catchAll(() => Effect.void));
+      } else {
+        // Single file
+        const sourcePath = path.join(homeDir, normalized);
+        const targetPath = path.join(homeRoot, normalized);
+
+        // Delete symlink
+        yield* fs.remove(sourcePath);
+
+        // Ensure parent dir exists at ~/
+        yield* fs.makeDirectory(path.dirname(sourcePath), { recursive: true });
+
+        // Move file back
+        yield* fs.rename(targetPath, sourcePath);
+      }
+
+      // Clean up empty parent directories in home/
+      yield* cleanupEmptyDirs(path.join(homeRoot, normalized));
+
+      return normalized;
+    });
+
+    return {
+      dryRun,
+      resolveConflicts,
+      sync,
+      checkAddable,
+      addDotfile,
+      checkRemovable,
+      removeDotfile,
+    };
   }),
 }) {}
