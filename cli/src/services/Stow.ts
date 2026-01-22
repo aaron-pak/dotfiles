@@ -100,10 +100,11 @@ export const ResolveResult = Data.taggedEnum<ResolveResult>();
 
 /**
  * Represents the result of a stow dry-run.
- * Contains an array of parsed conflict details.
+ * Contains conflicts and links that would be created.
  */
 export class StowResult extends Schema.Class<StowResult>("StowResult")({
   conflicts: Schema.Array(StowConflict),
+  links: Schema.Array(StowLink),
 }) {}
 
 /**
@@ -199,16 +200,17 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
       });
 
     /**
-     * Run a dry-run of stow and return any conflicts.
+     * Run a dry-run of stow and return conflicts and links that would be created.
      */
     const dryRun = Effect.fn("Stow.dryRun")(function* () {
       const { stderr } = yield* runStow(["-n", "-v", "home", "-t", homeDir]);
 
       // Exit code 1 with conflicts is expected during dry-run
-      // Parse conflicts from stderr regardless of exit code
+      // Parse conflicts and links from stderr regardless of exit code
       const conflicts = parseConflicts(stderr);
+      const links = parseLinks(stderr);
 
-      return StowResult.make({ conflicts });
+      return StowResult.make({ conflicts, links });
     });
 
     /**
@@ -216,7 +218,12 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
      * Returns the links that were created.
      */
     const sync = Effect.fn("Stow.sync")(function* () {
-      const { exitCode, stderr } = yield* runStow(["-v", "home", "-t", homeDir]);
+      const { exitCode, stderr } = yield* runStow([
+        "-v",
+        "home",
+        "-t",
+        homeDir,
+      ]);
 
       if (exitCode !== 0) {
         return yield* StowError.make({

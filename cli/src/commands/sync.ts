@@ -1,4 +1,4 @@
-import { Command, Prompt } from "@effect/cli";
+import { Command, Options, Prompt } from "@effect/cli";
 import { Console, Effect, Option } from "effect";
 import {
   type ConflictChoice,
@@ -33,12 +33,38 @@ const printLinks = (links: readonly StowLink[]) =>
     }
   });
 
-export const sync = Command.make("sync", {}, () =>
+const dryRun = Options.boolean("dry-run").pipe(
+  Options.withAlias("n"),
+  Options.withDescription("Show what would be synced without doing it"),
+);
+
+export const sync = Command.make("sync", { dryRun }, ({ dryRun }) =>
   Effect.gen(function* () {
     const stow = yield* Stow;
+    const result = yield* stow.dryRun();
+
+    if (dryRun) {
+      if (result.conflicts.length > 0) {
+        yield* Console.log(
+          `Would encounter ${result.conflicts.length} conflict(s):`,
+        );
+        for (const { target } of result.conflicts) {
+          yield* Console.log(`  - ${target}`);
+        }
+      }
+      if (result.links.length > 0) {
+        yield* Console.log("\nWould create symlinks:");
+        for (const { target } of result.links) {
+          yield* Console.log(`  ${target}`);
+        }
+      }
+      if (result.conflicts.length === 0 && result.links.length === 0) {
+        yield* Console.log("Nothing to do. All dotfiles already synced.");
+      }
+      return;
+    }
 
     yield* Console.log("Checking for conflicts...");
-    const result = yield* stow.dryRun();
 
     if (result.conflicts.length === 0) {
       yield* Console.log("No conflicts found. Syncing dotfiles...");
@@ -78,7 +104,10 @@ export const sync = Command.make("sync", {}, () =>
     });
 
     // Resolve conflicts
-    const resolveResult = yield* stow.resolveConflicts(result.conflicts, choice);
+    const resolveResult = yield* stow.resolveConflicts(
+      result.conflicts,
+      choice,
+    );
 
     if (resolveResult._tag === "Resolved") {
       yield* printResolutions(resolveResult.resolutions);

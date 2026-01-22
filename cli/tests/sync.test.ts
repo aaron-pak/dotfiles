@@ -29,7 +29,7 @@ const mockStow = (
     dryRun: () =>
       Effect.sync(() => {
         callLog.dryRun++;
-        return StowResult.make({ conflicts });
+        return StowResult.make({ conflicts, links: [] });
       }),
     sync: () =>
       Effect.sync(() => {

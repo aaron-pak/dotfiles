@@ -248,69 +248,75 @@ describe("Stow service", () => {
       }),
     ];
 
-    it.effect("backup: renames files, returns Resolved with resolutions", () => {
-      const fsState = makeFsState();
+    it.effect(
+      "backup: renames files, returns Resolved with resolutions",
+      () => {
+        const fsState = makeFsState();
 
-      return Effect.gen(function* () {
-        const stow = yield* Stow;
-        const result = yield* stow.resolveConflicts(conflicts, "backup");
+        return Effect.gen(function* () {
+          const stow = yield* Stow;
+          const result = yield* stow.resolveConflicts(conflicts, "backup");
 
-        expect(result._tag).toBe("Resolved");
-        assert(result._tag === "Resolved");
-        expect(result.resolutions).toHaveLength(2);
-        expect(result.resolutions[0]).toEqual(
-          new ConflictResolution({
-            target: ".bashrc",
-            action: "backup",
-            backupPath: Option.some(".bashrc.bak"),
-          }),
-        );
-        expect(result.resolutions[1]).toEqual(
-          new ConflictResolution({
-            target: ".zshrc",
-            action: "backup",
-            backupPath: Option.some(".zshrc.bak"),
-          }),
-        );
-        expect(fsState.renamed).toEqual([
-          { from: "/test/home/.bashrc", to: "/test/home/.bashrc.bak" },
-          { from: "/test/home/.zshrc", to: "/test/home/.zshrc.bak" },
-        ]);
-        expect(fsState.removed).toHaveLength(0);
-      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
-    });
+          expect(result._tag).toBe("Resolved");
+          assert(result._tag === "Resolved");
+          expect(result.resolutions).toHaveLength(2);
+          expect(result.resolutions[0]).toEqual(
+            new ConflictResolution({
+              target: ".bashrc",
+              action: "backup",
+              backupPath: Option.some(".bashrc.bak"),
+            }),
+          );
+          expect(result.resolutions[1]).toEqual(
+            new ConflictResolution({
+              target: ".zshrc",
+              action: "backup",
+              backupPath: Option.some(".zshrc.bak"),
+            }),
+          );
+          expect(fsState.renamed).toEqual([
+            { from: "/test/home/.bashrc", to: "/test/home/.bashrc.bak" },
+            { from: "/test/home/.zshrc", to: "/test/home/.zshrc.bak" },
+          ]);
+          expect(fsState.removed).toHaveLength(0);
+        }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+      },
+    );
 
-    it.effect("delete: removes files, returns Resolved with resolutions", () => {
-      const fsState = makeFsState();
+    it.effect(
+      "delete: removes files, returns Resolved with resolutions",
+      () => {
+        const fsState = makeFsState();
 
-      return Effect.gen(function* () {
-        const stow = yield* Stow;
-        const result = yield* stow.resolveConflicts(conflicts, "delete");
+        return Effect.gen(function* () {
+          const stow = yield* Stow;
+          const result = yield* stow.resolveConflicts(conflicts, "delete");
 
-        expect(result._tag).toBe("Resolved");
-        assert(result._tag === "Resolved");
-        expect(result.resolutions).toHaveLength(2);
-        expect(result.resolutions[0]).toEqual(
-          new ConflictResolution({
-            target: ".bashrc",
-            action: "delete",
-            backupPath: Option.none(),
-          }),
-        );
-        expect(result.resolutions[1]).toEqual(
-          new ConflictResolution({
-            target: ".zshrc",
-            action: "delete",
-            backupPath: Option.none(),
-          }),
-        );
-        expect(fsState.removed).toEqual([
-          "/test/home/.bashrc",
-          "/test/home/.zshrc",
-        ]);
-        expect(fsState.renamed).toHaveLength(0);
-      }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
-    });
+          expect(result._tag).toBe("Resolved");
+          assert(result._tag === "Resolved");
+          expect(result.resolutions).toHaveLength(2);
+          expect(result.resolutions[0]).toEqual(
+            new ConflictResolution({
+              target: ".bashrc",
+              action: "delete",
+              backupPath: Option.none(),
+            }),
+          );
+          expect(result.resolutions[1]).toEqual(
+            new ConflictResolution({
+              target: ".zshrc",
+              action: "delete",
+              backupPath: Option.none(),
+            }),
+          );
+          expect(fsState.removed).toEqual([
+            "/test/home/.bashrc",
+            "/test/home/.zshrc",
+          ]);
+          expect(fsState.renamed).toHaveLength(0);
+        }).pipe(Effect.provide(makeTestLayer(0, "", fsState)));
+      },
+    );
 
     it.effect("abort: no fs calls, returns Abort", () => {
       const fsState = makeFsState();

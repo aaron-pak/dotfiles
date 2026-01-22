@@ -2,16 +2,22 @@
 
 Effect-based CLI for managing dotfiles - syncing, checking differences, and initializing on new devices.
 
+## Build
+
+Build outputs single `dot` binary to project root (gitignored). Never use `node` - always `bun`.
+
+```bash
+pnpm build           # Compile to ../dot binary
+./dot sync --help    # Run the binary
+```
+
 ## Dev Scripts
 
 ```bash
-bun run dev          # Run CLI in development
-bun run build        # Compile TypeScript to dist/
-bun run build:bin    # Compile native binary to ../dot
-bun run typecheck    # Type check without emitting
-bun run test         # Run tests (vitest)
-bun run format       # Format with prettier
-bun run format:check # Check formatting
+bun run dev          # Run CLI directly without compiling
+pnpm test            # Run tests (vitest)
+pnpm typecheck       # Type check without emitting
+pnpm format          # Format with prettier
 ```
 
 ## CLI Commands

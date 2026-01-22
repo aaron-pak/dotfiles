@@ -8,8 +8,8 @@
     "dot": "./dist/main.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "build:bin": "bun build src/main.ts --compile --outfile ../dot",
+    "build": "bun build src/main.ts --compile --outfile ../dot",
+    "build:dev": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
