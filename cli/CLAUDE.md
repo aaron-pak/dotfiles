@@ -24,7 +24,7 @@ pnpm format          # Format with prettier
 
 - `sync` - Sync dotfiles via stow, handles conflicts interactively
 - `add <path>...` - Move file from ~/ to home/, run stow (-n for dry-run)
-- `remove` - [not implemented]
+- `remove <path>...` - Remove symlink, move file back to ~/ (-n for dry-run)
 - `init` - [not implemented]
 
 ## Project Structure
@@ -43,9 +43,15 @@ cli/
 
 ## Bun Runtime
 
-- Use `bun run src/main.ts` to run directly
+- Use `bun run src/main.ts` for faster iteration (no rebuild)
 - Use `@effect/platform-bun` for file system, process operations
 - Bun automatically loads `.env` files
+- **Compiled binary:** `import.meta.dirname` returns virtual `/$bunfs/root/...` path. Use `path.dirname(process.argv[0])` for real path detection.
+
+## Stow Behavior
+
+- **Tree folding:** Stow symlinks entire directories when possible, not individual files
+- Remove must handle both: dir symlink vs individual file symlinks inside
 
 <!-- effect-solutions:start -->
 

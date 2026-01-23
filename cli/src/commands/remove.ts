@@ -1,12 +1,6 @@
 import { Args, Command, Options } from "@effect/cli";
 import { Console, Effect } from "effect";
-import {
-  InvalidPath,
-  NotManaged,
-  NotSymlink,
-  Stow,
-  SymlinkMismatch,
-} from "../services/Stow.js";
+import { Stow } from "../services/Stow.js";
 
 const paths = Args.text({ name: "paths" }).pipe(
   Args.withDescription("Paths to remove (relative to home)"),
@@ -45,17 +39,5 @@ export const remove = Command.make(
           yield* Console.log(`Removed: ~/${p}`);
         }
       }
-    }).pipe(
-      Effect.catchTags({
-        NotManaged: (e: NotManaged) => Console.error(`Not managed: ${e.path}`),
-        NotSymlink: (e: NotSymlink) =>
-          Console.error(`Not a symlink: ~/${e.path}`),
-        SymlinkMismatch: (e: SymlinkMismatch) =>
-          Console.error(
-            `Symlink mismatch: ~/${e.path} points to ${e.actual}, expected ${e.expected}`,
-          ),
-        InvalidPath: (e: InvalidPath) =>
-          Console.error(`Invalid path "${e.path}": ${e.reason}`),
-      }),
-    ),
+    }),
 ).pipe(Command.withDescription("Remove a dotfile from being managed"));

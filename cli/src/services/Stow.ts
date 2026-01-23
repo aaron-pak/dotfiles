@@ -37,7 +37,7 @@ const decodeConflictLine = Schema.decodeUnknownOption(ConflictLine);
  */
 export const parseConflicts = (stderr: string): readonly StowConflict[] =>
   stderr.split("\n").flatMap((line) =>
-    decodeConflictLine(line).pipe(
+    decodeConflictLine(line.trim()).pipe(
       Option.map(
         ([, source, , target, , reason]) =>
           new StowConflict({ source, target, reason }),
@@ -120,7 +120,11 @@ export class StowError extends Schema.TaggedError<StowError>()("StowError", {
 export class SourceNotFound extends Schema.TaggedError<SourceNotFound>()(
   "SourceNotFound",
   { path: Schema.String },
-) {}
+) {
+  get message() {
+    return `file not found: ~/${this.path}`;
+  }
+}
 
 /**
  * Target already exists in home/ (already managed)
@@ -128,7 +132,11 @@ export class SourceNotFound extends Schema.TaggedError<SourceNotFound>()(
 export class AlreadyManaged extends Schema.TaggedError<AlreadyManaged>()(
   "AlreadyManaged",
   { path: Schema.String },
-) {}
+) {
+  get message() {
+    return `already managed: ${this.path}`;
+  }
+}
 
 /**
  * Source is already a symlink (likely already managed)
@@ -136,7 +144,11 @@ export class AlreadyManaged extends Schema.TaggedError<AlreadyManaged>()(
 export class AlreadySymlink extends Schema.TaggedError<AlreadySymlink>()(
   "AlreadySymlink",
   { path: Schema.String },
-) {}
+) {
+  get message() {
+    return `already a symlink: ~/${this.path}`;
+  }
+}
 
 /**
  * Path is invalid (empty, absolute, contains ..)
@@ -144,21 +156,33 @@ export class AlreadySymlink extends Schema.TaggedError<AlreadySymlink>()(
 export class InvalidPath extends Schema.TaggedError<InvalidPath>()(
   "InvalidPath",
   { path: Schema.String, reason: Schema.String },
-) {}
+) {
+  get message() {
+    return `invalid path "${this.path}": ${this.reason}`;
+  }
+}
 
 /**
  * Path is not managed (doesn't exist in home/)
  */
 export class NotManaged extends Schema.TaggedError<NotManaged>()("NotManaged", {
   path: Schema.String,
-}) {}
+}) {
+  get message() {
+    return `not managed: ${this.path}`;
+  }
+}
 
 /**
  * Source at ~/ is not a symlink
  */
 export class NotSymlink extends Schema.TaggedError<NotSymlink>()("NotSymlink", {
   path: Schema.String,
-}) {}
+}) {
+  get message() {
+    return `not a symlink: ~/${this.path}`;
+  }
+}
 
 /**
  * Source symlink points to unexpected location
@@ -166,7 +190,11 @@ export class NotSymlink extends Schema.TaggedError<NotSymlink>()("NotSymlink", {
 export class SymlinkMismatch extends Schema.TaggedError<SymlinkMismatch>()(
   "SymlinkMismatch",
   { path: Schema.String, actual: Schema.String, expected: Schema.String },
-) {}
+) {
+  get message() {
+    return `symlink mismatch: ~/${this.path} -> ${this.actual}, expected ${this.expected}`;
+  }
+}
 
 export type ConflictChoice = "backup" | "delete" | "abort";
 
@@ -275,14 +303,22 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
         const fullPath = path.join(homeDir, target);
 
         if (choice === "backup") {
-          const backupPath = `${fullPath}.bak`;
-          yield* Console.log(`  Backing up: ${target} -> ${target}.bak`);
+          // Keep appending .bak until we find a free name
+          let backupPath = `${fullPath}.bak`;
+          let backupSuffix = ".bak";
+          while (yield* fs.exists(backupPath)) {
+            backupSuffix += ".bak";
+            backupPath = `${fullPath}${backupSuffix}`;
+          }
+          yield* Console.log(
+            `  Backing up: ${target} -> ${target}${backupSuffix}`,
+          );
           yield* fs.rename(fullPath, backupPath);
           resolutions.push(
             new ConflictResolution({
               target,
               action: "backup",
-              backupPath: Option.some(`${target}.bak`),
+              backupPath: Option.some(`${target}${backupSuffix}`),
             }),
           );
         } else if (choice === "delete") {
@@ -429,20 +465,17 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
 
     /**
      * Remove empty parent directories up to home/ root.
-     * Uses non-recursive remove which fails on non-empty dirs.
+     * Only removes truly empty directories.
      */
     const cleanupEmptyDirs = (targetPath: string) =>
       Effect.gen(function* () {
         let dir = path.dirname(targetPath);
 
         while (dir !== homeRoot && dir.startsWith(homeRoot + "/")) {
-          const removed = yield* fs.remove(dir).pipe(
-            Effect.as(true),
-            Effect.catchAll(() => Effect.succeed(false)),
-          );
+          const entries = yield* fs.readDirectory(dir);
+          if (entries.length > 0) break;
 
-          if (!removed) break;
-
+          yield* fs.remove(dir);
           dir = path.dirname(dir);
         }
       });
@@ -525,15 +558,46 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
           return yield* NotManaged.make({ path: normalized });
         }
 
-        // Check if it's a directory
+        // Check if source is a symlink pointing to target (tree-folded directory)
+        const linkTarget = yield* fs
+          .readLink(sourcePath)
+          .pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+        if (linkTarget !== null) {
+          const resolvedLink = path.resolve(
+            path.dirname(sourcePath),
+            linkTarget,
+          );
+          if (resolvedLink === targetPath) {
+            // Source is a symlink directly to target - tree-folded case
+            const stat = yield* fs.stat(targetPath);
+            const isDirectory = stat.type === "Directory";
+            return {
+              normalized,
+              sourcePath,
+              targetPath,
+              isDirectory,
+              isDirectorySymlink: isDirectory,
+              items: [] as readonly ManagedItem[],
+            };
+          } else {
+            // Symlink points elsewhere
+            return yield* SymlinkMismatch.make({
+              path: normalized,
+              actual: linkTarget,
+              expected: targetPath,
+            });
+          }
+        }
+
+        // Source is not a symlink - check if target is a directory
         const stat = yield* fs.stat(targetPath);
         const isDirectory = stat.type === "Directory";
 
         if (isDirectory) {
-          // Collect all items and validate each
+          // Collect all items and validate each file symlink
           const items = yield* collectManagedItems(targetPath);
 
-          // Validate each file has a matching symlink
           for (const item of items) {
             if (!item.isDirectory) {
               yield* validateSingleRemovable(item.path);
@@ -545,18 +609,12 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
             sourcePath,
             targetPath,
             isDirectory: true,
+            isDirectorySymlink: false,
             items,
           };
         } else {
-          // Single file - validate it's a symlink pointing to repo
-          yield* validateSingleRemovable(normalized);
-          return {
-            normalized,
-            sourcePath,
-            targetPath,
-            isDirectory: false,
-            items: [] as readonly ManagedItem[],
-          };
+          // Single file that's not a symlink - error
+          return yield* NotSymlink.make({ path: normalized });
         }
       });
 
@@ -580,9 +638,23 @@ export class Stow extends Effect.Service<Stow>()("@dotfiles/Stow", {
     const removeDotfile = Effect.fn("Stow.removeDotfile")(function* (
       p: string,
     ) {
-      const { normalized, isDirectory, items } = yield* validateRemovable(p);
+      const { normalized, isDirectory, isDirectorySymlink, items } =
+        yield* validateRemovable(p);
 
-      if (isDirectory) {
+      if (isDirectorySymlink) {
+        // Tree-folded: entire directory is a symlink
+        const sourcePath = path.join(homeDir, normalized);
+        const targetPath = path.join(homeRoot, normalized);
+
+        // Remove symlink
+        yield* fs.remove(sourcePath);
+
+        // Ensure parent dir exists at ~/
+        yield* fs.makeDirectory(path.dirname(sourcePath), { recursive: true });
+
+        // Move entire directory back
+        yield* fs.rename(targetPath, sourcePath);
+      } else if (isDirectory) {
         // Separate files and directories using pre-computed type info
         const files = items.filter((item) => !item.isDirectory);
         const dirs = items.filter((item) => item.isDirectory);

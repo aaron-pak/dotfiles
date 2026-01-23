@@ -1,6 +1,6 @@
 import { Command } from "@effect/cli";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
-import { Console, Effect, Layer } from "effect";
+import { Cause, Chunk, Console, Effect, Layer } from "effect";
 import { add } from "./commands/add.js";
 import { init } from "./commands/init.js";
 import { remove } from "./commands/remove.js";
@@ -26,4 +26,17 @@ const MainLayer = Layer.provideMerge(
 );
 
 // Run
-cli(process.argv).pipe(Effect.provide(MainLayer), BunRuntime.runMain);
+cli(process.argv).pipe(
+  Effect.tapErrorCause((cause) => {
+    if (Cause.isInterruptedOnly(cause)) return Effect.void;
+    const errors = Cause.failures(cause);
+    if (Chunk.isNonEmpty(errors)) {
+      return Console.error(
+        [...errors].map((e) => (e as Error).message).join("\n"),
+      );
+    }
+    return Console.error(Cause.pretty(cause));
+  }),
+  Effect.provide(MainLayer),
+  BunRuntime.runMain({ disableErrorReporting: true }),
+);

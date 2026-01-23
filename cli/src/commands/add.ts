@@ -1,12 +1,6 @@
 import { Args, Command, Options } from "@effect/cli";
 import { Console, Effect } from "effect";
-import {
-  AlreadyManaged,
-  AlreadySymlink,
-  InvalidPath,
-  SourceNotFound,
-  Stow,
-} from "../services/Stow.js";
+import { Stow } from "../services/Stow.js";
 
 const paths = Args.text({ name: "paths" }).pipe(
   Args.withDescription("Paths to add (relative to home)"),
@@ -46,16 +40,5 @@ export const add = Command.make("add", { paths, dryRun }, ({ paths, dryRun }) =>
         }
       }
     }
-  }).pipe(
-    Effect.catchTags({
-      SourceNotFound: (e: SourceNotFound) =>
-        Console.error(`Not found: ~/${e.path}`),
-      AlreadyManaged: (e: AlreadyManaged) =>
-        Console.error(`Already managed: ${e.path}`),
-      AlreadySymlink: (e: AlreadySymlink) =>
-        Console.error(`Already a symlink: ~/${e.path}`),
-      InvalidPath: (e: InvalidPath) =>
-        Console.error(`Invalid path "${e.path}": ${e.reason}`),
-    }),
-  ),
+  }),
 ).pipe(Command.withDescription("Add dotfiles to be managed"));

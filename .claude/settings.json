@@ -8,22 +8,14 @@
             "type": "command",
             "command": "cd cli && bun format 2>/dev/null || true",
             "async": true
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd cli && bun run typecheck",
-            "statusMessage": "Typechecking..."
           },
           {
             "type": "command",
-            "command": "cd cli && bun run test --run",
-            "statusMessage": "Running tests..."
+            "command": "cd cli && bun run typecheck"
+          },
+          {
+            "type": "command",
+            "command": "cd cli && bun run test --run"
           }
         ]
       }

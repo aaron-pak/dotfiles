@@ -11,12 +11,17 @@ export class StowConfig extends Effect.Service<StowConfig>()(
   {
     effect: Effect.gen(function* () {
       const path = yield* Path.Path;
-      const dotfilesRoot = path.resolve(
-        import.meta.dirname ?? process.cwd(),
-        "..",
-        "..",
-        "..",
-      );
+
+      // In compiled binary, import.meta.dirname is virtual (/$bunfs/root/...)
+      // Use process.argv[0] which is the binary path (dotfiles/dot)
+      const isCompiled =
+        import.meta.dirname?.startsWith("/$bunfs") ||
+        !import.meta.dirname?.includes("dotfiles");
+
+      const dotfilesRoot = isCompiled
+        ? path.resolve(path.dirname(process.argv[0]))
+        : path.resolve(import.meta.dirname ?? process.cwd(), "..", "..", "..");
+
       const homeDir = os.homedir();
       return { dotfilesRoot, homeDir };
     }),
