@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "input=$(cat); cwd=$(echo \"$input\" | jq -r '.workspace.current_dir'); dir=$(basename \"$cwd\"); git_info=\"\"; if git -C \"$cwd\" rev-parse --git-dir >/dev/null 2>&1; then branch=$(git -C \"$cwd\" --no-optional-locks branch --show-current 2>/dev/null || echo \"detached\"); dirty=\"\"; if ! git -C \"$cwd\" --no-optional-locks diff --quiet 2>/dev/null || ! git -C \"$cwd\" --no-optional-locks diff --cached --quiet 2>/dev/null; then dirty=\"*\"; fi; git_info=\" [${branch}${dirty}]\"; fi; lsp=\"\"; [ -n \"$(find \"$cwd\" -maxdepth 2 \\( -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.jsx\" \\) 2>/dev/null | head -1)\" ] && lsp=\"${lsp} ts\"; [ -n \"$(find \"$cwd\" -maxdepth 2 -name \"*.go\" 2>/dev/null | head -1)\" ] && lsp=\"${lsp} go\"; [ -n \"$(find \"$cwd\" -maxdepth 2 -name \"*.lua\" 2>/dev/null | head -1)\" ] && lsp=\"${lsp} lua\"; lsp_info=\"\"; [ -n \"$lsp\" ] && lsp_info=\" (${lsp# })\"; printf \"%s%s%s\" \"$dir\" \"$git_info\" \"$lsp_info\""
+    "command": "input=$(cat); session=$(echo \"$input\" | jq -r '.session_id'); cwd=$(echo \"$input\" | jq -r '.workspace.current_dir'); dir=$(basename \"$cwd\"); git_info=\"\"; if git -C \"$cwd\" rev-parse --git-dir >/dev/null 2>&1; then branch=$(git -C \"$cwd\" --no-optional-locks branch --show-current 2>/dev/null || echo \"detached\"); if ! git -C \"$cwd\" --no-optional-locks diff --quiet 2>/dev/null || ! git -C \"$cwd\" --no-optional-locks diff --cached --quiet 2>/dev/null; then git_info=$(printf \" \\\\e[33m[%s*]\\\\e[0m\" \"$branch\"); else git_info=$(printf \" \\\\e[32m[%s]\\\\e[0m\" \"$branch\"); fi; fi; printf \"\\e[1m%s\\e[0m │ \\e[36m%s\\e[0m%s\" \"$session\" \"$dir\" \"$git_info\""
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
@@ -16,5 +16,6 @@
     "lua-lsp@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "hookify@claude-plugins-official": true
-  }
+  },
+  "model": "claude-opus-4-5"
 }
