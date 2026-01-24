@@ -4,10 +4,10 @@ Effect-based CLI for managing dotfiles - syncing, checking differences, and init
 
 ## Build
 
-Build outputs single `dot` binary to project root (gitignored). Never use `node` - always `bun`.
+Build outputs single `dot` binary to project root (gitignored). **Never use `node` or `pnpm` - always `bun`.**
 
 ```bash
-pnpm build           # Compile to ../dot binary
+bun run build        # Compile to ../dot binary
 ./dot sync --help    # Run the binary
 ```
 
@@ -15,9 +15,9 @@ pnpm build           # Compile to ../dot binary
 
 ```bash
 bun run dev          # Run CLI directly without compiling
-pnpm test            # Run tests (vitest)
-pnpm typecheck       # Type check without emitting
-pnpm format          # Format with prettier
+bun test             # Run tests (vitest)
+bun run typecheck    # Type check without emitting
+bun run format       # Format with prettier
 ```
 
 ## CLI Commands
@@ -25,7 +25,7 @@ pnpm format          # Format with prettier
 - `sync` - Sync dotfiles via stow, handles conflicts interactively
 - `add <path>...` - Move file from ~/ to home/, run stow (-n for dry-run)
 - `remove <path>...` - Remove symlink, move file back to ~/ (-n for dry-run)
-- `init` - [not implemented]
+- `init` - Bootstrap new machine: install Homebrew, packages, sync dotfiles
 
 ## Project Structure
 
@@ -35,8 +35,9 @@ cli/
 │   ├── main.ts           # CLI entry, layer composition
 │   ├── commands/         # add, remove, sync, init
 │   └── services/
-│       ├── Stow.ts       # dryRun, sync, resolveConflicts, addDotfile, checkAddable
-│       └── StowConfig.ts # dotfilesRoot, homeDir paths
+│       ├── Stow.ts       # dryRun, sync, resolveConflicts, addDotfile, removeDotfile
+│       ├── StowConfig.ts # dotfilesRoot, homeDir paths
+│       └── Homebrew.ts   # checkInstalled, install, bundle, bundleDryRun
 ├── tests/
 └── package.json
 ```
@@ -77,6 +78,11 @@ class Foo extends Effect.Service<Foo>()("Foo", {
 ```
 
 <!-- effect-solutions:end -->
+
+## Effect Gotchas
+
+- `Schema.TaggedError` subclasses need `override get message()` not `get message()`
+- Layer composition: use `Layer.merge(A, B)` then `Layer.provideMerge(..., Dep)` when both need same dep
 
 ## Testing Patterns
 

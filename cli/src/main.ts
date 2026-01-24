@@ -5,6 +5,7 @@ import { add } from "./commands/add.js";
 import { init } from "./commands/init.js";
 import { remove } from "./commands/remove.js";
 import { sync } from "./commands/sync.js";
+import { Homebrew } from "./services/Homebrew.js";
 import { Stow } from "./services/Stow.js";
 import { StowConfig } from "./services/StowConfig.js";
 
@@ -21,7 +22,10 @@ const cli = Command.run(dot, { name: "dot", version: "0.1.0" });
 
 // Layer composition
 const MainLayer = Layer.provideMerge(
-  Layer.provideMerge(Stow.Default, StowConfig.Default),
+  Layer.provideMerge(
+    Layer.merge(Stow.Default, Homebrew.Default),
+    StowConfig.Default,
+  ),
   BunContext.layer,
 );
 

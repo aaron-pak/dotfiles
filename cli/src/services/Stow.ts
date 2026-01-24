@@ -121,7 +121,7 @@ export class SourceNotFound extends Schema.TaggedError<SourceNotFound>()(
   "SourceNotFound",
   { path: Schema.String },
 ) {
-  get message() {
+  override get message() {
     return `file not found: ~/${this.path}`;
   }
 }
@@ -133,7 +133,7 @@ export class AlreadyManaged extends Schema.TaggedError<AlreadyManaged>()(
   "AlreadyManaged",
   { path: Schema.String },
 ) {
-  get message() {
+  override get message() {
     return `already managed: ${this.path}`;
   }
 }
@@ -145,7 +145,7 @@ export class AlreadySymlink extends Schema.TaggedError<AlreadySymlink>()(
   "AlreadySymlink",
   { path: Schema.String },
 ) {
-  get message() {
+  override get message() {
     return `already a symlink: ~/${this.path}`;
   }
 }
@@ -157,7 +157,7 @@ export class InvalidPath extends Schema.TaggedError<InvalidPath>()(
   "InvalidPath",
   { path: Schema.String, reason: Schema.String },
 ) {
-  get message() {
+  override get message() {
     return `invalid path "${this.path}": ${this.reason}`;
   }
 }
@@ -168,7 +168,7 @@ export class InvalidPath extends Schema.TaggedError<InvalidPath>()(
 export class NotManaged extends Schema.TaggedError<NotManaged>()("NotManaged", {
   path: Schema.String,
 }) {
-  get message() {
+  override get message() {
     return `not managed: ${this.path}`;
   }
 }
@@ -179,7 +179,7 @@ export class NotManaged extends Schema.TaggedError<NotManaged>()("NotManaged", {
 export class NotSymlink extends Schema.TaggedError<NotSymlink>()("NotSymlink", {
   path: Schema.String,
 }) {
-  get message() {
+  override get message() {
     return `not a symlink: ~/${this.path}`;
   }
 }
@@ -191,7 +191,7 @@ export class SymlinkMismatch extends Schema.TaggedError<SymlinkMismatch>()(
   "SymlinkMismatch",
   { path: Schema.String, actual: Schema.String, expected: Schema.String },
 ) {
-  get message() {
+  override get message() {
     return `symlink mismatch: ~/${this.path} -> ${this.actual}, expected ${this.expected}`;
   }
 }

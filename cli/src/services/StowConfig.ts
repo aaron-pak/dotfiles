@@ -18,9 +18,11 @@ export class StowConfig extends Effect.Service<StowConfig>()(
         import.meta.dirname?.startsWith("/$bunfs") ||
         !import.meta.dirname?.includes("dotfiles");
 
+      const dirname = import.meta.dirname ?? ".";
+      const binaryPath = process.argv[0] ?? ".";
       const dotfilesRoot = isCompiled
-        ? path.resolve(path.dirname(process.argv[0]))
-        : path.resolve(import.meta.dirname ?? process.cwd(), "..", "..", "..");
+        ? path.resolve(path.dirname(binaryPath))
+        : path.resolve(dirname, "..", "..", "..");
 
       const homeDir = os.homedir();
       return { dotfilesRoot, homeDir };

@@ -39,6 +39,10 @@ Synced: `CLAUDE.md`, `settings.json`, `agents/`, `skills/`
 
 Not synced (machine-specific): `~/.claude.json`, `cache/`, `plugins/`, `history.jsonl`
 
+## Brewfile
+
+Located at repo root. Format: `brew "pkg"`, `cask "app"`. Run via `init` command.
+
 ## CLI (`cli/`)
 
 Effect-based dotfiles manager. CLI-specific details (commands, patterns, testing) go in @cli/CLAUDE.md, not here.
