@@ -22,3 +22,4 @@ clipboard-write = allow
 
 # MacOS Settings
 macos-titlebar-proxy-icon = hidden
+keybind = shift+enter=text:\x1b\r
