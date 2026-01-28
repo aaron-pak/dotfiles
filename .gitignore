@@ -1,9 +1,19 @@
+# dependencies
+node_modules
+
+# build output
+cli/dist
+*.tsbuildinfo
+
 # OS files
 .DS_Store
 
 # Editor swap files
 *.swp
 *.swo
+
+# CLI binary
 dot
 
+# CLI state
 state/

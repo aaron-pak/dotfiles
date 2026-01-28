@@ -1,50 +1,29 @@
-# CLI - Dotfiles Manager
+# CLI
 
-Effect-based CLI for managing dotfiles - syncing, checking differences, and initializing on new devices.
+Source in `cli/src/`, tests in `cli/tests/`, config at repo root. Run `bun` commands from root.
 
-## Build
-
-Build outputs single `dot` binary to project root (gitignored). **Never use `node` or `pnpm` - always `bun`.**
-
-```bash
-bun run build        # Compile to ../dot binary
-./dot sync --help    # Run the binary
-```
-
-## Dev Scripts
-
-```bash
-bun run dev          # Run CLI directly without compiling
-bun test             # Run tests (vitest)
-bun run typecheck    # Type check without emitting
-bun run format       # Format with prettier
-```
-
-## CLI Commands
+## Commands
 
 - `sync` - Sync dotfiles via stow, handles conflicts interactively
 - `add <path>...` - Move file from ~/ to home/, run stow (-n for dry-run)
 - `remove <path>...` - Remove symlink, move file back to ~/ (-n for dry-run)
 - `init` - Bootstrap new machine: install Homebrew, packages, sync dotfiles
 
-## Project Structure
+## Structure
 
 ```
-cli/
-├── src/
-│   ├── main.ts           # CLI entry, layer composition
-│   ├── commands/         # add, remove, sync, init
-│   └── services/
-│       ├── Stow.ts       # dryRun, sync, resolveConflicts, addDotfile, removeDotfile
-│       ├── StowConfig.ts # dotfilesRoot, homeDir paths
-│       └── Homebrew.ts   # checkInstalled, install, bundle, bundleDryRun
-├── tests/
-└── package.json
+cli/src/
+├── main.ts           # CLI entry, layer composition
+├── commands/         # add, remove, sync, init
+└── services/
+    ├── Stow.ts       # dryRun, sync, resolveConflicts, addDotfile, removeDotfile
+    ├── StowConfig.ts # dotfilesRoot, homeDir paths
+    └── Homebrew.ts   # checkInstalled, install, bundle, bundleDryRun
+cli/tests/
 ```
 
 ## Bun Runtime
 
-- Use `bun run src/main.ts` for faster iteration (no rebuild)
 - Use `@effect/platform-bun` for file system, process operations
 - Bun automatically loads `.env` files
 - **Compiled binary:** `import.meta.dirname` returns virtual `/$bunfs/root/...` path. Use `path.dirname(process.argv[0])` for real path detection.
@@ -87,6 +66,8 @@ class Foo extends Effect.Service<Foo>()("Foo", {
 ## Testing Patterns
 
 - Avoid chained `Effect.provide` (TS18 warning) - use `Layer.provideMerge` to compose, then single `Effect.provide`
+- `bun run test` - runs vitest (correct)
+- `bun test` - runs bun's test runner (wrong, causes @effect/vitest errors)
 
 ## Local Effect Source
 

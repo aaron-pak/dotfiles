@@ -5,17 +5,17 @@
   "type": "module",
   "private": true,
   "bin": {
-    "dot": "./dist/main.js"
+    "dot": "./cli/dist/main.js"
   },
   "scripts": {
-    "build": "bun build src/main.ts --compile --outfile ../dot",
+    "build": "bun build cli/src/main.ts --compile --outfile dot",
     "build:dev": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
-    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
+    "format": "prettier --write 'cli/src/**/*.ts' 'cli/tests/**/*.ts'",
+    "format:check": "prettier --check 'cli/src/**/*.ts' 'cli/tests/**/*.ts'",
     "prepare": "effect-language-service patch",
-    "dev": "bun run src/main.ts"
+    "dev": "bun run cli/src/main.ts"
   },
   "devDependencies": {
     "@effect/language-service": "^0.71.0",
@@ -23,7 +23,7 @@
     "@types/bun": "latest",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.0"
   },
   "dependencies": {
     "@effect/cli": "^0.73.0",

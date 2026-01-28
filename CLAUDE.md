@@ -43,6 +43,16 @@ Not synced (machine-specific): `~/.claude.json`, `cache/`, `plugins/`, `history.
 
 Located at repo root. Format: `brew "pkg"`, `cask "app"`. Run via `init` command.
 
-## CLI (`cli/`)
+## CLI
 
-Effect-based dotfiles manager. CLI-specific details (commands, patterns, testing) go in @cli/CLAUDE.md, not here.
+Effect-based dotfiles manager. Source in `cli/src/`, config at root.
+
+```bash
+bun install          # install deps
+bun run build        # compile to ./dot binary
+bun run dev          # run without compiling
+bun test             # run tests
+bun run typecheck    # type check
+```
+
+See `cli/CLAUDE.md` for commands, patterns, Effect practices.
