@@ -9,20 +9,23 @@ Execute one task from a plan/task list with progress tracking and verification.
 
 **Required:** User must provide a plan/task list file (e.g., `@plan.md` or `@tasks.json`).
 
+**Tip:** Use `/task-list @{plan.md}` to generate a JSON task list from a markdown plan.
+
 ## Workflow
 
 ### 1. Understand Current State
 
-- Read `progress.txt` if exists - **apply patterns from 'Codebase Patterns' section**
+- Read `.claude/progress.txt` if exists - **apply patterns from 'Codebase Patterns' section**
 - Read user-provided plan/task list - find next incomplete task:
   - **Markdown:** cross-reference with progress.txt to find first unlogged task
-  - **JSON:** look for `passes: false`
-  - **Priority** (high→low): architecture → integration points → spikes → features → polish
-- Check recent history: `git log --oneline -10`
+  - **JSON:** find tasks with `status: "pending"` AND all `blockedBy` tasks have `status: "completed"`
+  - **Prioritization:** Category is one factor, not the answer. Weigh category + description + dependencies + what task touches + project state. A `polish` task on critical path may outrank an `architecture` task for a non-blocking module.
+  - **Category priority heuristic:** `architecture` → `integration` → `spike` → `feature` → `polish`
+- If git repo: check recent history with `git log --oneline -10`
 
 ### 2. Initialize Progress (if needed)
 
-Create `progress.txt` if it doesn't exist:
+Create `.claude/progress.txt` if it doesn't exist:
 
 ```markdown
 # Progress Log
@@ -38,21 +41,21 @@ Started: <YYYY-MM-DD>
 
 ### 3. Implement Task
 
-Work on the single task until verification steps pass.
+Set `status: "in_progress"` (JSON only), then work on the task until verification steps pass.
 
 ### 4. Run Feedback Loops
 
-Run applicable checks (type checking, tests, linting, formatting). Commands per project CLAUDE.md.
+Run applicable checks (type checking, tests, linting, formatting).
 
 Fix issues until all pass.
 
 ### 5. Update Task List (JSON only)
 
-If working from a JSON task list, set the task's `passes` field to `true`.
+Set `status: "completed"` for the task.
 
 ### 6. Update Progress
 
-Append to progress.txt:
+Append to `.claude/progress.txt`:
 
 ```markdown
 ## Task - [task.id if applicable]
@@ -61,9 +64,11 @@ Append to progress.txt:
 - **Learnings:** patterns, gotchas, blockers, notes
 ```
 
+If you discover a reusable pattern, also add to ## Codebase Patterns at the TOP.
+
 ### 7. Signal Completion
 
-When all tasks complete (markdown: all tasks logged in progress.txt; JSON: all `passes: true`):
+When all tasks complete (markdown: all tasks logged in `.claude/progress.txt`; JSON: all `status: "completed"`):
 
 Output: `<tasks>COMPLETE</tasks>`
 
