@@ -7,20 +7,18 @@ description: "Execute the next task from a markdown plan or JSON task list. Impl
 
 Execute one task from a plan/task list with progress tracking and verification.
 
+**Required:** User must provide a plan/task list file (e.g., `@plan.md` or `@tasks.json`).
+
 ## Workflow
 
 ### 1. Understand Current State
 
-- Read progress file - **CHECK 'Codebase Patterns' SECTION FIRST**
-- Read PRD - find the next incomplete task by priority
-  - For JSON task lists, look for `passes: false`
-  - **Task Priority** (highest to lowest):
-    1. Architecture/core abstractions
-    2. Integration points
-    3. Spikes/unknowns
-    4. Standard features
-    5. Polish/cleanup
-- Check recent history (git: `git log --oneline -10`)
+- Read `progress.txt` if exists - **apply patterns from 'Codebase Patterns' section**
+- Read user-provided plan/task list - find next incomplete task:
+  - **Markdown:** cross-reference with progress.txt to find first unlogged task
+  - **JSON:** look for `passes: false`
+  - **Priority** (high→low): architecture → integration points → spikes → features → polish
+- Check recent history: `git log --oneline -10`
 
 ### 2. Initialize Progress (if needed)
 
@@ -40,15 +38,11 @@ Started: <YYYY-MM-DD>
 
 ### 3. Implement Task
 
-Work on the selected task until verification passes. Follow codebase patterns from progress.txt.
+Work on the single task until verification steps pass.
 
 ### 4. Run Feedback Loops
 
-Run all applicable checks:
-- Type checking
-- Tests
-- Linting
-- Formatting
+Run applicable checks (type checking, tests, linting, formatting). Commands per project CLAUDE.md.
 
 Fix issues until all pass.
 
@@ -69,7 +63,7 @@ Append to progress.txt:
 
 ### 7. Signal Completion
 
-If entire plan is implemented or all tasks are complete, output
+When all tasks complete (markdown: all tasks logged in progress.txt; JSON: all `passes: true`):
 
 Output: `<tasks>COMPLETE</tasks>`
 
