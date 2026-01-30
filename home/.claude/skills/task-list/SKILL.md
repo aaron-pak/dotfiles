@@ -1,8 +1,6 @@
 ---
 name: task-list
-description: |
-  Break a markdown plan or feature spec into a structured JSON task list for incremental implementation.
-  Use when: user invokes /task-list @{file.md} to decompose a plan into small, verifiable tasks.
+description: Break a markdown plan, feature, or task into a structured JSON task list for incremental implementation. Use when user asks to decompose a plan, feature, or task into a structured task list
 ---
 
 # Task List Generator
@@ -47,6 +45,7 @@ Parse a markdown plan and generate a structured JSON task list optimized for inc
 | Field | Purpose |
 |-------|---------|
 | `id` | Unique identifier (string, sequential) |
+| `description` | Task description. If referencing files, use full paths (relative from project root or absolute)—never bare filenames |
 | `blocks` | Task IDs that cannot start until this completes |
 | `blockedBy` | Task IDs that must complete before this can start |
 | `status` | `pending` → `in_progress` → `completed` |
