@@ -1,15 +1,35 @@
 ---
 name: next-task
-description: "Execute the next task from a markdown plan or JSON task list. Implements a single iteration of a progress-tracked workflow. Use when: (1) working through a multi-task plan, (2) need structured progress tracking, (3) want atomic task completion with verification. Invoke with `/next-task @{plan-or-tasklist}`."
+description: "Execute task or tasks from a markdown plan or JSON task list. Implements a single iteration of a progress-tracked workflow. Use when: (1) working through a multi-task plan, (2) need structured progress tracking, (3) want atomic task completion with verification. Invoke with `/next-task @{plan-or-tasklist}`."
 ---
 
 # Next Task
 
-Execute one task from a plan/task list with progress tracking and verification.
+Execute task or tasks from a plan/task list with progress tracking and verification.
 
 **Required:** User must provide a plan/task list file (e.g., `@plan.md` or `@tasks.json`).
 
 **Tip:** Use `/task-list @{plan.md}` to generate a JSON task list from a markdown plan.
+
+## CRITICAL: Sequential Task Processing
+
+**Default: Execute exactly 1 task, then stop.** Only process multiple tasks if user explicitly requests (e.g., "next 5 tasks").
+
+**Each task must complete the full workflow (steps 1-7) before starting the next.**
+
+When multiple tasks requested:
+1. Complete full workflow for task 1
+2. Output brief completion summary
+3. Restart from step 1 for task 2
+4. Repeat until all requested tasks done or user interrupts
+
+**Never:**
+- Read multiple tasks before claiming one
+- Implement multiple tasks before updating progress
+- Batch status updates at the end
+- Skip workflow steps to process tasks faster
+
+One task, one full cycle. Then the next.
 
 ## Workflow
 
@@ -71,6 +91,8 @@ Append to `.claude/progress.txt`:
 ```
 
 If you discover a reusable pattern, also add to ## Codebase Patterns at the TOP.
+
+**If more tasks requested:** Output brief completion summary, then **return to Step 1** for next task.
 
 ### 8. Signal Completion
 
