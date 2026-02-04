@@ -1,11 +1,15 @@
 ---
 name: progress
-description: "Track work progress in .claude/progress.txt with structured logging. Use when: (1) user says 'track progress' or 'start tracking' before beginning work, (2) user says 'update progress' or 'log progress' after completing work, (3) user wants persistent learnings across sessions. Invoke with `/progress start` or `/progress update`."
+description: "Track work progress with structured logging. Use when: (1) user says 'track progress' or 'start tracking' before beginning work, (2) user says 'update progress' or 'log progress' after completing work, (3) user wants persistent learnings across sessions. Invoke with `/progress start` or `/progress update`."
 ---
 
 # Progress Tracker
 
-Maintain a progress log at `.claude/progress.txt` to capture what was done, files changed, and learnings.
+## Configuration
+
+<progress-file>.claude/aaron/progress.txt</progress-file>
+
+Maintain a progress log at `<progress-file>` to capture what was done, files changed, and learnings.
 
 **Modes:**
 - `start` - Initialize progress file before beginning work
@@ -17,7 +21,7 @@ Initialize or prepare progress tracking before work begins.
 
 ### Workflow
 
-1. **Check existing progress:** Read `.claude/progress.txt` if exists
+1. **Check existing progress:** Read `<progress-file>` if exists
    - Apply any patterns from "Codebase Patterns" section to current work
    - Review recent entries for context
 
@@ -48,7 +52,7 @@ Log completed work after a task or session.
    - Which files changed?
    - Any learnings, gotchas, or blockers?
 
-2. **Append entry to `.claude/progress.txt`:**
+2. **Append entry to `<progress-file>`:**
 
 ```markdown
 ## Task - <brief title>

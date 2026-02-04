@@ -5,6 +5,10 @@ description: "Execute task or tasks from a markdown plan or JSON task list. Impl
 
 # Next Task
 
+## Configuration
+
+<progress-file>.claude/aaron/progress.txt</progress-file>
+
 Execute task or tasks from a plan/task list with progress tracking and verification.
 
 **Required:** User must provide a plan/task list file (e.g., `@plan.md` or `@tasks.json`).
@@ -35,7 +39,7 @@ One task, one full cycle. Then the next.
 
 ### 1. Understand Current State
 
-- Read `.claude/progress.txt` if exists - **apply patterns from 'Codebase Patterns' section**
+- Read `<progress-file>` if exists - **apply patterns from 'Codebase Patterns' section**
 - Read user-provided plan/task list
 - If git repo: check recent history with `git log --oneline -10`
 
@@ -46,14 +50,14 @@ One task, one full cycle. Then the next.
 **Priority factors:** blocking impact, category, project state, task context. Category is a heuristic (`architecture` > `integration` > `spike` > `feature` > `polish`), not a rule—a `polish` task on critical path may outrank `architecture` for a non-blocking module.
 
 Identify the highest priority incomplete task:
-- **Markdown:** highest priority task not yet logged in progress.txt
+- **Markdown:** highest priority task not yet logged in `<progress-file>`
 - **JSON:** highest priority task with `status: "pending"` and all `blockedBy` resolved
 
 **Before any implementation:** Set `status: "in_progress"` (JSON) or note selection (Markdown).
 
 ### 3. Initialize Progress (if needed)
 
-Create `.claude/progress.txt` if it doesn't exist:
+Create `<progress-file>` if it doesn't exist:
 
 ```markdown
 # Progress Log
@@ -83,7 +87,7 @@ Set `status: "completed"` for the task.
 
 ### 7. Update Progress
 
-Append to `.claude/progress.txt`:
+Append to `<progress-file>`:
 
 ```markdown
 ## Task - [task.id if applicable]
@@ -98,7 +102,7 @@ If you discover a reusable pattern, also add to ## Codebase Patterns at the TOP.
 
 ## Completion Signal
 
-When all tasks complete (markdown: all tasks logged in `.claude/progress.txt`; JSON: all `status: "completed"`):
+When all tasks complete (markdown: all tasks logged in `<progress-file>`; JSON: all `status: "completed"`):
 
 Output: `<tasks>COMPLETE</tasks>`
 

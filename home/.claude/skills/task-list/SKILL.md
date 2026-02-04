@@ -5,6 +5,10 @@ description: Break a markdown plan, feature, or task into a structured JSON task
 
 # Task List Generator
 
+## Configuration
+
+<tasks-dir>.claude/aaron/tasks</tasks-dir>
+
 Parse a markdown plan and generate a structured JSON task list optimized for incremental implementation by agents with fresh context.
 
 ## Invocation
@@ -20,7 +24,7 @@ Parse a markdown plan and generate a structured JSON task list optimized for inc
 3. Break large units into smaller subtasks (flatten, no nesting)
 4. Categorize each task
 5. Generate verification steps
-6. Write JSON to `.claude/tasks/{plan-filename}.json`
+6. Write JSON to `<tasks-dir>/{plan-filename}.json`
 
 ## Output Format
 
@@ -81,9 +85,9 @@ Write steps as concrete, observable checks:
 
 ## Output Location
 
-Create `.claude/tasks/` directory if needed. Name output file same as input:
-- Input: `auth-plan.md` → Output: `.claude/tasks/auth-plan.json`
-- Input: `feature.md` → Output: `.claude/tasks/feature.json`
+Create `<tasks-dir>` directory if needed. Name output file same as input:
+- Input: `auth-plan.md` → Output: `<tasks-dir>/auth-plan.json`
+- Input: `feature.md` → Output: `<tasks-dir>/feature.json`
 
 **If output file already exists:** Stop and ask user whether to overwrite, merge, or abort.
 
