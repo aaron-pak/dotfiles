@@ -41,11 +41,13 @@ One task, one full cycle. Then the next.
 
 ### 2. Select and Claim Next Task
 
-Identify the next highest priority incomplete task:
-- **Markdown:** highest priority task not yet logged in progress.txt
-- **JSON:** highest priority task with `status: "pending"` and all `blockedBy` resolved
+**CRITICAL: Do NOT simply pick the next task in list order.** Evaluate ALL pending tasks and select the highest priority one.
 
 **Priority factors:** blocking impact, category, project state, task context. Category is a heuristic (`architecture` > `integration` > `spike` > `feature` > `polish`), not a rule—a `polish` task on critical path may outrank `architecture` for a non-blocking module.
+
+Identify the highest priority incomplete task:
+- **Markdown:** highest priority task not yet logged in progress.txt
+- **JSON:** highest priority task with `status: "pending"` and all `blockedBy` resolved
 
 **Before any implementation:** Set `status: "in_progress"` (JSON) or note selection (Markdown).
 
@@ -94,7 +96,7 @@ If you discover a reusable pattern, also add to ## Codebase Patterns at the TOP.
 
 **If more tasks requested:** Output brief completion summary, then **return to Step 1** for next task.
 
-### 8. Signal Completion
+## Completion Signal
 
 When all tasks complete (markdown: all tasks logged in `.claude/progress.txt`; JSON: all `status: "completed"`):
 
