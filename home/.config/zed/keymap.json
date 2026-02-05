@@ -1,0 +1,136 @@
+// Zed keymap
+//
+// For information on binding keys, see the Zed
+// documentation: https://zed.dev/docs/key-bindings
+//
+// To see the default key bindings run `zed: open default keymap`
+// from the command palette.
+//
+// LazyVim style bindings - Leader = space (default in vim mode)
+[
+  // Global/Workspace bindings
+  {
+    "context": "Workspace",
+    "bindings": {
+      // Window navigation (Ctrl+hjkl)
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight",
+    },
+  },
+
+  // Normal mode bindings
+  {
+    "context": "Editor && vim_mode == normal",
+    "bindings": {
+      // File/Find (leader f)
+      "space f f": "file_finder::Toggle",
+      "space f r": "projects::OpenRecent",
+      "space f b": "tab_switcher::Toggle",
+      "space space": "file_finder::Toggle",
+
+      // Search (leader s)
+      "space /": "pane::DeploySearch",
+      "space s g": "pane::DeploySearch",
+      "space s s": "outline::Toggle",
+      "space s S": "project_symbols::Toggle",
+
+      // Buffer (leader b)
+      "space b d": "pane::CloseActiveItem",
+      "space b o": "pane::CloseOtherItems",
+      "space b b": "tab_switcher::Toggle",
+
+      // Buffer navigation
+      "shift-h": "pane::ActivatePreviousItem",
+      "shift-l": "pane::ActivateNextItem",
+      "[ b": "pane::ActivatePreviousItem",
+      "] b": "pane::ActivateNextItem",
+
+      // Explorer/Tree (leader e)
+      "space e": "workspace::ToggleLeftDock",
+
+      // Window/Split (leader w)
+      "space w d": "pane::CloseActiveItem",
+      "space w v": "pane::SplitRight",
+      "space w s": "pane::SplitDown",
+      "space |": "pane::SplitRight",
+      "space -": "pane::SplitDown",
+
+      // Code actions (leader c)
+      "space c a": "editor::ToggleCodeActions",
+      "space c r": "editor::Rename",
+      "space c f": "editor::Format",
+
+      // Diagnostics (leader x)
+      "space x x": "diagnostics::Deploy",
+
+      // LSP/Go to
+      "g d": "editor::GoToDefinition",
+      "g D": "editor::GoToDeclaration",
+      "g r": "editor::FindAllReferences",
+      "g I": "editor::GoToImplementation",
+      "g y": "editor::GoToTypeDefinition",
+      "K": "editor::Hover",
+
+      // Git (leader g)
+      "space g g": "terminal_panel::ToggleFocus",
+      "space g b": "git::Blame",
+      "space g h": "editor::ToggleSelectedDiffHunks",
+      "] h": "editor::GoToHunk",
+      "[ h": "editor::GoToPreviousHunk",
+
+      // Terminal (leader t)
+      "space t t": "workspace::ToggleBottomDock",
+      "space t n": "terminal_panel::ToggleFocus",
+
+      // Quit (leader q)
+      "space q q": "zed::Quit",
+
+      // UI toggles (leader u)
+      "space u w": "editor::ToggleSoftWrap",
+      "space u l": "editor::ToggleLineNumbers",
+      "space u r": "editor::ToggleRelativeLineNumbers",
+
+      // Misc
+      "space :": "command_palette::Toggle",
+      "space ,": "tab_switcher::Toggle",
+
+      // Clear search highlight
+      "escape": "vim::SwitchToNormalMode",
+    },
+  },
+
+  // Visual mode bindings
+  {
+    "context": "Editor && vim_mode == visual",
+    "bindings": {
+      "space c a": "editor::ToggleCodeActions",
+      "space c f": "editor::Format",
+      // Stay in visual mode after indent
+      "<": "editor::Outdent",
+      ">": "editor::Indent",
+    },
+  },
+
+  // Insert mode bindings
+  {
+    "context": "Editor && vim_mode == insert",
+    "bindings": {
+      // Quick escape (optional, uncomment if desired)
+      // "j k": "vim::NormalBefore"
+    },
+  },
+
+  // Terminal bindings
+  {
+    "context": "Terminal",
+    "bindings": {
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight",
+      "ctrl-`": "workspace::ToggleBottomDock",
+    },
+  },
+]

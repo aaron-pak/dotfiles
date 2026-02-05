@@ -1,0 +1,59 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "colorize_brackets": true,
+  "vim": {
+    "use_smartcase_find": true
+  },
+  "which_key": {
+    "enabled": true
+  },
+  "cursor_blink": false,
+  "buffer_font_family": "MonoLisa",
+  "buffer_font_features": {
+    "liga": true,
+    "calt": true,
+    "ss02": true,
+    "ss07": true,
+    "ss12": true,
+  },
+  "icon_theme": "Zed (Default)",
+  "redact_private_values": true,
+  "session": {
+    "trust_all_worktrees": true,
+  },
+  "project_panel": {
+    "auto_fold_dirs": false,
+  },
+  "base_keymap": "VSCode",
+  "relative_line_numbers": "enabled",
+  "gutter": {
+    "line_numbers": true,
+  },
+  "minimap": {
+    "show": "never",
+  },
+  "autosave": {
+    "after_delay": {
+      "milliseconds": 1000,
+    },
+  },
+  "linked_edits": true,
+  "tab_size": 2,
+  "telemetry": {
+    "diagnostics": false,
+    "metrics": false,
+  },
+  "vim_mode": true,
+  "theme": {
+    "mode": "system",
+    "light": "Ayu Light",
+    "dark": "Ayu Dark",
+  },
+}
