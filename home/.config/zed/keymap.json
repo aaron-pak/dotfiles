@@ -19,14 +19,22 @@
       "ctrl-l": "workspace::ActivatePaneRight",
     },
   },
-
+  // Editor
+  {
+    "context": "Editor",
+    "bindings": {
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight",
+    }
+  },
   // Normal mode bindings
   {
     "context": "Editor && vim_mode == normal",
     "bindings": {
       // File/Find (leader f)
       "space f f": "file_finder::Toggle",
-      "space f r": "projects::OpenRecent",
       "space f b": "tab_switcher::Toggle",
       "space space": "file_finder::Toggle",
 
@@ -35,13 +43,13 @@
       "space s g": "pane::DeploySearch",
       "space s s": "outline::Toggle",
       "space s S": "project_symbols::Toggle",
+      "space c": "command_palette::Toggle",
+      "space :": "command_palette::Toggle",
 
-      // Buffer (leader b)
+      // Buffer navigation
       "space b d": "pane::CloseActiveItem",
       "space b o": "pane::CloseOtherItems",
       "space b b": "tab_switcher::Toggle",
-
-      // Buffer navigation
       "shift-h": "pane::ActivatePreviousItem",
       "shift-l": "pane::ActivateNextItem",
       "[ b": "pane::ActivatePreviousItem",
@@ -93,11 +101,10 @@
       "space u r": "editor::ToggleRelativeLineNumbers",
 
       // Misc
-      "space :": "command_palette::Toggle",
       "space ,": "tab_switcher::Toggle",
 
       // Clear search highlight
-      "escape": "vim::SwitchToNormalMode",
+      // "escape": "vim::SwitchToNormalMode",
     },
   },
 
@@ -118,7 +125,7 @@
     "context": "Editor && vim_mode == insert",
     "bindings": {
       // Quick escape (optional, uncomment if desired)
-      // "j k": "vim::NormalBefore"
+      "j k": "vim::NormalBefore"
     },
   },
 

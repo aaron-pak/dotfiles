@@ -7,6 +7,12 @@
 // custom settings, run `zed: open default settings` from the
 // command palette (cmd-shift-p / ctrl-shift-p)
 {
+  "tabs": {
+    "file_icons": true,
+    "git_status": false
+  },
+  "close_on_file_delete": true,
+  "use_smartcase_search": true,
   "colorize_brackets": true,
   "vim": {
     "use_smartcase_find": true
