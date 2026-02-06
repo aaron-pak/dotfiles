@@ -1,13 +1,8 @@
 # CLAUDE.md
 
-- In all interaction and commit messages, be extremely concise and sacrifice grammar for the sake of concision.
-
 ## Code Quality Standards
 
-- Make minimal, surgical changes
 - **Never compromise type safety**: No `any`, no non-null assertion operator (`!`), no type assertions (`as Type`)
-- **Make illegal states unrepresentable**: Model domain with ADTs/discriminated unions; parse inputs at boundaries into typed structures; if state can't exist, code can't mishandle it
-- **Abstractions**: Consciously constrained, pragmatically parameterised, doggedly documented
 
 ### **ENTROPY REMINDER**
 
@@ -23,4 +18,4 @@ you cut will be cut again.
 
 ## Plans
 
-- At the end of each plan, interview me with a list of unresolved questions to answer, if any. Make the questions extremely concise. Sacrifice grammar for the sake of concision.
+- At the end of each plan, interview me with a list of unresolved questions to answer, if any.
