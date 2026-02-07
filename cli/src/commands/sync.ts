@@ -33,17 +33,17 @@ const printLinks = (links: readonly StowLink[]) =>
     }
   });
 
-const dryRun = Options.boolean("dry-run").pipe(
+const dry = Options.boolean("dry").pipe(
   Options.withAlias("n"),
   Options.withDescription("Show what would be synced without doing it"),
 );
 
-export const sync = Command.make("sync", { dryRun }, ({ dryRun }) =>
+export const sync = Command.make("sync", { dry }, ({ dry }) =>
   Effect.gen(function* () {
     const stow = yield* Stow;
     const result = yield* stow.dryRun();
 
-    if (dryRun) {
+    if (dry) {
       if (result.conflicts.length > 0) {
         yield* Console.log(
           `Would encounter ${result.conflicts.length} conflict(s):`,

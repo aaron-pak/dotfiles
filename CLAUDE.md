@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI agents when working with code in this repository.
 
 Dotfiles managed with GNU Stow. `home/` mirrors `~` and gets symlinked.
 
@@ -35,9 +35,18 @@ LazyVim-based, supports standalone + VSCode-Neovim. See `home/.config/nvim/CLAUD
 
 ### Claude Code (`home/.claude/`)
 
-Synced: `CLAUDE.md`, `settings.json`, `agents/`, `skills/`
+Synced via stow: `CLAUDE.md`, `agents/`, `skills/`, `statusline-command.sh`
 
-Not synced (machine-specific): `~/.claude.json`, `cache/`, `plugins/`, `history.jsonl`
+Not synced (machine-specific): `settings.json`, `~/.claude.json`, `cache/`, `plugins/`, `history.jsonl`
+
+**Settings sync:** `~/.claude/settings.json` is NOT symlinked. Instead, shared settings live in `config/claude-settings-shared.json` and are selectively merged into each machine's local `settings.json` via the CLI:
+
+- `dot claude pull` — overwrite shared keys in local settings from shared file
+- `dot claude push` — update shared file with local values for shared keys
+- `dot claude share <key>` — start sharing a top-level property
+- `dot claude unshare <key>` — stop sharing a top-level property
+
+Only top-level keys present in the shared file are synced. Machine-specific keys (e.g., `enabledPlugins`) are never touched by pull.
 
 ## Brewfile
 

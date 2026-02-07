@@ -7,37 +7,34 @@ const paths = Args.text({ name: "paths" }).pipe(
   Args.repeated,
 );
 
-const dryRun = Options.boolean("dry-run").pipe(
+const dry = Options.boolean("dry").pipe(
   Options.withAlias("n"),
   Options.withDescription("Show what would be removed without doing it"),
 );
 
-export const remove = Command.make(
-  "remove",
-  { paths, dryRun },
-  ({ paths, dryRun }) =>
-    Effect.gen(function* () {
-      if (paths.length === 0) {
-        yield* Console.log("Usage: dot remove [-n] <path>...");
-        return;
-      }
+export const remove = Command.make("remove", { paths, dry }, ({ paths, dry }) =>
+  Effect.gen(function* () {
+    if (paths.length === 0) {
+      yield* Console.log("Usage: dot remove [-n] <path>...");
+      return;
+    }
 
-      const stow = yield* Stow;
+    const stow = yield* Stow;
 
-      for (const p of paths) {
-        if (dryRun) {
-          const result = yield* stow.checkRemovable(p);
-          if (result.isDirectory) {
-            yield* Console.log(
-              `Would remove: ${result.normalized} (${result.itemCount} items)`,
-            );
-          } else {
-            yield* Console.log(`Would remove: ${result.normalized}`);
-          }
+    for (const p of paths) {
+      if (dry) {
+        const result = yield* stow.checkRemovable(p);
+        if (result.isDirectory) {
+          yield* Console.log(
+            `Would remove: ${result.normalized} (${result.itemCount} items)`,
+          );
         } else {
-          yield* stow.removeDotfile(p);
-          yield* Console.log(`Removed: ~/${p}`);
+          yield* Console.log(`Would remove: ${result.normalized}`);
         }
+      } else {
+        yield* stow.removeDotfile(p);
+        yield* Console.log(`Removed: ~/${p}`);
       }
-    }),
+    }
+  }),
 ).pipe(Command.withDescription("Remove a dotfile from being managed"));

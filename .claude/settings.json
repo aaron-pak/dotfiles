@@ -2,20 +2,27 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "cd cli && bun format 2>/dev/null || true",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/cli-format.sh\"",
             "async": true
           },
           {
             "type": "command",
-            "command": "cd cli && bun run typecheck"
-          },
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/cli-typecheck.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
           {
             "type": "command",
-            "command": "cd cli && bun run test --run"
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/cli-test.sh\""
           }
         ]
       }

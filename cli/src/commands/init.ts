@@ -1,5 +1,6 @@
 import { Command, Options, Prompt } from "@effect/cli";
 import { Console, Effect, Option } from "effect";
+import { ClaudeSettings } from "../services/ClaudeSettings.js";
 import { Homebrew } from "../services/Homebrew.js";
 import {
   type ConflictChoice,
@@ -34,7 +35,7 @@ const printLinks = (links: readonly StowLink[]) =>
     }
   });
 
-const dryRun = Options.boolean("dry-run").pipe(
+const dry = Options.boolean("dry").pipe(
   Options.withAlias("n"),
   Options.withDescription("Show what would happen without making changes"),
 );
@@ -45,8 +46,8 @@ const skipBrew = Options.boolean("skip-brew").pipe(
 
 export const init = Command.make(
   "init",
-  { dryRun, skipBrew },
-  ({ dryRun, skipBrew }) =>
+  { dry, skipBrew },
+  ({ dry, skipBrew }) =>
     Effect.gen(function* () {
       const homebrew = yield* Homebrew;
       const stow = yield* Stow;
@@ -59,7 +60,7 @@ export const init = Command.make(
         const brewInstalled = yield* homebrew.checkInstalled();
 
         if (!brewInstalled) {
-          if (dryRun) {
+          if (dry) {
             yield* Console.log("Would install Homebrew (not installed)");
           } else {
             const shouldInstall = yield* Prompt.confirm({
@@ -80,7 +81,7 @@ export const init = Command.make(
         }
 
         // Run brew bundle
-        if (dryRun) {
+        if (dry) {
           yield* Console.log("\nChecking Brewfile packages...");
           const checkResult = yield* homebrew.bundleDryRun();
 
@@ -130,7 +131,7 @@ export const init = Command.make(
 
       const result = yield* stow.dryRun();
 
-      if (dryRun) {
+      if (dry) {
         if (result.conflicts.length > 0) {
           yield* Console.log(
             `Would encounter ${result.conflicts.length} conflict(s):`,
@@ -148,60 +149,90 @@ export const init = Command.make(
         if (result.conflicts.length === 0 && result.links.length === 0) {
           yield* Console.log("All dotfiles already synced.");
         }
-        return;
+      } else {
+        yield* Console.log("Checking for conflicts...");
+
+        if (result.conflicts.length === 0) {
+          yield* Console.log("No conflicts found. Syncing dotfiles...");
+          const links = yield* stow.sync();
+          yield* printLinks(links);
+          yield* Console.log("\nDotfiles synced successfully!");
+        } else {
+          // Show conflicts
+          yield* Console.log(`\nFound ${result.conflicts.length} conflict(s):`);
+          for (const { target } of result.conflicts) {
+            yield* Console.log(`  - ${target}`);
+          }
+          yield* Console.log("");
+
+          // Prompt user for resolution
+          const choice = yield* Prompt.select<ConflictChoice>({
+            message: "How would you like to resolve these conflicts?",
+            choices: [
+              {
+                title: "Backup",
+                value: "backup",
+                description: "Rename conflicting files to .bak and sync",
+              },
+              {
+                title: "Delete",
+                value: "delete",
+                description: "Delete conflicting files and sync",
+              },
+              {
+                title: "Abort",
+                value: "abort",
+                description: "Do nothing and exit",
+              },
+            ],
+          });
+
+          // Resolve conflicts
+          const resolveResult = yield* stow.resolveConflicts(
+            result.conflicts,
+            choice,
+          );
+
+          if (resolveResult._tag === "Resolved") {
+            yield* printResolutions(resolveResult.resolutions);
+            yield* Console.log("\nSyncing dotfiles...");
+            const links = yield* stow.sync();
+            yield* printLinks(links);
+            yield* Console.log("\nDotfiles synced successfully!");
+          }
+        }
       }
 
-      yield* Console.log("Checking for conflicts...");
+      // Phase 3: Claude Code Settings
+      yield* Console.log("\n=== Phase 3: Claude Code Settings ===\n");
 
-      if (result.conflicts.length === 0) {
-        yield* Console.log("No conflicts found. Syncing dotfiles...");
-        const links = yield* stow.sync();
-        yield* printLinks(links);
-        yield* Console.log("\nDotfiles synced successfully!");
-        return;
+      const claudeSettings = yield* ClaudeSettings;
+
+      if (dry) {
+        const shared = yield* claudeSettings.readShared();
+        const sharedKeys = Object.keys(shared);
+
+        if (sharedKeys.length === 0) {
+          yield* Console.log("No shared Claude settings to pull.");
+        } else {
+          yield* Console.log("Would pull the following shared settings:");
+          for (const key of sharedKeys) {
+            yield* Console.log(`  ${key}`);
+          }
+        }
+      } else {
+        const pullResult = yield* claudeSettings.pull();
+
+        if (pullResult.updatedKeys.length === 0) {
+          yield* Console.log("No shared Claude settings to pull.");
+        } else {
+          yield* Console.log("Pulled shared Claude settings:");
+          for (const key of pullResult.updatedKeys) {
+            yield* Console.log(`  ${key}`);
+          }
+        }
       }
 
-      // Show conflicts
-      yield* Console.log(`\nFound ${result.conflicts.length} conflict(s):`);
-      for (const { target } of result.conflicts) {
-        yield* Console.log(`  - ${target}`);
-      }
-      yield* Console.log("");
-
-      // Prompt user for resolution
-      const choice = yield* Prompt.select<ConflictChoice>({
-        message: "How would you like to resolve these conflicts?",
-        choices: [
-          {
-            title: "Backup",
-            value: "backup",
-            description: "Rename conflicting files to .bak and sync",
-          },
-          {
-            title: "Delete",
-            value: "delete",
-            description: "Delete conflicting files and sync",
-          },
-          {
-            title: "Abort",
-            value: "abort",
-            description: "Do nothing and exit",
-          },
-        ],
-      });
-
-      // Resolve conflicts
-      const resolveResult = yield* stow.resolveConflicts(
-        result.conflicts,
-        choice,
-      );
-
-      if (resolveResult._tag === "Resolved") {
-        yield* printResolutions(resolveResult.resolutions);
-        yield* Console.log("\nSyncing dotfiles...");
-        const links = yield* stow.sync();
-        yield* printLinks(links);
-        yield* Console.log("\nInitialization complete!");
-      }
+      yield* Console.log("\nInitialization complete!");
     }),
 ).pipe(Command.withDescription("Initialize dotfiles on a new machine"));

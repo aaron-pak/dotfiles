@@ -7,18 +7,23 @@ Source in `cli/src/`, tests in `cli/tests/`, config at repo root. Run `bun` comm
 - `sync` - Sync dotfiles via stow, handles conflicts interactively
 - `add <path>...` - Move file from ~/ to home/, run stow (-n for dry-run)
 - `remove <path>...` - Remove symlink, move file back to ~/ (-n for dry-run)
-- `init` - Bootstrap new machine: install Homebrew, packages, sync dotfiles
+- `init` - Bootstrap new machine: install Homebrew, packages, sync dotfiles, pull Claude settings
+- `claude pull` - Pull shared settings into ~/.claude/settings.json (-n for dry-run)
+- `claude push` - Push local shared-key values back to shared file (-n for dry-run)
+- `claude share <key>` - Start sharing a top-level settings key
+- `claude unshare <key>` - Stop sharing a top-level settings key
 
 ## Structure
 
 ```
 cli/src/
 ├── main.ts           # CLI entry, layer composition
-├── commands/         # add, remove, sync, init
+├── commands/         # add, remove, sync, init, claude
 └── services/
-    ├── Stow.ts       # dryRun, sync, resolveConflicts, addDotfile, removeDotfile
-    ├── StowConfig.ts # dotfilesRoot, homeDir paths
-    └── Homebrew.ts   # checkInstalled, install, bundle, bundleDryRun
+    ├── Stow.ts          # dryRun, sync, resolveConflicts, addDotfile, removeDotfile
+    ├── StowConfig.ts    # dotfilesRoot, homeDir paths
+    ├── Homebrew.ts      # checkInstalled, install, bundle, bundleDryRun
+    └── ClaudeSettings.ts # pull, push, share, unshare
 cli/tests/
 ```
 

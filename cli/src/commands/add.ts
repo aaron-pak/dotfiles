@@ -7,12 +7,12 @@ const paths = Args.text({ name: "paths" }).pipe(
   Args.repeated,
 );
 
-const dryRun = Options.boolean("dry-run").pipe(
+const dry = Options.boolean("dry").pipe(
   Options.withAlias("n"),
   Options.withDescription("Show what would be added without doing it"),
 );
 
-export const add = Command.make("add", { paths, dryRun }, ({ paths, dryRun }) =>
+export const add = Command.make("add", { paths, dry }, ({ paths, dry }) =>
   Effect.gen(function* () {
     if (paths.length === 0) {
       yield* Console.log("Usage: dot add [-n] <path>...");
@@ -22,7 +22,7 @@ export const add = Command.make("add", { paths, dryRun }, ({ paths, dryRun }) =>
     const stow = yield* Stow;
 
     for (const p of paths) {
-      if (dryRun) {
+      if (dry) {
         yield* stow.checkAddable(p);
         yield* Console.log(`Would add: ~/${p}`);
       } else {
@@ -31,7 +31,7 @@ export const add = Command.make("add", { paths, dryRun }, ({ paths, dryRun }) =>
       }
     }
 
-    if (!dryRun) {
+    if (!dry) {
       const links = yield* stow.sync();
       if (links.length > 0) {
         yield* Console.log("\nSymlinks created:");
