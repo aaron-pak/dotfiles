@@ -70,7 +70,7 @@ secs=$((duration_sec % 60))
 cost_fmt=$(printf '$%.2f' "$cost")
 
 # --- Line 1: model | directory [branch] | lines | vim ---
-line1="\033[38;2;200;120;80m${model}\033[0m \033[2m|\033[0m \033[36m${dir}\033[0m"
+line1="\033[38;2;217;119;87m${model}\033[0m \033[2m|\033[0m \033[36m${dir}\033[0m"
 [ -n "$git_info" ] && line1="${line1} ${git_info}"
 line1="${line1} \033[2m|\033[0m ${bar_color}${bar} ${pct}%\033[0m"
 

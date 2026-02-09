@@ -7,9 +7,23 @@
 // custom settings, run `zed: open default settings` from the
 // command palette (cmd-shift-p / ctrl-shift-p)
 {
+  "agent_servers": {
+    "claude": {
+      
+    }
+  },
+  "terminal": {
+    "dock": "right"
+  },
+  "title_bar": {
+    "show_branch_icon": true
+  },
+  "ui_font_size": 16.0,
+  "buffer_font_size": 14.0,
   "tabs": {
+    "show_diagnostics": "errors",
     "file_icons": true,
-    "git_status": false
+    "git_status": true
   },
   "close_on_file_delete": true,
   "use_smartcase_search": true,
@@ -29,12 +43,13 @@
     "ss07": true,
     "ss12": true,
   },
-  "icon_theme": "Zed (Default)",
+  "icon_theme": "Catppuccin Mocha",
   "redact_private_values": true,
   "session": {
     "trust_all_worktrees": true,
   },
   "project_panel": {
+    "show_diagnostics": "errors",
     "auto_fold_dirs": false,
   },
   "base_keymap": "VSCode",
@@ -57,9 +72,5 @@
     "metrics": false,
   },
   "vim_mode": true,
-  "theme": {
-    "mode": "system",
-    "light": "Ayu Light",
-    "dark": "Ayu Dark",
-  },
+  "theme": "Cursor Dark",
 }

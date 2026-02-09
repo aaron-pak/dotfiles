@@ -19,20 +19,41 @@
       "ctrl-l": "workspace::ActivatePaneRight",
     },
   },
+  {
+    "context": "Workspace && vim_mode == normal",
+    "bindings": {
+      "space f e": "project_panel::ToggleFocus",
+      "space g g": "git_panel::ToggleFocus",
+    },
+  },
+
   // Editor
   {
     "context": "Editor",
     "bindings": {
+      // Override default editor keys
       "ctrl-h": "workspace::ActivatePaneLeft",
       "ctrl-j": "workspace::ActivatePaneDown",
       "ctrl-k": "workspace::ActivatePaneUp",
       "ctrl-l": "workspace::ActivatePaneRight",
-    }
+    },
   },
   // Normal mode bindings
   {
     "context": "Editor && vim_mode == normal",
     "bindings": {
+      // Basic
+      "alt-j": "editor::MoveLineDown",
+      "alt-k": "editor::MoveLineUp",
+      "ctrl-d": [
+        "action::Sequence",
+        ["vim::ScrollDown", "editor::ScrollCursorCenter"],
+      ],
+      "ctrl-u": [
+        "action::Sequence",
+        ["vim::ScrollUp", "editor::ScrollCursorCenter"],
+      ],
+
       // File/Find (leader f)
       "space f f": "file_finder::Toggle",
       "space f b": "tab_switcher::Toggle",
@@ -57,6 +78,7 @@
 
       // Explorer/Tree (leader e)
       "space e": "workspace::ToggleLeftDock",
+      "space f e": "vim::ToggleProjectPanelFocus",
 
       // Window/Split (leader w)
       "space w d": "pane::CloseActiveItem",
@@ -82,24 +104,23 @@
       "K": "editor::Hover",
 
       // Git (leader g)
-      "space g g": "terminal_panel::ToggleFocus",
-      "space g b": "git::Blame",
+      "space g g": "git_panel::ToggleFocus",
+      "space g B": "git::Blame",
       "space g h": "editor::ToggleSelectedDiffHunks",
+      "space g b": "git::Branch",
       "] h": "editor::GoToHunk",
       "[ h": "editor::GoToPreviousHunk",
 
       // Terminal (leader t)
-      "space t t": "workspace::ToggleBottomDock",
-      "space t n": "terminal_panel::ToggleFocus",
-
-      // Quit (leader q)
-      "space q q": "zed::Quit",
+      "space t t": "workspace::ToggleRightDock",
+      "space t n": "workspace::NewTerminal",
 
       // UI toggles (leader u)
       "space u w": "editor::ToggleSoftWrap",
-      "space u l": "editor::ToggleLineNumbers",
-      "space u r": "editor::ToggleRelativeLineNumbers",
-
+      "space u l": "editor::ToggleRelativeLineNumbers",
+      "space u k": "zed::OpenKeymapFile",
+      "space u K": "zed::OpenKeymap",
+      
       // Misc
       "space ,": "tab_switcher::Toggle",
 
@@ -112,20 +133,25 @@
   {
     "context": "Editor && vim_mode == visual",
     "bindings": {
+      // Navigation
+      "alt-j": "editor::MoveLineDown",
+      "alt-k": "editor::MoveLineUp",
+
+      // Code Actions
       "space c a": "editor::ToggleCodeActions",
       "space c f": "editor::Format",
+
       // Stay in visual mode after indent
       "<": "editor::Outdent",
       ">": "editor::Indent",
     },
   },
-
   // Insert mode bindings
   {
     "context": "Editor && vim_mode == insert",
     "bindings": {
       // Quick escape (optional, uncomment if desired)
-      "j k": "vim::NormalBefore"
+      "j k": "vim::NormalBefore",
     },
   },
 
@@ -133,11 +159,11 @@
   {
     "context": "Terminal",
     "bindings": {
-      "ctrl-h": "workspace::ActivatePaneLeft",
-      "ctrl-j": "workspace::ActivatePaneDown",
-      "ctrl-k": "workspace::ActivatePaneUp",
-      "ctrl-l": "workspace::ActivatePaneRight",
-      "ctrl-`": "workspace::ToggleBottomDock",
+      "space w d": "workspace::CloseActiveDock",
+      "space b d": "pane::CloseActiveItem", // Close
+      "space t n": "workspace::NewTerminal",
+
+      // "ctrl-`": "workspace::ToggleBottomDock",
     },
   },
 ]
