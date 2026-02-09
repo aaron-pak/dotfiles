@@ -26,6 +26,9 @@ Each file returns a plugin spec table for lazy.nvim. Key pattern: use `vscode = 
 - `blink-cmp.lua` - Completion configuration with VSCode-like keybindings
 - `vscode.lua` - vscode-multi-cursor plugin (only loads in VSCode)
 - `snacks.lua` - folke/snacks.nvim configuration
+- `noice.lua` - folke/noice.nvim UI replacement (cmdline, messages, popupmenu)
+- `flash.lua` - folke/flash.nvim navigation
+- `tiny-inline-diagnostic.lua` - rachartier/tiny-inline-diagnostic.nvim
 - `example.lua` - Example spec (disabled via `if true then return {} end`)
 
 ### Environment Detection

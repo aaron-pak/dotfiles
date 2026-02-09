@@ -1,82 +1,85 @@
 # Dotfiles
 
-Personal dotfiles managed with [GNU Stow](https://www.gnu.org/software/stow/).
+Personal dotfiles managed with the `dot` CLI, built on [GNU Stow](https://www.gnu.org/software/stow/) and [Effect](https://effect.website/).
 
-## Setup
+## New Machine Setup
 
 ```bash
-# Install stow
-brew install stow
-
-# Clone repo
 git clone <repo-url> ~/projects/dotfiles
 cd ~/projects/dotfiles
-
-# Create symlinks
-stow home -t ~
+bun install && bun run build
+./dot init
 ```
 
-## Usage
+`dot init` will:
 
-### Adding a config file
+1. Install [Homebrew](https://brew.sh/) (if missing)
+2. Install packages from `Brewfile` (stow, neovim, ripgrep, ghostty)
+3. Sync dotfiles to `~` via GNU Stow (with interactive conflict resolution)
+4. Pull shared Claude Code settings into `~/.claude/settings.json`
+
+Use `--skip-brew` to skip the Homebrew phase, or `-n` for a dry run.
+
+## Commands
+
+### Sync dotfiles
 
 ```bash
-# Example: ~/.zshrc
-mv ~/.zshrc home/.zshrc
-stow -R home -t ~
-
-# Verify
-ls -la ~/.zshrc  # should show symlink
+dot sync            # sync home/ -> ~ via stow
+dot sync -n         # dry run
 ```
 
-### Adding a config directory
+If conflicts are found (existing files where symlinks should go), you'll be prompted to backup, delete, or abort.
+
+### Add a dotfile
 
 ```bash
-# Example: ~/.config/alacritty
-mkdir -p home/.config
-mv ~/.config/alacritty home/.config/alacritty
-stow -R home -t ~
+dot add .zshrc              # moves ~/.zshrc into home/, restows
+dot add .config/ghostty     # works with directories too
+dot add -n .zshrc           # dry run
 ```
 
-### Removing a config
+Paths are relative to `~`.
+
+### Remove a dotfile
 
 ```bash
-# Remove from dotfiles
-rm home/.zshrc
-stow -R home -t ~
+dot remove .zshrc           # removes symlink, moves file back to ~/
+dot remove -n .zshrc        # dry run
 ```
 
-### Updating symlinks
+### Claude Code settings
 
-After any change to the `home/` structure:
+`~/.claude/settings.json` is not symlinked because some properties differ between machines. Instead, shared keys are selectively synced via `config/claude-settings-shared.json`.
 
 ```bash
-stow -R home -t ~
+dot claude pull             # merge shared keys into local settings.json
+dot claude push             # update shared file from local values
+dot claude share <key>      # start sharing a top-level key
+dot claude unshare <key>    # stop sharing a top-level key
 ```
 
-### Preview changes
+All support `-n` for dry run (except `share`/`unshare`).
 
-```bash
-stow -n home -t ~
-```
-
-## Commands Reference
-
-| Command             | Description               |
-| ------------------- | ------------------------- |
-| `stow home -t ~`    | Create symlinks           |
-| `stow -D home -t ~` | Remove all symlinks       |
-| `stow -R home -t ~` | Restow (refresh symlinks) |
-| `stow -n home -t ~` | Dry run                   |
+Only keys present in the shared file are synced. Machine-specific keys are never touched by pull.
 
 ## What's Included
 
-- **Neovim** - LazyVim config with VSCode-Neovim support
-- **Claude Code** - Global instructions, settings, agents, skills
-- **Ghostty** - Terminal config
-- **Ripgrep** - Search config
+| Config | Path | Notes |
+|--------|------|-------|
+| Neovim | `home/.config/nvim/` | LazyVim with VSCode-Neovim support |
+| Claude Code | `home/.claude/` | CLAUDE.md, agents, skills, statusline |
+| Ghostty | `home/.config/ghostty/` | Terminal config |
+| Ripgrep | `home/.config/ripgrep/` | Search config |
 
-## Notes
+## Development
 
-- If target files exist, stow will error. Back them up and remove first.
-- Edits to symlinked files (e.g., `~/.config/nvim/`) edit this repo directly.
+```bash
+bun install          # install deps
+bun run build        # compile to ./dot binary
+bun run dev          # run without compiling (e.g. bun run dev sync -n)
+bun run test         # run tests (vitest)
+bun run typecheck    # type check
+```
+
+Source is in `cli/src/`. See `cli/CLAUDE.md` for architecture and patterns.

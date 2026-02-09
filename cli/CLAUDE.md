@@ -7,7 +7,7 @@ Source in `cli/src/`, tests in `cli/tests/`, config at repo root. Run `bun` comm
 - `sync` - Sync dotfiles via stow, handles conflicts interactively
 - `add <path>...` - Move file from ~/ to home/, run stow (-n for dry-run)
 - `remove <path>...` - Remove symlink, move file back to ~/ (-n for dry-run)
-- `init` - Bootstrap new machine: install Homebrew, packages, sync dotfiles, pull Claude settings
+- `init` - Bootstrap new machine: install Homebrew, packages, sync dotfiles, pull Claude settings (`--skip-brew` to skip Homebrew phase)
 - `claude pull` - Pull shared settings into ~/.claude/settings.json (-n for dry-run)
 - `claude push` - Push local shared-key values back to shared file (-n for dry-run)
 - `claude share <key>` - Start sharing a top-level settings key

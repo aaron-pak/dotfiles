@@ -17,11 +17,14 @@ stow -n home -t ~   # dry run
 
 Editing `~/.config/nvim/*` edits files in this repo (symlinked).
 
-## Adding Dotfiles
+## Adding/Removing Dotfiles
 
-1. Mirror path: `~/.foo` → `home/.foo`
-2. Move original: `mv ~/.foo home/.foo`
-3. Restow: `stow -R home -t ~`
+```bash
+dot add ~/.foo       # move file into home/, restow
+dot remove ~/.foo    # remove symlink, move file back to ~/
+```
+
+Both support `-n` for dry-run.
 
 ## Configs
 
@@ -37,7 +40,7 @@ LazyVim-based, supports standalone + VSCode-Neovim. See `home/.config/nvim/CLAUD
 
 Synced via stow: `CLAUDE.md`, `agents/`, `skills/`, `statusline-command.sh`
 
-Not synced (machine-specific): `settings.json`, `~/.claude.json`, `cache/`, `plugins/`, `history.jsonl`
+Not synced (machine-specific): `settings.json`, `cache/`, `plugins/`, `history.jsonl`
 
 **Settings sync:** `~/.claude/settings.json` is NOT symlinked. Instead, shared settings live in `config/claude-settings-shared.json` and are selectively merged into each machine's local `settings.json` via the CLI:
 
@@ -60,7 +63,7 @@ Effect-based dotfiles manager. Source in `cli/src/`, config at root.
 bun install          # install deps
 bun run build        # compile to ./dot binary
 bun run dev          # run without compiling
-bun test             # run tests
+bun run test         # run tests (vitest, not bun test)
 bun run typecheck    # type check
 ```
 

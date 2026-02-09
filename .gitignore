@@ -17,3 +17,6 @@ dot
 
 # CLI state
 state/
+
+# Machine-specific Claude settings (synced via dot claude pull/push)
+home/.claude/settings.json
