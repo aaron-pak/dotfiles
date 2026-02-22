@@ -55,6 +55,16 @@ Synced via stow. Standard `.agents` directory used by [skills.sh](https://skills
 
 **Stow + relative symlinks:** Stow tree-folds directories into the repo, so relative symlinks inside resolve from the repo path, not `~/`. Both sides of a cross-directory relative symlink must live within `home/` for the link to resolve correctly.
 
+### Tmux (`home/.tmux.conf`)
+
+Synced via stow. Nord-accented status bar styled to match the Cursor Dark Ghostty theme. Pane labels show the running command with active/inactive distinction (burnt orange label, light gray border).
+
+**Claude Code process name fix:** Claude Code runs from `~/.local/share/claude/versions/<semver>/`, so macOS uses the version number (e.g. `2.1.50`) as the process name. The config uses `#{s/^[0-9][0-9.]*$/claude/:pane_current_command}` to replace any semver-shaped command with `claude`. This is applied in both pane labels and window list formats.
+
+### Ghostty (`~/.config/ghostty/config`)
+
+Not stow-managed. Uses Cursor Dark theme (Nord palette on `#141414` background). Nerd Font icons: only Material Design range (U+F0000+, `nf-md-*`) renders reliably via font fallback — other ranges may not display.
+
 ### Neovim (`home/.config/nvim/`)
 
 LazyVim-based, supports standalone + VSCode-Neovim. See `home/.config/nvim/CLAUDE.md`.
