@@ -57,7 +57,7 @@ Synced via stow. Standard `.agents` directory used by [skills.sh](https://skills
 
 ### Tmux (`home/.tmux.conf`)
 
-Synced via stow. Nord-accented status bar styled to match the Cursor Dark Ghostty theme. Pane labels show the running command with active/inactive distinction (burnt orange label, light gray border).
+Synced via stow. Catppuccin Mocha status bar on neutral dark background. Pane labels show the running command (burnt orange active, dim inactive). Nerd Font icons from `nf-md-*` range only.
 
 **Claude Code process name fix:** Claude Code runs from `~/.local/share/claude/versions/<semver>/`, so macOS uses the version number (e.g. `2.1.50`) as the process name. The config uses `#{s/^[0-9][0-9.]*$/claude/:pane_current_command}` to replace any semver-shaped command with `claude`. This is applied in both pane labels and window list formats.
 
@@ -82,6 +82,10 @@ Located at repo root. Format: `brew "pkg"`, `cask "app"`. Run via `dot init`.
 
 - **Tree folding:** Stow symlinks entire directories when possible, not individual files
 - Remove must handle both: dir symlink vs individual file symlinks inside
+
+## Color Palette
+
+Use **Catppuccin Mocha** as the default palette for all UI and config styling. User-specified overrides (e.g. burnt orange `#d08770` for tmux pane labels) take precedence — preserve them as-is during future changes.
 
 <!-- effect-solutions:start -->
 
