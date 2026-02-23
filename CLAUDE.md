@@ -61,9 +61,9 @@ Synced via stow. Catppuccin Mocha status bar on neutral dark background. Pane la
 
 **Claude Code process name fix:** Claude Code runs from `~/.local/share/claude/versions/<semver>/`, so macOS uses the version number (e.g. `2.1.50`) as the process name. The config uses `#{s/^[0-9][0-9.]*$/claude/:pane_current_command}` to replace any semver-shaped command with `claude`. This is applied in both pane labels and window list formats.
 
-### Ghostty (`~/.config/ghostty/config`)
+### Ghostty (`home/.config/ghostty/config`)
 
-Not stow-managed. Uses Cursor Dark theme (Nord palette on `#141414` background). Nerd Font icons: only Material Design range (U+F0000+, `nf-md-*`) renders reliably via font fallback — other ranges may not display.
+Synced via stow. Uses Cursor Dark theme (Nord palette on `#141414` background). Nerd Font icons: only Material Design range (U+F0000+, `nf-md-*`) renders reliably via font fallback — other ranges may not display.
 
 ### Neovim (`home/.config/nvim/`)
 
