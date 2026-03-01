@@ -6,6 +6,8 @@ Dotfiles managed with GNU Stow. `home/` mirrors `~` and gets symlinked.
 
 Effect-based dotfiles manager. Source in `cli/src/`, tests in `cli/tests/`, config at repo root.
 
+**Always use `dot` (or `bun run dev`) for all dotfile operations — never run `stow` directly.** The CLI sets the correct target (`~/`) and handles conflicts, backups, and edge cases that raw stow commands won't.
+
 ```bash
 bun install          # install deps
 bun run build        # compile to ./dot binary
