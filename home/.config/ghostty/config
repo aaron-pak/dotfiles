@@ -31,4 +31,5 @@ clipboard-write = allow
 
 # MacOS Settings
 macos-titlebar-proxy-icon = hidden
+unfocused-split-opacity = 0.4
 keybind = shift+enter=text:\x1b\r
