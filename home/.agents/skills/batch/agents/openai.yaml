@@ -1,0 +1,4 @@
+interface:
+  display_name: "Batch"
+  short_description: "Plan and run large refactors in parallel work units"
+  default_prompt: "Use $batch to split this migration into parallel work units and execute them."

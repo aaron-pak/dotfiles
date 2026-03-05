@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplify"
+  short_description: "Review diffs for reuse, quality, and efficiency"
+  default_prompt: "Use $simplify to review my recent code changes and apply cleanup fixes."
