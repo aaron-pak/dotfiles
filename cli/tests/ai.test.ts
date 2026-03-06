@@ -40,30 +40,37 @@ const makeAiSkillsLayer = (entries: Ref.Ref<readonly ManagedSkillEntry[]>) =>
         targets: ["claude", "codex", "agents"],
       }),
     updateTargets: (name: string, targets: readonly ("claude" | "codex" | "agents")[]) =>
+      Effect.succeed({
+        name,
+        targets: [...targets],
+      }),
+    updateTargetsMany: (
+      names: readonly string[],
+      targets: readonly ("claude" | "codex" | "agents")[],
+    ) =>
       Effect.gen(function* () {
         const nextTargets = [...targets];
-        const enabledTargets: Array<"claude" | "codex" | "agents"> = [];
-        const disabledTargets: Array<"claude" | "codex" | "agents"> = [
-          "claude",
-        ];
         yield* Ref.update(entries, (currentEntries) =>
           currentEntries.map((entry) =>
-            entry.name === name ? { ...entry, targets: nextTargets } : entry,
+            names.includes(entry.name)
+              ? { ...entry, targets: nextTargets }
+              : entry,
           ),
         );
 
         return {
-          name,
-          canonicalDir: "ai/skills/batch",
+          names: [...names],
           targets: nextTargets,
-          enabledTargets,
-          disabledTargets,
         };
       }),
     unmanage: () =>
       Effect.succeed({
         name: "batch",
         removedTargets: ["/test/home/.claude/skills/batch"],
+      }),
+    unmanageMany: (names: readonly string[]) =>
+      Effect.succeed({
+        names: [...names],
       }),
     list: () =>
       Ref.get(entries).pipe(
@@ -101,7 +108,7 @@ describe("ai interactive flows", () => {
       ]);
     }));
 
-  it.effect("runSkillsManagerWithHooks updates skill targets immediately", () =>
+  it.effect("runSkillsManagerWithHooks applies the confirmed targets to selected skills", () =>
     Effect.gen(function* () {
       const entries = yield* Ref.make<readonly ManagedSkillEntry[]>([
         {
@@ -110,32 +117,25 @@ describe("ai interactive flows", () => {
           targets: ["claude", "codex"],
         },
       ]);
-      const selections = yield* Ref.make<readonly string[]>([
-        "batch",
-        "claude",
-        "back",
-        "exit",
-      ]);
+      const calls = yield* Ref.make(0);
 
       yield* runSkillsManagerWithHooks({
-        selectSkill: () =>
-          Ref.modify(selections, (currentSelections) => {
-            const [nextSelection = "exit", ...remainingSelections] =
-              currentSelections;
-            return [nextSelection === "exit" ? "exit" : nextSelection, remainingSelections];
-          }),
-        selectTargetAction: () =>
-          Ref.modify(selections, (currentSelections) => {
-            const [nextSelection = "back", ...remainingSelections] =
-              currentSelections;
-            return [
-              nextSelection === "claude" ||
-              nextSelection === "codex" ||
-              nextSelection === "agents"
-                ? nextSelection
-                : "back",
-              remainingSelections,
-            ];
+        selectSkills: () =>
+          Ref.modify(calls, (current) => [
+            current === 0
+              ? {
+                  _tag: "edit",
+                  names: ["batch"],
+                }
+              : {
+                  _tag: "exit",
+                },
+            current + 1,
+          ]),
+        editTargets: () =>
+          Effect.succeed({
+            _tag: "confirm",
+            targets: ["codex"],
           }),
       }).pipe(Effect.provide(makeAiSkillsLayer(entries)));
 
@@ -146,5 +146,56 @@ describe("ai interactive flows", () => {
           targets: ["codex"],
         },
       ]);
+      expect(yield* Ref.get(calls)).toBe(2);
+    }));
+
+  it.effect("runSkillsManagerWithHooks unmanages every selected skill", () =>
+    Effect.gen(function* () {
+      const entries = yield* Ref.make<readonly ManagedSkillEntry[]>([
+        {
+          name: "batch",
+          canonical_dir: "ai/skills/batch",
+          targets: ["claude", "codex"],
+        },
+        {
+          name: "simplify",
+          canonical_dir: "ai/skills/simplify",
+          targets: ["codex"],
+        },
+      ]);
+      const calls = yield* Ref.make(0);
+
+      yield* runSkillsManagerWithHooks({
+        selectSkills: () =>
+          Ref.modify(calls, (current) => [
+            current === 0
+              ? {
+                  _tag: "unmanage",
+                  names: ["batch", "simplify"],
+                }
+              : {
+                  _tag: "exit",
+                },
+            current + 1,
+          ]),
+        editTargets: () =>
+          Effect.succeed({
+            _tag: "cancel",
+          }),
+      }).pipe(Effect.provide(makeAiSkillsLayer(entries)));
+
+      expect(yield* Ref.get(entries)).toEqual([
+        {
+          name: "batch",
+          canonical_dir: "ai/skills/batch",
+          targets: ["claude", "codex"],
+        },
+        {
+          name: "simplify",
+          canonical_dir: "ai/skills/simplify",
+          targets: ["codex"],
+        },
+      ]);
+      expect(yield* Ref.get(calls)).toBe(2);
     }));
 });

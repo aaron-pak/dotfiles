@@ -273,13 +273,13 @@ def read_until(needle: str, timeout: float = 10.0) -> None:
             raise SystemExit(f"terminal closed while waiting for {needle!r}")
         buffer += chunk
 
-read_until("Which managed skill do you want to edit?")
+read_until("Manage skills")
 os.write(master, b"\n")
-read_until(f"Manage targets for {os.environ['DOT_E2E_SKILL_NAME']}")
+read_until("Choose targets")
+os.write(master, b" ")
 os.write(master, b"\n")
-read_until(f"Updated {os.environ['DOT_E2E_SKILL_NAME']}: disabled Claude")
-read_until("Current targets: Codex")
-read_until(f"Manage targets for {os.environ['DOT_E2E_SKILL_NAME']}")
+read_until("Updated 1 skill(s):")
+read_until("Current targets: .codex")
 proc.terminate()
 try:
     proc.wait(timeout=1)

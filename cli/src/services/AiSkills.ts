@@ -31,6 +31,11 @@ type AdoptSkillInput = {
   readonly targets: readonly SkillTarget[];
 };
 
+type ManagedNamedSkill = {
+  readonly name: string;
+  readonly skill: ManagedSkillState;
+};
+
 const skillTargets: readonly SkillTarget[] = ["claude", "codex", "agents"];
 
 const normalizeTargets = (
@@ -219,6 +224,36 @@ export class AiSkills extends Effect.Service<AiSkills>()("@dotfiles/AiSkills", {
       );
 
       return entries.filter((entry) => !entry.startsWith(".")).sort();
+    });
+
+    const loadManagedSkills = Effect.fn("AiSkills.loadManagedSkills")(function* (
+      names: readonly string[],
+    ) {
+      const uniqueNames = [...new Set(names)].sort((left, right) =>
+        left.localeCompare(right),
+      );
+
+      if (uniqueNames.length === 0) {
+        return yield* AiSkillsError.make({
+          details: "Select at least one managed skill",
+        });
+      }
+
+      const managedSkills: ManagedNamedSkill[] = [];
+      for (const name of uniqueNames) {
+        const skill = yield* aiState.getSkill(name);
+        if (skill === undefined) {
+          return yield* AiSkillsError.make({
+            details: `Managed skill "${name}" not found`,
+          });
+        }
+        managedSkills.push({
+          name,
+          skill,
+        });
+      }
+
+      return managedSkills;
     });
 
     const previewSync = Effect.fn("AiSkills.previewSync")(function* () {
@@ -503,126 +538,172 @@ export class AiSkills extends Effect.Service<AiSkills>()("@dotfiles/AiSkills", {
       };
     });
 
+    const validateTargetsUpdate = Effect.fn("AiSkills.validateTargetsUpdate")(
+      function* (
+        name: string,
+        skill: ManagedSkillState,
+        normalizedTargets: readonly SkillTarget[],
+      ) {
+        if (normalizedTargets.length === 0) {
+          return yield* AiSkillsError.make({
+            details: `Managed skill "${name}" must keep at least one target. Use unmanage to stop managing it entirely.`,
+          });
+        }
+
+        const canonicalPath = canonicalPathFor(skill);
+        const toEnable = targetsToEnable(skill.targets, normalizedTargets);
+        const toDisable = targetsToDisable(skill.targets, normalizedTargets);
+
+        for (const target of toEnable) {
+          const targetPath = targetPathFor(name, target);
+          const targetType = yield* getPathType(targetPath);
+          if (targetType === "Missing") {
+            continue;
+          }
+
+          const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
+            Effect.catchAll(() => Effect.succeed(false)),
+          );
+          if (managed) {
+            continue;
+          }
+
+          return yield* AiSkillsError.make({
+            details:
+              targetType === "SymbolicLink"
+                ? `${displayPath(targetPath)} already exists as a different symlink`
+                : `${displayPath(targetPath)} already exists as a local ${targetType.toLowerCase()}`,
+          });
+        }
+
+        for (const target of toDisable) {
+          const targetPath = targetPathFor(name, target);
+          const targetType = yield* getPathType(targetPath);
+          if (targetType === "Missing") {
+            continue;
+          }
+
+          const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
+            Effect.catchAll(() => Effect.succeed(false)),
+          );
+          if (managed) {
+            continue;
+          }
+
+          return yield* AiSkillsError.make({
+            details:
+              targetType === "SymbolicLink"
+                ? `${displayPath(targetPath)} is not managed by this skill`
+                : `${displayPath(targetPath)} is not a managed symlink and cannot be removed automatically`,
+          });
+        }
+
+        return {
+          canonicalPath,
+          normalizedTargets,
+          toEnable,
+          toDisable,
+        };
+      },
+    );
+
+    const updateTargetsMany = Effect.fn("AiSkills.updateTargetsMany")(function* (
+      names: readonly string[],
+      targets: readonly SkillTarget[],
+    ) {
+      const managedSkills = yield* loadManagedSkills(names);
+      const normalizedTargets = normalizeTargets(targets);
+      const validated = [];
+
+      for (const managedSkill of managedSkills) {
+        const result = yield* validateTargetsUpdate(
+          managedSkill.name,
+          managedSkill.skill,
+          normalizedTargets,
+        );
+        validated.push({
+          ...managedSkill,
+          ...result,
+        });
+      }
+
+      for (const entry of validated) {
+        yield* aiState.upsertSkill(entry.name, {
+          canonical_dir: entry.skill.canonical_dir,
+          targets: entry.normalizedTargets,
+        });
+      }
+
+      for (const entry of validated) {
+        for (const target of entry.toDisable) {
+          const targetPath = targetPathFor(entry.name, target);
+          yield* removePath(targetPath);
+        }
+      }
+
+      for (const entry of validated) {
+        for (const target of entry.toEnable) {
+          yield* ensureLocalSurface(target);
+          const targetPath = targetPathFor(entry.name, target);
+          yield* createManagedSymlink(targetPath, entry.canonicalPath);
+        }
+      }
+
+      return {
+        names: managedSkills.map((managedSkill) => managedSkill.name),
+        targets: normalizedTargets,
+      };
+    });
+
     const updateTargets = Effect.fn("AiSkills.updateTargets")(function* (
       name: string,
       targets: readonly SkillTarget[],
     ) {
-      const skill = yield* aiState.getSkill(name);
-      if (skill === undefined) {
-        return yield* AiSkillsError.make({
-          details: `Managed skill "${name}" not found`,
-        });
-      }
+      const result = yield* updateTargetsMany([name], targets);
+      return {
+        name,
+        targets: result.targets,
+      };
+    });
 
-      const normalizedTargets = normalizeTargets(targets);
-      if (normalizedTargets.length === 0) {
-        return yield* AiSkillsError.make({
-          details: `Managed skill "${name}" must keep at least one target. Use unmanage to stop managing it entirely.`,
-        });
-      }
+    const unmanageMany = Effect.fn("AiSkills.unmanageMany")(function* (
+      names: readonly string[],
+    ) {
+      const managedSkills = yield* loadManagedSkills(names);
 
-      const canonicalPath = canonicalPathFor(skill);
-      const toEnable = targetsToEnable(skill.targets, normalizedTargets);
-      const toDisable = targetsToDisable(skill.targets, normalizedTargets);
+      for (const managedSkill of managedSkills) {
+        const canonicalPath = canonicalPathFor(managedSkill.skill);
+        for (const target of managedSkill.skill.targets) {
+          const targetPath = targetPathFor(managedSkill.name, target);
+          const managed = yield* isManagedSymlink(
+            targetPath,
+            canonicalPath,
+          ).pipe(Effect.catchAll(() => Effect.succeed(false)));
 
-      for (const target of toEnable) {
-        const targetPath = targetPathFor(name, target);
-        const targetType = yield* getPathType(targetPath);
-        if (targetType === "Missing") {
-          continue;
+          if (!managed) {
+            continue;
+          }
+
+          yield* removePath(targetPath);
+          yield* copyPath(canonicalPath, targetPath);
         }
-
-        const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
-          Effect.catchAll(() => Effect.succeed(false)),
-        );
-        if (managed) {
-          continue;
-        }
-
-        return yield* AiSkillsError.make({
-          details:
-            targetType === "SymbolicLink"
-              ? `${displayPath(targetPath)} already exists as a different symlink`
-              : `${displayPath(targetPath)} already exists as a local ${targetType.toLowerCase()}`,
-        });
       }
 
-      for (const target of toDisable) {
-        const targetPath = targetPathFor(name, target);
-        const targetType = yield* getPathType(targetPath);
-        if (targetType === "Missing") {
-          continue;
-        }
-
-        const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
-          Effect.catchAll(() => Effect.succeed(false)),
-        );
-        if (managed) {
-          continue;
-        }
-
-        return yield* AiSkillsError.make({
-          details:
-            targetType === "SymbolicLink"
-              ? `${displayPath(targetPath)} is not managed by this skill`
-              : `${displayPath(targetPath)} is not a managed symlink and cannot be removed automatically`,
-        });
-      }
-
-      yield* aiState.upsertSkill(name, {
-        canonical_dir: skill.canonical_dir,
-        targets: normalizedTargets,
-      });
-
-      for (const target of toDisable) {
-        const targetPath = targetPathFor(name, target);
-        yield* removePath(targetPath);
-      }
-
-      for (const target of toEnable) {
-        yield* ensureLocalSurface(target);
-        const targetPath = targetPathFor(name, target);
-        yield* createManagedSymlink(targetPath, canonicalPath);
+      for (const managedSkill of managedSkills) {
+        yield* removePath(canonicalPathFor(managedSkill.skill));
+        yield* aiState.removeSkill(managedSkill.name);
       }
 
       return {
-        name,
-        canonicalDir: skill.canonical_dir,
-        targets: normalizedTargets,
-        enabledTargets: toEnable,
-        disabledTargets: toDisable,
+        names: managedSkills.map((managedSkill) => managedSkill.name),
       };
     });
 
     const unmanage = Effect.fn("AiSkills.unmanage")(function* (name: string) {
-      const skill = yield* aiState.getSkill(name);
-      if (skill === undefined) {
-        return yield* AiSkillsError.make({
-          details: `Managed skill "${name}" not found`,
-        });
-      }
-
-      const canonicalPath = canonicalPathFor(skill);
-      for (const target of skill.targets) {
-        const targetPath = targetPathFor(name, target);
-        const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
-          Effect.catchAll(() => Effect.succeed(false)),
-        );
-
-        if (!managed) {
-          continue;
-        }
-
-        yield* removePath(targetPath);
-        yield* copyPath(canonicalPath, targetPath);
-      }
-
-      yield* removePath(canonicalPath);
-      yield* aiState.removeSkill(name);
-
+      const result = yield* unmanageMany([name]);
       return {
         name,
-        removedTargets: skill.targets.map((target) => displayPath(targetPathFor(name, target))),
+        removedTargets: result.names,
       };
     });
 
@@ -653,7 +734,9 @@ export class AiSkills extends Effect.Service<AiSkills>()("@dotfiles/AiSkills", {
       sync,
       adopt,
       updateTargets,
+      updateTargetsMany,
       unmanage,
+      unmanageMany,
       list,
     };
   }),

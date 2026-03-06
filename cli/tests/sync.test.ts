@@ -102,15 +102,21 @@ const makeAiSkillsLayer = (callLog: CallLog) =>
     updateTargets: (_name, targets) =>
       Effect.succeed({
         name: "batch",
-        canonicalDir: "ai/skills/batch",
         targets,
-        enabledTargets: [],
-        disabledTargets: [],
+      }),
+    updateTargetsMany: (names, targets) =>
+      Effect.succeed({
+        names: [...names],
+        targets,
       }),
     unmanage: () =>
       Effect.succeed({
         name: "batch",
         removedTargets: ["/test/home/.claude/skills/batch"],
+      }),
+    unmanageMany: (names) =>
+      Effect.succeed({
+        names: [...names],
       }),
     list: () => Effect.succeed([]),
   });

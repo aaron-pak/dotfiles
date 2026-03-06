@@ -8,6 +8,9 @@ import {
   printManagedSettingsApply,
   printManagedSettingsPreview,
 } from "./managedSettingsOutput.js";
+import {
+  runChecklistPrompt,
+} from "./interactiveChecklist.js";
 
 const dry = Options.boolean("dry").pipe(
   Options.withAlias("n"),
@@ -183,69 +186,174 @@ type ManagedSkillEntry = {
 };
 
 const skillTargetLabels: Record<SkillTarget, string> = {
-  claude: "Claude",
-  codex: "Codex",
+  claude: ".claude",
+  codex: ".codex",
   agents: ".agents",
 };
 
 const formatSkillTargets = (targets: readonly SkillTarget[]) =>
   targets.length === 0 ? "none" : targets.map((target) => skillTargetLabels[target]).join(", ");
 
+const formatSkillTargetSummary = (targets: readonly SkillTarget[]) =>
+  targets.length === 0
+    ? "Nowhere"
+    : `(${targets.map((target) => skillTargetLabels[target]).join(", ")})`;
+
+const sameTargets = (
+  left: readonly SkillTarget[],
+  right: readonly SkillTarget[],
+) =>
+  left.length === right.length &&
+  left.every((target, index) => target === right[index]);
+
+const deriveInitialTargets = (entries: readonly ManagedSkillEntry[]) => {
+  const firstEntry = entries[0];
+  if (firstEntry === undefined) {
+    return [];
+  }
+
+  return entries.every((entry) => sameTargets(entry.targets, firstEntry.targets))
+    ? firstEntry.targets
+    : [];
+};
+
+const formatSkillNames = (names: readonly string[]) =>
+  names.length === 1
+    ? names[0] ?? ""
+    : `${names.length} skills`;
+
 const selectManagedAssetKind = () =>
-  Prompt.select<"skills" | "exit">({
-    message: "What do you want to manage?",
-    choices: [
-      {
-        title: "Skills",
-        value: "skills",
-        description: "Manage which AI surfaces receive each shared skill",
-      },
-      {
-        title: "Exit",
-        value: "exit",
-        description: "Leave AI management",
-      },
-    ],
+  Effect.gen(function* () {
+    const result = yield* runChecklistPrompt<"skills" | "exit", never>({
+      message: "What do you want to manage?",
+      choices: [
+        {
+          title: "Skills",
+          value: "skills",
+          detail: "Manage which AI surfaces receive each shared skill",
+        },
+        {
+          title: "Exit",
+          value: "exit",
+          detail: "Leave AI management",
+        },
+      ],
+      footer: ["enter select  esc cancel", "j/k or arrows move"],
+      selectionMode: "single",
+      showSelectionSummary: false,
+      min: 1,
+      selectHoveredWhenEmpty: true,
+      emptySelectionError: "Choose one item to continue.",
+    });
+
+    if (result._tag === "cancel") {
+      return "exit";
+    }
+
+    const selected = result.values[0];
+    if (selected === undefined) {
+      return "exit";
+    }
+    return selected;
   });
 
-const selectManagedSkill = (entries: readonly ManagedSkillEntry[]) =>
-  Prompt.select<string | "exit">({
-    message: "Which managed skill do you want to edit?",
-    choices: [
-      ...entries.map((entry) => ({
+type SkillsMenuResult =
+  | {
+      readonly _tag: "exit";
+    }
+  | {
+      readonly _tag: "edit";
+      readonly names: readonly string[];
+    }
+  | {
+      readonly _tag: "unmanage";
+      readonly names: readonly string[];
+    };
+
+type SkillTargetEditorResult =
+  | {
+      readonly _tag: "cancel";
+    }
+  | {
+      readonly _tag: "confirm";
+      readonly targets: readonly SkillTarget[];
+    };
+
+const selectManagedSkills = (entries: readonly ManagedSkillEntry[]) =>
+  Effect.gen(function* () {
+    const result = yield* runChecklistPrompt<string, "unmanage">({
+      message: "Manage skills",
+      choices: entries.map((entry) => ({
         title: entry.name,
         value: entry.name,
-        description: formatSkillTargets(entry.targets),
+        detail: formatSkillTargetSummary(entry.targets),
       })),
-      {
-        title: "Exit",
-        value: "exit",
-        description: "Leave skills manager",
-      },
-    ],
+      footer: [
+        "space toggle  enter edit targets  u unmanage  esc exit",
+        "j/k or arrows move",
+      ],
+      selectHoveredWhenEmpty: true,
+      emptySelectionError:
+        "Select a skill with space, or press enter/u on the hovered skill.",
+      extraActions: [
+        {
+          key: "u",
+          action: "unmanage",
+          label: "Unmanage",
+        },
+      ],
+    });
+
+    if (result._tag === "cancel") {
+      return {
+        _tag: "exit",
+      } satisfies SkillsMenuResult;
+    }
+
+    if (result._tag === "extra") {
+      return {
+        _tag: "unmanage",
+        names: result.values,
+      } satisfies SkillsMenuResult;
+    }
+
+    return {
+      _tag: "edit",
+      names: result.values,
+    } satisfies SkillsMenuResult;
   });
 
-const selectSkillTargetAction = (entry: ManagedSkillEntry) =>
-  Prompt.select<SkillTarget | "back">({
-    message: `Manage targets for ${entry.name}`,
-    choices: [
-      ...allSkillTargets.map((target) => {
-        const enabled = entry.targets.includes(target);
-        const label = skillTargetLabels[target];
-        return {
-          title: `${label}: ${enabled ? "on" : "off"}`,
-          value: target,
-          description: enabled
-            ? `Stop projecting ${entry.name} into ${label}`
-            : `Project ${entry.name} into ${label}`,
-        };
-      }),
-      {
-        title: "Back",
-        value: "back",
-        description: "Return to the managed skill list",
-      },
-    ],
+const selectSkillTargetsEditor = (
+  names: readonly string[],
+  initialTargets: readonly SkillTarget[],
+) =>
+  Effect.gen(function* () {
+    const result = yield* runChecklistPrompt<SkillTarget, never>({
+      message: `Choose targets\n${formatSkillNames(names)}`,
+      choices: allSkillTargets.map((target) => ({
+        title: skillTargetLabels[target],
+        value: target,
+        selected: initialTargets.includes(target),
+      })),
+      footer: [
+        "space toggle  enter confirm  esc cancel",
+        "j/k or arrows move",
+      ],
+      min: 1,
+      emptySelectionError:
+        "Select at least one target, or go back and press u to unmanage.",
+    });
+
+    if (result._tag === "cancel") {
+      return {
+        _tag: "cancel",
+      } satisfies SkillTargetEditorResult;
+    }
+
+    return {
+      _tag: "confirm",
+      targets: normalizeTargets(result.values),
+    } satisfies SkillTargetEditorResult;
   });
 
 type AiHubHooks<E, R> = {
@@ -254,29 +362,13 @@ type AiHubHooks<E, R> = {
 };
 
 type SkillsManagerHooks<E, R> = {
-  readonly selectSkill: (
+  readonly selectSkills: (
     entries: readonly ManagedSkillEntry[],
-  ) => Effect.Effect<string | "exit", E, R>;
-  readonly selectTargetAction: (
-    entry: ManagedSkillEntry,
-  ) => Effect.Effect<SkillTarget | "back", E, R>;
-};
-
-const summarizeTargetChanges = (
-  enabledTargets: readonly SkillTarget[],
-  disabledTargets: readonly SkillTarget[],
-) => {
-  const changes: string[] = [];
-
-  if (enabledTargets.length > 0) {
-    changes.push(`enabled ${formatSkillTargets(enabledTargets)}`);
-  }
-
-  if (disabledTargets.length > 0) {
-    changes.push(`disabled ${formatSkillTargets(disabledTargets)}`);
-  }
-
-  return changes.length === 0 ? "No target changes were needed." : changes.join("; ");
+  ) => Effect.Effect<SkillsMenuResult, E, R>;
+  readonly editTargets: (
+    names: readonly string[],
+    initialTargets: readonly SkillTarget[],
+  ) => Effect.Effect<SkillTargetEditorResult, E, R>;
 };
 
 export const aiHelpText = [
@@ -300,8 +392,8 @@ export const aiHelpText = [
 ].join("\n");
 
 export const runSkillsManagerWithHooks = <E, R>({
-  selectSkill,
-  selectTargetAction,
+  selectSkills,
+  editTargets,
 }: SkillsManagerHooks<E, R>) =>
   Effect.gen(function* () {
     const skills = yield* AiSkills;
@@ -313,51 +405,49 @@ export const runSkillsManagerWithHooks = <E, R>({
         return;
       }
 
-      const selectedName = yield* selectSkill(entries);
-      if (selectedName === "exit") {
+      const selection = yield* selectSkills(entries);
+      if (selection._tag === "exit") {
         return;
       }
 
-      while (true) {
-        const currentEntries = yield* skills.list();
-        const entry = currentEntries.find(
-          (currentEntry) => currentEntry.name === selectedName,
-        );
-
-        if (entry === undefined) {
-          yield* Console.log(
-            `Managed skill "${selectedName}" is no longer available.`,
-          );
-          break;
-        }
-
-        const action = yield* selectTargetAction(entry);
-        if (action === "back") {
-          break;
-        }
-
-        const nextTargets = entry.targets.includes(action)
-          ? entry.targets.filter((target) => target !== action)
-          : normalizeTargets([...entry.targets, action]);
-
-        const result = yield* skills.updateTargets(entry.name, nextTargets);
+      if (selection._tag === "unmanage") {
+        const result = yield* skills.unmanageMany(selection.names);
         yield* Console.log(
-          `Updated ${result.name}: ${summarizeTargetChanges(
-            result.enabledTargets,
-            result.disabledTargets,
-          )}`,
+          `Unmanaged ${result.names.length} skill(s): ${result.names.join(", ")}`,
         );
         yield* Console.log(
-          `Current targets: ${formatSkillTargets(result.targets)}`,
+          "This machine kept local copies for any managed links it was using.",
         );
+        yield* Console.log(
+          "Other machines are not guaranteed to keep a working copy after they pull this repo change in v1.",
+        );
+        continue;
       }
+
+      const selectedEntries = entries.filter((entry) =>
+        selection.names.includes(entry.name),
+      );
+      const initialTargets = deriveInitialTargets(selectedEntries);
+      const editorResult = yield* editTargets(selection.names, initialTargets);
+      if (editorResult._tag === "cancel") {
+        continue;
+      }
+
+      const result = yield* skills.updateTargetsMany(
+        selection.names,
+        editorResult.targets,
+      );
+      yield* Console.log(
+        `Updated ${result.names.length} skill(s): ${result.names.join(", ")}`,
+      );
+      yield* Console.log(`Current targets: ${formatSkillTargets(result.targets)}`);
     }
   });
 
 export const runSkillsManager = Effect.fn("ai.runSkillsManager")(function* () {
   yield* runSkillsManagerWithHooks({
-    selectSkill: selectManagedSkill,
-    selectTargetAction: selectSkillTargetAction,
+    selectSkills: selectManagedSkills,
+    editTargets: selectSkillTargetsEditor,
   });
 });
 

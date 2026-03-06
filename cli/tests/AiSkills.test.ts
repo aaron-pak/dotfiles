@@ -384,8 +384,6 @@ targets = ["claude", "codex"]
       const result = yield* skills.updateTargets("batch", ["codex"]);
 
       expect(result.targets).toEqual(["codex"]);
-      expect(result.enabledTargets).toEqual([]);
-      expect(result.disabledTargets).toEqual(["claude"]);
       expect(entries[`${testHomeDir}/.claude/skills/batch`]).toBeUndefined();
       expect(entries[`${testHomeDir}/.codex/skills/batch`]).toEqual({
         type: "SymbolicLink",
