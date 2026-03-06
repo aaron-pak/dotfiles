@@ -1,10 +1,13 @@
 import { FileSystem, Path } from "@effect/platform";
 import { Effect, Schema } from "effect";
+import { AiLocalState } from "./AiLocalState.js";
+import { AiState } from "./AiState.js";
+import {
+  buildManagedSettingsPreview,
+  changedManagedKeys,
+  mergeManagedSettings,
+} from "./ManagedSettings.js";
 import { StowConfig } from "./StowConfig.js";
-
-// -------------------------------------------------------------------------------------
-// Errors
-// -------------------------------------------------------------------------------------
 
 export class ClaudeSettingsError extends Schema.TaggedError<ClaudeSettingsError>()(
   "ClaudeSettingsError",
@@ -15,16 +18,15 @@ export class ClaudeSettingsError extends Schema.TaggedError<ClaudeSettingsError>
   }
 }
 
-// -------------------------------------------------------------------------------------
-// Types
-// -------------------------------------------------------------------------------------
-
-/** Top-level JSON object with unknown values. */
 type SettingsObject = Record<string, unknown>;
 
-// -------------------------------------------------------------------------------------
-// Service
-// -------------------------------------------------------------------------------------
+const isRecord = (value: unknown): value is SettingsObject =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const jsonObjectSchema = Schema.Record({
+  key: Schema.String,
+  value: Schema.Unknown,
+});
 
 export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
   "@dotfiles/ClaudeSettings",
@@ -33,19 +35,23 @@ export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const { dotfilesRoot, homeDir } = yield* StowConfig;
-
-      const sharedPath = path.join(
-        dotfilesRoot,
-        "config",
-        "claude-settings-shared.json",
+      const aiState = yield* AiState;
+      const aiLocalState = yield* AiLocalState;
+      const decodeJsonObject = Schema.decodeUnknown(
+        Schema.parseJson(jsonObjectSchema),
       );
+      const encodeJsonObject = Schema.encode(
+        Schema.parseJson(jsonObjectSchema, { space: 2 }),
+      );
+
       const localPath = path.join(homeDir, ".claude", "settings.json");
 
-      /** Read and parse a JSON file, returning {} if it doesn't exist. */
       const readJsonFile = (filePath: string) =>
         Effect.gen(function* () {
           const exists = yield* fs.exists(filePath);
-          if (!exists) return {} as SettingsObject;
+          if (!exists) {
+            return {};
+          }
 
           const content = yield* fs.readFileString(filePath).pipe(
             Effect.catchAll((error) =>
@@ -55,128 +61,157 @@ export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
             ),
           );
 
-          return yield* Effect.try({
-            try: () => JSON.parse(content) as SettingsObject,
-            catch: () =>
-              new ClaudeSettingsError({
-                details: `Failed to parse ${filePath} as JSON`,
-              }),
-          });
+          const parsed = yield* decodeJsonObject(content).pipe(
+            Effect.mapError(
+              () =>
+                new ClaudeSettingsError({
+                  details: `Failed to parse ${filePath} as JSON`,
+                }),
+            ),
+          );
+
+          if (!isRecord(parsed)) {
+            return yield* ClaudeSettingsError.make({
+              details: `${filePath} must decode to a JSON object`,
+            });
+          }
+
+          return parsed;
         });
 
-      /** Write a JSON object to a file. */
       const writeJsonFile = (filePath: string, data: SettingsObject) =>
-        fs.writeFileString(filePath, JSON.stringify(data, null, 2) + "\n").pipe(
-          Effect.catchAll((error) =>
-            ClaudeSettingsError.make({
-              details: `Failed to write ${filePath}: ${error}`,
-            }),
-          ),
-        );
+        Effect.gen(function* () {
+          const content = yield* encodeJsonObject(data).pipe(
+            Effect.mapError(
+              () =>
+                new ClaudeSettingsError({
+                  details: `Failed to encode ${filePath} as JSON`,
+                }),
+            ),
+          );
 
-      /**
-       * Pull shared settings into local settings.json.
-       * For each key in shared, overwrite in local. Non-shared keys untouched.
-       */
-      const pull = Effect.fn("ClaudeSettings.pull")(function* () {
+          yield* fs.writeFileString(filePath, `${content}\n`).pipe(
+            Effect.catchAll((error) =>
+              ClaudeSettingsError.make({
+                details: `Failed to write ${filePath}: ${error}`,
+              }),
+            ),
+          );
+        });
+
+      const getSharedPath = Effect.fn("ClaudeSettings.getSharedPath")(
+        function* () {
+          const tool = yield* aiState.getTool("claude");
+          return path.join(dotfilesRoot, tool.settings.shared_settings_file);
+        },
+      );
+
+      const previewPull = Effect.fn("ClaudeSettings.previewPull")(function* () {
+        const sharedPath = yield* getSharedPath();
         const shared = yield* readJsonFile(sharedPath);
+        const ignoredSections = yield* aiLocalState.getIgnoredSections("claude");
+        return buildManagedSettingsPreview(shared, ignoredSections);
+      });
+
+      const pull = Effect.fn("ClaudeSettings.pull")(function* () {
+        const preview = yield* previewPull();
         const local = yield* readJsonFile(localPath);
+        const changedKeys = changedManagedKeys(local, preview.applicableShared);
+        const merged = mergeManagedSettings(local, preview.applicableShared);
 
-        const merged = { ...local, ...shared };
-
-        yield* writeJsonFile(localPath, merged);
+        if (changedKeys.length > 0) {
+          yield* writeJsonFile(localPath, merged);
+        }
 
         return {
-          updatedKeys: Object.keys(shared),
+          applicableKeys: preview.applicableKeys,
+          changedKeys,
+          skippedKeys: preview.skippedKeys,
           totalKeys: Object.keys(merged).length,
         };
       });
 
-      /**
-       * Push local values for shared keys back to the shared file.
-       * Only updates keys that already exist in shared.
-       */
-      const push = Effect.fn("ClaudeSettings.push")(function* () {
-        const shared = yield* readJsonFile(sharedPath);
-        const local = yield* readJsonFile(localPath);
-
-        const updatedShared: SettingsObject = {};
-        const updatedKeys: string[] = [];
-
-        for (const key of Object.keys(shared)) {
-          if (key in local) {
-            updatedShared[key] = local[key];
-            updatedKeys.push(key);
-          } else {
-            updatedShared[key] = shared[key];
-          }
-        }
-
-        yield* writeJsonFile(sharedPath, updatedShared);
-
-        return { updatedKeys };
-      });
-
-      /**
-       * Start sharing a top-level property.
-       * Copies the current local value to the shared file.
-       */
-      const share = Effect.fn("ClaudeSettings.share")(function* (key: string) {
+      const adopt = Effect.fn("ClaudeSettings.adopt")(function* (key: string) {
+        const sharedPath = yield* getSharedPath();
         const shared = yield* readJsonFile(sharedPath);
         const local = yield* readJsonFile(localPath);
 
         if (!(key in local)) {
           return yield* ClaudeSettingsError.make({
-            details: `Key "${key}" not found in local settings`,
+            details: `Section "${key}" not found in local settings`,
           });
         }
 
-        if (key in shared) {
-          return yield* ClaudeSettingsError.make({
-            details: `Key "${key}" is already shared`,
-          });
-        }
+        const updatedShared = {
+          ...shared,
+          [key]: local[key],
+        };
 
-        shared[key] = local[key];
-        yield* writeJsonFile(sharedPath, shared);
+        yield* writeJsonFile(sharedPath, updatedShared);
 
         return { key };
       });
 
-      /**
-       * Stop sharing a top-level property.
-       * Removes it from the shared file. Local value is preserved.
-       */
-      const unshare = Effect.fn("ClaudeSettings.unshare")(function* (
+      const validateIgnoreTarget = Effect.fn(
+        "ClaudeSettings.validateIgnoreTarget",
+      )(function* (key: string) {
+        const preview = yield* previewPull();
+        if (preview.skippedKeys.includes(key)) {
+          return yield* ClaudeSettingsError.make({
+            details: `This machine is already keeping its own value for "${key}"`,
+          });
+        }
+
+        if (!preview.sharedKeys.includes(key)) {
+          return yield* ClaudeSettingsError.make({
+            details: `Key "${key}" is not currently shared`,
+          });
+        }
+      });
+
+      const ignore = Effect.fn("ClaudeSettings.ignore")(function* (
         key: string,
       ) {
-        const shared = yield* readJsonFile(sharedPath);
+        yield* validateIgnoreTarget(key);
 
-        if (!(key in shared)) {
+        return yield* aiLocalState.ignore("claude", key).pipe(
+          Effect.mapError(
+            (error) =>
+              new ClaudeSettingsError({
+                details: error.message,
+              }),
+          ),
+        );
+      });
+
+      const unignore = Effect.fn("ClaudeSettings.unignore")(function* (
+        key: string,
+      ) {
+        const ignoredSections = yield* aiLocalState.getIgnoredSections("claude");
+        if (!ignoredSections.includes(key)) {
           return yield* ClaudeSettingsError.make({
-            details: `Key "${key}" is not shared`,
+            details: `This machine is not keeping its own value for "${key}"`,
           });
         }
 
-        const { [key]: _, ...rest } = shared;
-        yield* writeJsonFile(sharedPath, rest);
-
-        return { key };
-      });
-
-      /** Read the shared settings file (for dry-run previews). */
-      const readShared = Effect.fn("ClaudeSettings.readShared")(function* () {
-        return yield* readJsonFile(sharedPath);
+        return yield* aiLocalState.unignore("claude", key).pipe(
+          Effect.mapError(
+            (error) =>
+              new ClaudeSettingsError({
+                details: error.message,
+              }),
+          ),
+        );
       });
 
       return {
-        readShared,
-        pull,
-        push,
-        share,
-        unshare,
-        sharedPath,
         localPath,
+        getSharedPath,
+        previewPull,
+        pull,
+        adopt,
+        ignore,
+        unignore,
       };
     }),
   },

@@ -13,31 +13,44 @@ bun install          # install deps
 bun run build        # compile to ./dot binary
 bun run dev          # run without compiling
 bun run test         # run tests (vitest, not bun test)
+bun run test:e2e:ai  # run AI end-to-end CLI checks in isolated temp homes
 bun run typecheck    # type check
 ```
 
+Warnings are not acceptable. Before finishing work, `bun run typecheck` and `bun run test` must both pass cleanly with no warnings and no failures.
+
 ### Commands
 
-- `sync` - Sync dotfiles via stow, handles conflicts interactively
+- `sync` - Sync dotfiles via stow, then pull managed Claude and Codex settings
 - `add <path>...` - Move file from ~/ to home/, run stow (-n for dry-run)
 - `remove <path>...` - Remove symlink, move file back to ~/ (-n for dry-run)
-- `init` - Bootstrap new machine: install Homebrew, packages, sync dotfiles, pull Claude settings (`--skip-brew` to skip Homebrew phase)
-- `claude pull` - Pull shared settings into ~/.claude/settings.json (-n for dry-run)
-- `claude push` - Push local shared-key values back to shared file (-n for dry-run)
-- `claude share <key>` - Start sharing a top-level settings key
-- `claude unshare <key>` - Stop sharing a top-level settings key
+- `init` - Bootstrap new machine: install Homebrew, packages, sync dotfiles, then pull Claude and Codex settings (`--skip-brew` to skip Homebrew phase)
+- `ai` - Open the interactive AI management hub
+- `ai help` - Show AI command help
+- `ai settings pull [--tool claude|codex|all]` - Pull shared settings into local AI config files
+- `ai settings adopt <name> --tool claude|codex` - Copy one local key/section into the repo-owned shared file
+- `ai settings ignore <name> --tool claude|codex` - Keep this machine's current value on the next pull or sync
+- `ai settings unignore <name> --tool claude|codex` - Resume applying the shared value on the next pull or sync
+- `ai skills` - Open the interactive skills manager
+- `ai skills sync` - Project managed skills onto this machine
+- `ai skills adopt [<name>] [--from claude|codex|agents|<path>] [--targets claude,codex,agents]` - Adopt one local skill into managed storage
+- `ai skills unmanage <name>` - Stop managing one skill and keep local copies on this machine
+- `ai skills list` - List managed skills and their targets
 
 ### Source Structure
 
 ```
 cli/src/
 ├── main.ts           # CLI entry, layer composition
-├── commands/         # add, remove, sync, init, claude
+├── commands/         # add, remove, sync, init, ai
 └── services/
     ├── Stow.ts          # dryRun, sync, resolveConflicts, addDotfile, removeDotfile
     ├── StowConfig.ts    # dotfilesRoot, homeDir paths
     ├── Homebrew.ts      # checkInstalled, install, bundle, bundleDryRun
-    └── ClaudeSettings.ts # pull, push, share, unshare
+    ├── AiState.ts       # structural AI config metadata and skill projections
+    ├── AiLocalState.ts  # machine-local ignored shared sections
+    ├── ClaudeSettings.ts # pull, adopt, ignore, unignore
+    └── CodexSettings.ts  # pull, adopt, ignore, unignore
 cli/tests/
 ```
 
@@ -45,17 +58,59 @@ cli/tests/
 
 ### Claude Code (`home/.claude/`)
 
-Synced via stow: `CLAUDE.md`, `agents/`, `skills/`, `statusline-command.sh`
+Synced via stow: `CLAUDE.md`, `agents/`, `statusline-command.sh`
 
 Not synced (machine-specific): `settings.json`, `cache/`, `plugins/`, `history.jsonl`
 
-**Settings sync:** `~/.claude/settings.json` is NOT symlinked. Instead, shared settings live in `config/claude-settings-shared.json` and are selectively merged into each machine's local `settings.json` via the CLI. Only top-level keys present in the shared file are synced. Machine-specific keys (e.g., `enabledPlugins`) are never touched by pull.
+**Settings sync:** `~/.claude/settings.json` is NOT symlinked. `ai/claude-settings-shared.json` is the shared file, and `dot ai settings pull --tool claude` or `dot sync` applies every top-level key from that file into the local settings file except keys this machine has been told to keep locally in `~/.config/dot/ai-local.toml`. Local-only keys such as `enabledPlugins` stay local. If a key stops being shared, machines keep the value they already have.
 
-### Agents (`home/.agents/`)
+### Managed Skills (`ai/skills/`)
 
-Synced via stow. Standard `.agents` directory used by [skills.sh](https://skills.sh). Skills installed here are bridged to Claude Code via relative symlinks in `home/.claude/skills/<skill>` → `../../.agents/skills/<skill>`.
+Managed skills live outside `home/` now. Each managed skill has one canonical repo copy under `ai/skills/<name>/`, and `dot ai skills sync` or `dot sync` projects symlinks into the selected local surfaces:
 
-**Stow + relative symlinks:** Stow tree-folds directories into the repo, so relative symlinks inside resolve from the repo path, not `~/`. Both sides of a cross-directory relative symlink must live within `home/` for the link to resolve correctly.
+- `~/.claude/skills/<name>`
+- `~/.codex/skills/<name>`
+- `~/.agents/skills/<name>`
+
+`dot ai skills unmanage` only guarantees safe local preservation on the machine where the command runs in v1.
+
+`dot ai` opens the interactive AI hub, and `dot ai skills` opens the interactive skills manager directly. Toggling a target there updates `ai/state.toml` immediately, updates this machine immediately, and `dot sync` removes deselected managed symlinks on other machines after they pull.
+
+The repo no longer stows `home/.claude/skills`, `home/.codex/skills`, or `home/.agents`. Those live skill surfaces are local directories managed only by the AI skill projector.
+
+### Codex (`home/.codex/`)
+
+Synced via stow: `AGENTS.md`
+
+Not synced (machine-specific): `config.toml`, auth, history, caches, worktrees, SQLite state, and other runtime artifacts.
+
+**Instruction source:** `home/.codex/AGENTS.md` is a symlink to `home/.claude/CLAUDE.md`, which is the canonical global instruction file for all tools.
+
+**Settings sync:** `~/.codex/config.toml` is NOT symlinked. `ai/codex-settings-shared.toml` is the shared file, and `dot ai settings pull --tool codex` or `dot sync` applies every top-level section from that file into the local config except sections this machine has been told to keep locally in `~/.config/dot/ai-local.toml`. `projects` always remains local and is never adopted or pulled from shared state. If a section stops being shared, machines keep the value they already have.
+
+## AI Ownership Model
+
+`ai/state.toml` is structural metadata only. It declares:
+
+- the canonical global instruction file
+- which repo file owns the shared settings for each tool
+- which managed skills exist and which local surfaces they target
+
+The repo intentionally keeps actual content in native files and directories rather than in a database or one synthetic state blob.
+
+The model is split by behavior:
+
+- `tools.*.settings` for per-key shared settings
+- `skills.<name>` for whole-skill management with explicit targets
+
+Normal operator vocabulary:
+
+- `shared file` - repo-owned source of truth for shared settings values
+- `pull` - apply the shared file into the live local config
+- `adopt` - promote one local live setting into the shared file
+- `ignore` - tell one machine to keep its own value on future pulls/syncs
+- `unignore` - tell one machine to start using the shared value again on future pulls/syncs
+- `managed skill` - one canonical repo copy projected into selected local AI surfaces
 
 ### Tmux (`home/.tmux.conf`)
 
@@ -123,7 +178,10 @@ class Foo extends Effect.Service<Foo>()("Foo", {
 
 - Avoid chained `Effect.provide` (TS18 warning) - use `Layer.provideMerge` to compose, then single `Effect.provide`
 - `bun run test` - runs vitest (correct)
+- `bun run test:e2e:ai` - builds `dot` and runs isolated AI CLI end-to-end checks with temp repo/home directories
 - `bun test` - runs bun's test runner (wrong, causes @effect/vitest errors)
+- Treat warnings as failures. Fix all warnings instead of ignoring or suppressing them.
+- Do not consider work complete unless `bun run typecheck`, `bun run test`, and any relevant E2E checks all pass cleanly.
 
 ## Local Effect Source
 
