@@ -12,6 +12,7 @@
     "build:dev": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
+    "test:e2e:ai": "bun run build && bash scripts/test-ai-e2e.sh",
     "format": "prettier --write 'cli/src/**/*.ts' 'cli/tests/**/*.ts'",
     "format:check": "prettier --check 'cli/src/**/*.ts' 'cli/tests/**/*.ts'",
     "prepare": "effect-language-service patch",
@@ -29,6 +30,7 @@
     "@effect/cli": "^0.73.0",
     "@effect/platform": "^0.94.1",
     "@effect/platform-bun": "^0.87.0",
-    "effect": "^3.19.14"
+    "effect": "^3.19.14",
+    "smol-toml": "^1.6.0"
   }
 }

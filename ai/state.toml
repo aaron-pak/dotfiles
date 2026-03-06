@@ -1,0 +1,57 @@
+[instructions]
+canonical = "home/.claude/CLAUDE.md"
+
+[tools.claude.settings]
+shared_settings_file = "ai/claude-settings-shared.json"
+
+[tools.codex.settings]
+shared_settings_file = "ai/codex-settings-shared.toml"
+
+[skills.batch]
+canonical_dir = "ai/skills/batch"
+targets = [ "codex" ]
+
+[skills.doc]
+canonical_dir = "ai/skills/doc"
+targets = [ "codex" ]
+
+[skills.frontend-design]
+canonical_dir = "ai/skills/frontend-design"
+targets = [ "codex" ]
+
+[skills.next-task]
+canonical_dir = "ai/skills/next-task"
+targets = [ "claude" ]
+
+[skills.openai-docs]
+canonical_dir = "ai/skills/openai-docs"
+targets = [ "codex" ]
+
+[skills.playwright]
+canonical_dir = "ai/skills/playwright"
+targets = [ "codex" ]
+
+[skills.progress]
+canonical_dir = "ai/skills/progress"
+targets = [ "claude" ]
+
+[skills.simplify]
+canonical_dir = "ai/skills/simplify"
+targets = [ "codex" ]
+
+[skills.task-list]
+canonical_dir = "ai/skills/task-list"
+targets = [ "claude" ]
+
+[skills.vercel-composition-patterns]
+canonical_dir = "ai/skills/vercel-composition-patterns"
+targets = [ "claude", "codex" ]
+
+[skills.vercel-react-best-practices]
+canonical_dir = "ai/skills/vercel-react-best-practices"
+targets = [ "claude", "codex" ]
+
+[skills.mock-e2e]
+canonical_dir = "ai/skills/mock-e2e"
+targets = [ "claude", "codex" ]
+

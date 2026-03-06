@@ -1,18 +1,48 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import {
-  runFullSyncWithChoice,
-  runManagedSkillsSync,
-  runManagedSettingsSync,
-} from "../src/commands/syncFlow.js";
+import { runInitializationWithHooks } from "../src/commands/init.js";
 import { AiSkills } from "../src/services/AiSkills.js";
 import { ClaudeSettings } from "../src/services/ClaudeSettings.js";
 import { CodexSettings } from "../src/services/CodexSettings.js";
+import {
+  BundleCheckResult,
+  BundleResult,
+  Homebrew,
+  InstalledPackage,
+} from "../src/services/Homebrew.js";
 import { ResolveResult, Stow, StowResult } from "../src/services/Stow.js";
 
 type CallLog = {
   readonly steps: string[];
 };
+
+const makeHomebrewLayer = (callLog: CallLog) =>
+  Layer.succeed(Homebrew, {
+    _tag: "@dotfiles/Homebrew",
+    checkInstalled: () =>
+      Effect.sync(() => {
+        callLog.steps.push("brew.checkInstalled");
+        return true;
+      }),
+    install: () =>
+      Effect.sync(() => {
+        callLog.steps.push("brew.install");
+        return undefined;
+      }),
+    bundle: () =>
+      Effect.sync(() => {
+        callLog.steps.push("brew.bundle");
+        return new BundleResult({
+          installed: [],
+          skipped: [new InstalledPackage({ name: "stow", type: "formula" })],
+        });
+      }),
+    bundleDryRun: () =>
+      Effect.sync(() => {
+        callLog.steps.push("brew.bundleDryRun");
+        return new BundleCheckResult({ missing: [], satisfied: true });
+      }),
+  });
 
 const makeStowLayer = (callLog: CallLog) =>
   Layer.succeed(Stow, {
@@ -43,23 +73,20 @@ const makeClaudeLayer = (callLog: CallLog) =>
     getSharedPath: () =>
       Effect.succeed("/test/dotfiles/ai/claude-settings-shared.json"),
     previewPull: () =>
-      Effect.sync(() => {
-        callLog.steps.push("claude.previewPull");
-        return {
-          sharedKeys: ["permissions"],
-          applicableKeys: ["permissions"],
-          skippedKeys: [],
-          applicableShared: { permissions: {} },
-        };
+      Effect.succeed({
+        sharedKeys: [],
+        applicableKeys: [],
+        skippedKeys: [],
+        applicableShared: {},
       }),
     pull: () =>
       Effect.sync(() => {
         callLog.steps.push("claude.pull");
         return {
-          applicableKeys: ["permissions"],
-          changedKeys: ["permissions"],
+          applicableKeys: [],
+          changedKeys: [],
           skippedKeys: [],
-          totalKeys: 1,
+          totalKeys: 0,
         };
       }),
     adopt: (key: string) => Effect.succeed({ key }),
@@ -74,20 +101,17 @@ const makeAiSkillsLayer = (callLog: CallLog) =>
     listLocalSkills: () => Effect.succeed([]),
     sourcePathForSurface: () => Effect.succeed(""),
     previewSync: () =>
-      Effect.sync(() => {
-        callLog.steps.push("skills.previewSync");
-        return {
-          toCreate: ["/test/home/.claude/skills/batch"],
-          toRemove: [],
-          unchanged: [],
-          conflicts: [],
-        };
+      Effect.succeed({
+        toCreate: [],
+        toRemove: [],
+        unchanged: [],
+        conflicts: [],
       }),
     sync: () =>
       Effect.sync(() => {
         callLog.steps.push("skills.sync");
         return {
-          toCreate: ["/test/home/.claude/skills/batch"],
+          toCreate: [],
           toRemove: [],
           unchanged: [],
           conflicts: [],
@@ -122,23 +146,20 @@ const makeCodexLayer = (callLog: CallLog) =>
     getSharedPath: () =>
       Effect.succeed("/test/dotfiles/ai/codex-settings-shared.toml"),
     previewPull: () =>
-      Effect.sync(() => {
-        callLog.steps.push("codex.previewPull");
-        return {
-          sharedKeys: ["features"],
-          applicableKeys: ["features"],
-          skippedKeys: [],
-          applicableShared: { features: {} },
-        };
+      Effect.succeed({
+        sharedKeys: [],
+        applicableKeys: [],
+        skippedKeys: [],
+        applicableShared: {},
       }),
     pull: () =>
       Effect.sync(() => {
         callLog.steps.push("codex.pull");
         return {
-          applicableKeys: ["features"],
-          changedKeys: ["features"],
+          applicableKeys: [],
+          changedKeys: [],
           skippedKeys: [],
-          totalKeys: 1,
+          totalKeys: 0,
         };
       }),
     adopt: (key: string) => Effect.succeed({ key }),
@@ -148,55 +169,55 @@ const makeCodexLayer = (callLog: CallLog) =>
 
 const makeTestLayer = (callLog: CallLog) =>
   Layer.mergeAll(
+    makeHomebrewLayer(callLog),
     makeStowLayer(callLog),
     makeAiSkillsLayer(callLog),
     makeClaudeLayer(callLog),
     makeCodexLayer(callLog),
   );
 
-describe("sync flow", () => {
-  it.effect("runManagedSkillsSync projects skills before settings", () => {
+describe("init flow", () => {
+  it.effect("runs Homebrew work, then reuses the shared sync pipeline", () => {
     const callLog: CallLog = { steps: [] };
 
     return Effect.gen(function* () {
-      yield* runManagedSkillsSync(false);
-      expect(callLog.steps).toEqual(["skills.sync"]);
+      yield* runInitializationWithHooks(
+        false,
+        false,
+        () => Effect.succeed(true),
+        () => Effect.succeed("abort"),
+      );
+
+      expect(callLog.steps).toEqual([
+        "brew.checkInstalled",
+        "brew.bundle",
+        "stow.dryRun",
+        "stow.sync",
+        "skills.sync",
+        "claude.pull",
+        "codex.pull",
+      ]);
     }).pipe(Effect.provide(makeTestLayer(callLog)));
   });
 
-  it.effect("runManagedSettingsSync pulls Claude before Codex", () => {
+  it.effect("skip-brew still runs both sync phases", () => {
     const callLog: CallLog = { steps: [] };
 
     return Effect.gen(function* () {
-      yield* runManagedSettingsSync(false);
-      expect(callLog.steps).toEqual(["claude.pull", "codex.pull"]);
-    }).pipe(Effect.provide(makeTestLayer(callLog)));
-  });
+      yield* runInitializationWithHooks(
+        false,
+        true,
+        () => Effect.succeed(true),
+        () => Effect.succeed("abort"),
+      );
 
-  it.effect(
-    "runFullSync runs stow first, then both managed settings pulls",
-    () => {
-      const callLog: CallLog = { steps: [] };
-
-      return Effect.gen(function* () {
-        yield* runFullSyncWithChoice(false, () => Effect.succeed("abort"));
-        expect(callLog.steps).toEqual([
-          "stow.dryRun",
-          "stow.sync",
-          "skills.sync",
-          "claude.pull",
-          "codex.pull",
-        ]);
-      }).pipe(Effect.provide(makeTestLayer(callLog)));
-    },
-  );
-
-  it.effect("dry sync previews shared settings without mutating them", () => {
-    const callLog: CallLog = { steps: [] };
-
-    return Effect.gen(function* () {
-      yield* runManagedSettingsSync(true);
-      expect(callLog.steps).toEqual(["claude.previewPull", "codex.previewPull"]);
+      expect(callLog.steps).toEqual([
+        "stow.dryRun",
+        "stow.sync",
+        "skills.sync",
+        "claude.pull",
+        "codex.pull",
+      ]);
     }).pipe(Effect.provide(makeTestLayer(callLog)));
   });
 });
