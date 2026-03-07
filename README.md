@@ -135,7 +135,7 @@ dot ai skills adopt my-skill --from codex --targets claude,codex
 dot ai skills unmanage my-skill
 ```
 
-`dot ai` opens the interactive AI hub. `dot ai skills` opens the interactive skill manager directly so you can toggle Claude, Codex, and `.agents` on or off for each managed skill. `dot sync` and `dot init` also project managed skills automatically, including removing deselected managed symlinks on other machines after pull + sync. `dot ai skills unmanage` only guarantees safe local preservation on the machine where you run it in v1. Other machines are not guaranteed to keep a working copy after they pull that repo change.
+`dot ai` opens the interactive AI hub. `dot ai skills` opens the interactive skill manager directly so you can toggle Claude, Codex, and `.agents` on or off for each managed skill. If you unmanage skills from that menu, it asks whether this machine should keep local copies or delete them. `dot sync` and `dot init` also project managed skills automatically, including removing deselected managed symlinks on other machines after pull + sync. `dot ai skills unmanage` only guarantees safe local preservation on the machine where you run it in v1. Other machines are not guaranteed to keep a working copy after they pull that repo change.
 
 ## What's Included
 

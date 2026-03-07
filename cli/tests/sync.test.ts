@@ -112,11 +112,12 @@ const makeAiSkillsLayer = (callLog: CallLog) =>
     unmanage: () =>
       Effect.succeed({
         name: "batch",
-        removedTargets: ["/test/home/.claude/skills/batch"],
+        disposition: "keep-local-copies",
       }),
-    unmanageMany: (names) =>
+    unmanageMany: (names, disposition = "keep-local-copies") =>
       Effect.succeed({
         names: [...names],
+        disposition,
       }),
     list: () => Effect.succeed([]),
   });

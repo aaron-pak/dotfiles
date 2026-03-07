@@ -1,6 +1,10 @@
 import { Args, Command, Options, Prompt } from "@effect/cli";
 import { Console, Effect, Option } from "effect";
-import { AiSkills, AiSkillsError } from "../services/AiSkills.js";
+import {
+  AiSkills,
+  AiSkillsError,
+  type UnmanageDisposition,
+} from "../services/AiSkills.js";
 import { type ManagedTool, type SkillTarget } from "../services/AiState.js";
 import { ClaudeSettings } from "../services/ClaudeSettings.js";
 import { CodexSettings } from "../services/CodexSettings.js";
@@ -279,7 +283,19 @@ type SkillTargetEditorResult =
       readonly targets: readonly SkillTarget[];
     };
 
-const selectManagedSkills = (entries: readonly ManagedSkillEntry[]) =>
+type UnmanageSkillResult =
+  | {
+      readonly _tag: "cancel";
+    }
+  | {
+      readonly _tag: "confirm";
+      readonly disposition: UnmanageDisposition;
+    };
+
+const selectManagedSkills = (
+  entries: readonly ManagedSkillEntry[],
+  selectedNames: readonly string[],
+) =>
   Effect.gen(function* () {
     const result = yield* runChecklistPrompt<string, "unmanage">({
       message: "Manage skills",
@@ -287,6 +303,7 @@ const selectManagedSkills = (entries: readonly ManagedSkillEntry[]) =>
         title: entry.name,
         value: entry.name,
         detail: formatSkillTargetSummary(entry.targets),
+        selected: selectedNames.includes(entry.name),
       })),
       footer: [
         "space toggle  enter edit targets  u unmanage  esc exit",
@@ -356,6 +373,49 @@ const selectSkillTargetsEditor = (
     } satisfies SkillTargetEditorResult;
   });
 
+const selectUnmanageDisposition = (names: readonly string[]) =>
+  Effect.gen(function* () {
+    const result = yield* runChecklistPrompt<UnmanageDisposition, never>({
+      message: `Unmanage skills\n${formatSkillNames(names)}`,
+      choices: [
+        {
+          title: "Keep local copies",
+          value: "keep-local-copies",
+          detail: "Remove repo management and leave real local folders on this machine",
+        },
+        {
+          title: "Delete local copies",
+          value: "delete-local-copies",
+          detail: "Remove repo management and delete the managed skill folders on this machine",
+        },
+      ],
+      footer: ["enter select  esc cancel", "j/k or arrows move"],
+      selectionMode: "single",
+      showSelectionSummary: false,
+      min: 1,
+      selectHoveredWhenEmpty: true,
+      emptySelectionError: "Choose how to unmanage these skills.",
+    });
+
+    if (result._tag === "cancel") {
+      return {
+        _tag: "cancel",
+      } satisfies UnmanageSkillResult;
+    }
+
+    const disposition = result.values[0];
+    if (disposition === undefined) {
+      return {
+        _tag: "cancel",
+      } satisfies UnmanageSkillResult;
+    }
+
+    return {
+      _tag: "confirm",
+      disposition,
+    } satisfies UnmanageSkillResult;
+  });
+
 type AiHubHooks<E, R> = {
   readonly selectAssetKind: () => Effect.Effect<"skills" | "exit", E, R>;
   readonly runSkillsManager: () => Effect.Effect<void, E, R>;
@@ -364,7 +424,11 @@ type AiHubHooks<E, R> = {
 type SkillsManagerHooks<E, R> = {
   readonly selectSkills: (
     entries: readonly ManagedSkillEntry[],
+    selectedNames: readonly string[],
   ) => Effect.Effect<SkillsMenuResult, E, R>;
+  readonly selectUnmanageDisposition: (
+    names: readonly string[],
+  ) => Effect.Effect<UnmanageSkillResult, E, R>;
   readonly editTargets: (
     names: readonly string[],
     initialTargets: readonly SkillTarget[],
@@ -393,10 +457,12 @@ export const aiHelpText = [
 
 export const runSkillsManagerWithHooks = <E, R>({
   selectSkills,
+  selectUnmanageDisposition,
   editTargets,
 }: SkillsManagerHooks<E, R>) =>
   Effect.gen(function* () {
     const skills = yield* AiSkills;
+    let selectedNames: readonly string[] = [];
 
     while (true) {
       const entries = yield* skills.list();
@@ -405,22 +471,38 @@ export const runSkillsManagerWithHooks = <E, R>({
         return;
       }
 
-      const selection = yield* selectSkills(entries);
+      const availableNames = new Set(entries.map((entry) => entry.name));
+      selectedNames = selectedNames.filter((name) => availableNames.has(name));
+
+      const selection = yield* selectSkills(entries, selectedNames);
       if (selection._tag === "exit") {
         return;
       }
 
+      selectedNames = selection.names;
+
       if (selection._tag === "unmanage") {
-        const result = yield* skills.unmanageMany(selection.names);
+        const unmanageResult = yield* selectUnmanageDisposition(selection.names);
+        if (unmanageResult._tag === "cancel") {
+          continue;
+        }
+
+        const result = yield* skills.unmanageMany(
+          selection.names,
+          unmanageResult.disposition,
+        );
         yield* Console.log(
           `Unmanaged ${result.names.length} skill(s): ${result.names.join(", ")}`,
         );
         yield* Console.log(
-          "This machine kept local copies for any managed links it was using.",
+          result.disposition === "keep-local-copies"
+            ? "This machine kept local copies for any managed links it was using."
+            : "This machine deleted any managed skill folders it was using.",
         );
         yield* Console.log(
           "Other machines are not guaranteed to keep a working copy after they pull this repo change in v1.",
         );
+        selectedNames = [];
         continue;
       }
 
@@ -447,6 +529,7 @@ export const runSkillsManagerWithHooks = <E, R>({
 export const runSkillsManager = Effect.fn("ai.runSkillsManager")(function* () {
   yield* runSkillsManagerWithHooks({
     selectSkills: selectManagedSkills,
+    selectUnmanageDisposition,
     editTargets: selectSkillTargetsEditor,
   });
 });

@@ -17,6 +17,7 @@ export class AiSkillsError extends Schema.TaggedError<AiSkillsError>()(
 }
 
 export type SkillSurface = SkillTarget;
+export type UnmanageDisposition = "keep-local-copies" | "delete-local-copies";
 
 type SkillSyncPreview = {
   readonly toCreate: readonly string[];
@@ -668,6 +669,7 @@ export class AiSkills extends Effect.Service<AiSkills>()("@dotfiles/AiSkills", {
 
     const unmanageMany = Effect.fn("AiSkills.unmanageMany")(function* (
       names: readonly string[],
+      disposition: UnmanageDisposition = "keep-local-copies",
     ) {
       const managedSkills = yield* loadManagedSkills(names);
 
@@ -685,7 +687,9 @@ export class AiSkills extends Effect.Service<AiSkills>()("@dotfiles/AiSkills", {
           }
 
           yield* removePath(targetPath);
-          yield* copyPath(canonicalPath, targetPath);
+          if (disposition === "keep-local-copies") {
+            yield* copyPath(canonicalPath, targetPath);
+          }
         }
       }
 
@@ -696,14 +700,18 @@ export class AiSkills extends Effect.Service<AiSkills>()("@dotfiles/AiSkills", {
 
       return {
         names: managedSkills.map((managedSkill) => managedSkill.name),
+        disposition,
       };
     });
 
-    const unmanage = Effect.fn("AiSkills.unmanage")(function* (name: string) {
-      const result = yield* unmanageMany([name]);
+    const unmanage = Effect.fn("AiSkills.unmanage")(function* (
+      name: string,
+      disposition: UnmanageDisposition = "keep-local-copies",
+    ) {
+      const result = yield* unmanageMany([name], disposition);
       return {
         name,
-        removedTargets: result.names,
+        disposition: result.disposition,
       };
     });
 

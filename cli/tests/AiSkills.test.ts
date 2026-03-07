@@ -448,7 +448,7 @@ targets = ["codex"]
     }).pipe(Effect.provide(makeTestLayer(entries)));
   });
 
-  it.effect("unmanage materializes local copies on this machine and removes repo management", () => {
+  it.effect("unmanage keeps local copies on this machine and removes repo management", () => {
     const entries: FsEntries = {
       ["/"]: { type: "Directory" },
       [testDotfilesRoot]: { type: "Directory" },
@@ -488,6 +488,48 @@ targets = ["claude"]
         type: "File",
         content: "# Batch",
       });
+      expect(entries[`${testDotfilesRoot}/ai/skills/batch`]).toBeUndefined();
+      const stateEntry = entries[aiStatePath];
+      if (stateEntry !== undefined && stateEntry.type === "File") {
+        expect(stateEntry.content).not.toContain("[skills.batch]");
+      }
+    }).pipe(Effect.provide(makeTestLayer(entries)));
+  });
+
+  it.effect("unmanage can delete local copies on this machine and remove repo management", () => {
+    const entries: FsEntries = {
+      ["/"]: { type: "Directory" },
+      [testDotfilesRoot]: { type: "Directory" },
+      [`${testDotfilesRoot}/config`]: { type: "Directory" },
+      [aiStatePath]: {
+        type: "File",
+        content: `${emptyAiStateToml}
+
+[skills.batch]
+canonical_dir = "ai/skills/batch"
+targets = ["claude"]
+`,
+      },
+      [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
+      [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
+      [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
+        type: "File",
+        content: "# Batch",
+      },
+      [testHomeDir]: { type: "Directory" },
+      [`${testHomeDir}/.claude`]: { type: "Directory" },
+      [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
+      [`${testHomeDir}/.claude/skills/batch`]: {
+        type: "SymbolicLink",
+        target: "../../../dotfiles/ai/skills/batch",
+      },
+    };
+
+    return Effect.gen(function* () {
+      const skills = yield* AiSkills;
+      yield* skills.unmanage("batch", "delete-local-copies");
+
+      expect(entries[`${testHomeDir}/.claude/skills/batch`]).toBeUndefined();
       expect(entries[`${testDotfilesRoot}/ai/skills/batch`]).toBeUndefined();
       const stateEntry = entries[aiStatePath];
       if (stateEntry !== undefined && stateEntry.type === "File") {

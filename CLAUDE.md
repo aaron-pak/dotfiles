@@ -74,7 +74,7 @@ Managed skills live outside `home/` now. Each managed skill has one canonical re
 
 `dot ai skills unmanage` only guarantees safe local preservation on the machine where the command runs in v1.
 
-`dot ai` opens the interactive AI hub, and `dot ai skills` opens the interactive skills manager directly. Toggling a target there updates `ai/state.toml` immediately, updates this machine immediately, and `dot sync` removes deselected managed symlinks on other machines after they pull.
+`dot ai` opens the interactive AI hub, and `dot ai skills` opens the interactive skills manager directly. Toggling a target there updates `ai/state.toml` immediately, updates this machine immediately, and `dot sync` removes deselected managed symlinks on other machines after they pull. If you unmanage skills from the interactive manager, it asks whether this machine should keep local copies or delete them.
 
 The repo no longer stows `home/.claude/skills`, `home/.codex/skills`, or `home/.agents`. Those live skill surfaces are local directories managed only by the AI skill projector.
 

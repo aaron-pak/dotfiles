@@ -5,7 +5,10 @@ import {
   runAiHubWithHooks,
   runSkillsManagerWithHooks,
 } from "../src/commands/ai.js";
-import { AiSkills } from "../src/services/AiSkills.js";
+import {
+  AiSkills,
+  type UnmanageDisposition,
+} from "../src/services/AiSkills.js";
 
 type ManagedSkillEntry = {
   readonly name: string;
@@ -13,7 +16,10 @@ type ManagedSkillEntry = {
   readonly targets: readonly ("claude" | "codex" | "agents")[];
 };
 
-const makeAiSkillsLayer = (entries: Ref.Ref<readonly ManagedSkillEntry[]>) =>
+const makeAiSkillsLayer = (
+  entries: Ref.Ref<readonly ManagedSkillEntry[]>,
+  unmanageDispositions?: Ref.Ref<readonly UnmanageDisposition[]>,
+) =>
   Layer.succeed(AiSkills, {
     _tag: "@dotfiles/AiSkills",
     canonicalRoot: "/test/dotfiles/ai/skills",
@@ -66,11 +72,24 @@ const makeAiSkillsLayer = (entries: Ref.Ref<readonly ManagedSkillEntry[]>) =>
     unmanage: () =>
       Effect.succeed({
         name: "batch",
-        removedTargets: ["/test/home/.claude/skills/batch"],
+        disposition: "keep-local-copies",
       }),
-    unmanageMany: (names: readonly string[]) =>
-      Effect.succeed({
-        names: [...names],
+    unmanageMany: (
+      names: readonly string[],
+      disposition: UnmanageDisposition = "keep-local-copies",
+    ) =>
+      Effect.gen(function* () {
+        if (unmanageDispositions !== undefined) {
+          yield* Ref.update(unmanageDispositions, (current) => [
+            ...current,
+            disposition,
+          ]);
+        }
+
+        return {
+          names: [...names],
+          disposition,
+        };
       }),
     list: () =>
       Ref.get(entries).pipe(
@@ -132,6 +151,10 @@ describe("ai interactive flows", () => {
                 },
             current + 1,
           ]),
+        selectUnmanageDisposition: () =>
+          Effect.succeed({
+            _tag: "cancel",
+          }),
         editTargets: () =>
           Effect.succeed({
             _tag: "confirm",
@@ -164,6 +187,7 @@ describe("ai interactive flows", () => {
         },
       ]);
       const calls = yield* Ref.make(0);
+      const dispositions = yield* Ref.make<readonly UnmanageDisposition[]>([]);
 
       yield* runSkillsManagerWithHooks({
         selectSkills: () =>
@@ -178,11 +202,18 @@ describe("ai interactive flows", () => {
                 },
             current + 1,
           ]),
+        selectUnmanageDisposition: () =>
+          Effect.succeed({
+            _tag: "confirm",
+            disposition: "delete-local-copies",
+          }),
         editTargets: () =>
           Effect.succeed({
             _tag: "cancel",
           }),
-      }).pipe(Effect.provide(makeAiSkillsLayer(entries)));
+      }).pipe(
+        Effect.provide(makeAiSkillsLayer(entries, dispositions)),
+      );
 
       expect(yield* Ref.get(entries)).toEqual([
         {
@@ -196,6 +227,60 @@ describe("ai interactive flows", () => {
           targets: ["codex"],
         },
       ]);
+      expect(yield* Ref.get(dispositions)).toEqual(["delete-local-copies"]);
       expect(yield* Ref.get(calls)).toBe(2);
+    }));
+
+  it.effect("runSkillsManagerWithHooks preserves selected skills after backing out of target editing", () =>
+    Effect.gen(function* () {
+      const entries = yield* Ref.make<readonly ManagedSkillEntry[]>([
+        {
+          name: "batch",
+          canonical_dir: "ai/skills/batch",
+          targets: ["claude", "codex"],
+        },
+        {
+          name: "simplify",
+          canonical_dir: "ai/skills/simplify",
+          targets: ["codex"],
+        },
+      ]);
+      const selectCalls = yield* Ref.make(0);
+      const selectedSnapshots = yield* Ref.make<readonly (readonly string[])[]>([]);
+
+      yield* runSkillsManagerWithHooks({
+        selectSkills: (_entries, selectedNames) =>
+          Effect.gen(function* () {
+            yield* Ref.update(selectedSnapshots, (current) => [
+              ...current,
+              [...selectedNames],
+            ]);
+            return yield* Ref.modify(selectCalls, (current) => [
+              current === 0
+                ? {
+                    _tag: "edit" as const,
+                    names: ["batch", "simplify"],
+                  }
+                : {
+                    _tag: "exit" as const,
+                  },
+              current + 1,
+            ]);
+          }),
+        selectUnmanageDisposition: () =>
+          Effect.succeed({
+            _tag: "cancel",
+          }),
+        editTargets: () =>
+          Effect.succeed({
+            _tag: "cancel",
+          }),
+      }).pipe(Effect.provide(makeAiSkillsLayer(entries)));
+
+      expect(yield* Ref.get(selectedSnapshots)).toEqual([
+        [],
+        ["batch", "simplify"],
+      ]);
+      expect(yield* Ref.get(selectCalls)).toBe(2);
     }));
 });

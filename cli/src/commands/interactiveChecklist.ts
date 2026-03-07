@@ -69,11 +69,56 @@ const bubbleOff = "○";
 const leftPad = "    ";
 
 const maxPerPageDefault = 10;
+const minContentWidth = 20;
+const ansiPattern = /\u001B\[[0-9;]*m/g;
 
 const wrapColor = (value: string, shade: string) =>
   `${shade}${value}${color.reset}`;
 
 const padLine = (value: string) => `${leftPad}${value}`;
+
+const stripAnsi = (value: string) => value.replace(ansiPattern, "");
+
+const visibleLength = (value: string) => stripAnsi(value).length;
+
+const contentWidth = (columns: number) =>
+  Math.max(columns - leftPad.length, minContentWidth);
+
+const wrapPlainText = (value: string, width: number) => {
+  if (width <= 0 || value.length <= width) {
+    return [value];
+  }
+
+  const words = value.split(/\s+/).filter((word) => word.length > 0);
+  if (words.length === 0) {
+    return [""];
+  }
+
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    if (currentLine.length === 0) {
+      currentLine = word;
+      continue;
+    }
+
+    const candidate = `${currentLine} ${word}`;
+    if (candidate.length <= width) {
+      currentLine = candidate;
+      continue;
+    }
+
+    lines.push(currentLine);
+    currentLine = word;
+  }
+
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+};
 
 const beep = <State, Output>(): Prompt.Prompt.Action<State, Output> => ({
   _tag: "Beep",
@@ -262,6 +307,7 @@ const renderChecklistFrame = <Value, Extra extends string>(
         const prefix = highlighted ? pointer : pointerMuted;
         const title = choice.title;
         const detail = choice.detail ?? "";
+        const width = contentWidth(columns);
         const marker =
           selectionMode === "single"
             ? `${highlighted ? wrapColor(prefix, color.cyan) : prefix}`
@@ -270,11 +316,37 @@ const renderChecklistFrame = <Value, Extra extends string>(
                   ? wrapColor(bubbleOn, color.green)
                   : wrapColor(bubbleOff, color.muted)
               }`;
-        const row =
-          detail.length === 0
-            ? `${marker} ${wrapColor(title, color.white)}`
-            : `${marker} ${wrapColor(title, color.white)} ${wrapColor(detail, color.muted)}`;
-        lines.push(padLine(row));
+        const markerPlain =
+          selectionMode === "single"
+            ? `${prefix}`
+            : `${prefix} ${
+                state.selectedIndices.has(absoluteIndex) ? bubbleOn : bubbleOff
+              }`;
+
+        if (detail.length === 0) {
+          lines.push(padLine(`${marker} ${wrapColor(title, color.white)}`));
+          continue;
+        }
+
+        const inlinePlain = `${markerPlain} ${title} ${detail}`;
+        if (visibleLength(inlinePlain) <= width) {
+          lines.push(
+            padLine(
+              `${marker} ${wrapColor(title, color.white)} ${wrapColor(detail, color.muted)}`,
+            ),
+          );
+          continue;
+        }
+
+        lines.push(padLine(`${marker} ${wrapColor(title, color.white)}`));
+        const detailIndent = `${leftPad}${" ".repeat(markerPlain.length + 1)}`;
+        const detailWidth = Math.max(
+          width - (detailIndent.length - leftPad.length),
+          minContentWidth,
+        );
+        for (const detailLine of wrapPlainText(detail, detailWidth)) {
+          lines.push(`${detailIndent}${wrapColor(detailLine, color.muted)}`);
+        }
       }
 
       lines.push("");
@@ -295,11 +367,36 @@ const renderChecklistFrame = <Value, Extra extends string>(
       );
       if (showSelectionSummary) {
         lines.push("");
-        const selectedLine =
-          selectedTitles.length === 0
-            ? `${wrapColor("Selected:", color.green)} ${wrapColor("none", color.secondary)}`
-            : `${wrapColor("Selected:", color.green)} ${wrapColor(selectedTitles.join(", "), color.white)}`;
-        lines.push(padLine(selectedLine));
+        const summaryPrefix = "Selected:";
+        const summaryValue =
+          selectedTitles.length === 0 ? "none" : selectedTitles.join(", ");
+        const summaryIndent = `${leftPad}${" ".repeat(summaryPrefix.length + 1)}`;
+        const summaryLines = wrapPlainText(
+          summaryValue,
+          Math.max(
+            contentWidth(columns) - summaryPrefix.length - 1,
+            minContentWidth,
+          ),
+        );
+        const firstSummary = summaryLines[0] ?? "";
+        lines.push(
+          padLine(
+            `${wrapColor(summaryPrefix, color.green)} ${
+              selectedTitles.length === 0
+                ? wrapColor(firstSummary, color.secondary)
+                : wrapColor(firstSummary, color.white)
+            }`,
+          ),
+        );
+        for (const summaryLine of summaryLines.slice(1)) {
+          lines.push(
+            `${summaryIndent}${
+              selectedTitles.length === 0
+                ? wrapColor(summaryLine, color.secondary)
+                : wrapColor(summaryLine, color.white)
+            }`,
+          );
+        }
       }
       lines.push("");
       lines.push(...options.footer.map((line) => wrapColor(padLine(line), color.muted)));
@@ -318,28 +415,37 @@ const renderChecklistSubmission = <Value, Extra extends string>(
   result: ChecklistPromptResult<Value, Extra>,
   options: ChecklistPromptOptions<Value, Extra>,
 ) =>
-  Effect.succeed(() => {
-    const symbol =
-      result._tag === "cancel" ? cancelSymbol : confirmSymbol;
-    const label =
-      result._tag === "cancel"
-        ? "Cancelled"
-        : result._tag === "extra"
-          ? result.action
-          : compactValues(
-                result.values.map((value) =>
-                  options.choices.find((choice) => choice.value === value)?.title,
-                ),
-              ).join(", ");
-    const lines = options.message
-      .split(/\r?\n/)
-      .map((line, index) =>
-        index === 0
-          ? wrapColor(padLine(`${symbol} ${line}`), `${color.bold}${color.white}`)
-          : wrapColor(padLine(line), color.secondary),
-      );
-    return `${lines.join("\n")} ${wrapColor(label, color.white)}\n`;
-  }).pipe(Effect.map((render) => render()));
+  Terminal.Terminal.pipe(
+    Effect.flatMap((terminal) => terminal.columns),
+    Effect.map((columns) => {
+      const symbol =
+        result._tag === "cancel" ? cancelSymbol : confirmSymbol;
+      const label =
+        result._tag === "cancel"
+          ? "Cancelled"
+          : result._tag === "extra"
+            ? result.action
+            : compactValues(
+                  result.values.map((value) =>
+                    options.choices.find((choice) => choice.value === value)?.title,
+                  ),
+                ).join(", ");
+      const lines = options.message
+        .split(/\r?\n/)
+        .map((line, index) =>
+          index === 0
+            ? wrapColor(padLine(`${symbol} ${line}`), `${color.bold}${color.white}`)
+            : wrapColor(padLine(line), color.secondary),
+        );
+
+      const wrappedLabel = wrapPlainText(label, contentWidth(columns));
+      for (const labelLine of wrappedLabel) {
+        lines.push(wrapColor(padLine(labelLine), color.white));
+      }
+
+      return `${lines.join("\n")}\n`;
+    }),
+  );
 
 const clearChecklistFrame = <Value, Extra extends string>(
   state: PromptState,
