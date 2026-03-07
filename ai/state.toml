@@ -43,15 +43,3 @@ targets = [ "codex" ]
 canonical_dir = "ai/skills/task-list"
 targets = [ "claude" ]
 
-[skills.vercel-composition-patterns]
-canonical_dir = "ai/skills/vercel-composition-patterns"
-targets = [ "claude", "codex" ]
-
-[skills.vercel-react-best-practices]
-canonical_dir = "ai/skills/vercel-react-best-practices"
-targets = [ "claude", "codex" ]
-
-[skills.mock-e2e]
-canonical_dir = "ai/skills/mock-e2e"
-targets = [ "claude", "codex" ]
-
