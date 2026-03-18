@@ -45,6 +45,24 @@ if [ -n "$vim_mode" ]; then
     esac
 fi
 
+# Effort level — env var takes precedence, then settings.json
+effort="${CLAUDE_CODE_EFFORT_LEVEL:-}"
+if [ -z "$effort" ]; then
+    settings_file="$HOME/.claude/settings.json"
+    if [ -f "$settings_file" ]; then
+        effort=$(jq -r '.effortLevel // "auto"' "$settings_file" 2>/dev/null)
+    fi
+fi
+effort="${effort:-auto}"
+
+case "$effort" in
+    low)  effort_icon="○"; effort_color="\033[34m" ;;
+    medium|auto) effort_icon="◑"; effort_color="\033[33m" ;;
+    high) effort_icon="●"; effort_color="\033[32m" ;;
+    max)  effort_icon="◉"; effort_color="\033[35m" ;;
+    *)    effort_icon="○"; effort_color="\033[2m" ;;
+esac
+
 # Context progress bar — color-coded green/yellow/red
 if [ "$pct" -ge 80 ]; then
     bar_color="\033[31m"
@@ -70,7 +88,7 @@ secs=$((duration_sec % 60))
 cost_fmt=$(printf '$%.2f' "$cost")
 
 # --- Line 1: model | directory [branch] | lines | vim ---
-line1="\033[38;2;217;119;87m${model}\033[0m \033[2m|\033[0m \033[36m${dir}\033[0m"
+line1="\033[38;2;217;119;87m${model}\033[0m ${effort_color}${effort_icon} ${effort}\033[0m \033[2m|\033[0m \033[36m${dir}\033[0m"
 [ -n "$git_info" ] && line1="${line1} ${git_info}"
 line1="${line1} \033[2m|\033[0m ${bar_color}${bar} ${pct}%\033[0m"
 
