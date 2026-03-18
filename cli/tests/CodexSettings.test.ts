@@ -1,20 +1,19 @@
 import { describe, expect, it } from "@effect/vitest";
-import { parse } from "smol-toml";
 import { Effect, Layer } from "effect";
-import { AiLocalState } from "../src/services/AiLocalState.js";
-import { AiState } from "../src/services/AiState.js";
+import { parse } from "smol-toml";
+import { AiLocalStateLive } from "../src/services/AiLocalState.js";
+import { AiStateLive } from "../src/services/AiState.js";
 import {
   CodexSettings,
   CodexSettingsError,
+  CodexSettingsLive,
 } from "../src/services/CodexSettings.js";
 import {
   defaultAiLocalStateToml,
   defaultAiStateToml,
   type FsFiles,
-  makeMockFs,
+  makeTestBaseLayer,
   readFile,
-  TestPath,
-  TestStowConfig,
   testDotfilesRoot,
   testHomeDir,
 } from "./testSupport.js";
@@ -24,13 +23,17 @@ const aiLocalPath = `${testHomeDir}/.config/dot/ai-local.toml`;
 const sharedPath = `${testDotfilesRoot}/ai/codex-settings-shared.toml`;
 const localPath = `${testHomeDir}/.codex/config.toml`;
 
-const makeTestLayer = (files: FsFiles) =>
-  CodexSettings.Default.pipe(
-    Layer.provideMerge(Layer.merge(AiState.Default, AiLocalState.Default)),
-    Layer.provideMerge(makeMockFs(files)),
-    Layer.provideMerge(TestStowConfig),
-    Layer.provideMerge(TestPath),
+const makeTestLayer = (files: FsFiles) => {
+  const baseLayer = makeTestBaseLayer(files);
+  const stateLayers = Layer.mergeAll(AiStateLive, AiLocalStateLive).pipe(
+    Layer.provideMerge(baseLayer),
   );
+
+  return CodexSettingsLive.pipe(
+    Layer.provideMerge(stateLayers),
+    Layer.provideMerge(baseLayer),
+  );
+};
 
 describe("CodexSettings service", () => {
   describe("pull", () => {
@@ -167,7 +170,6 @@ model = "gpt-5.4"
         expect(readFile(files, localPath)).toBe(initialLocal);
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
-
   });
 
   describe("adopt", () => {

@@ -1,12 +1,12 @@
-import {
-  CommandExecutor,
-  Error as PlatformError,
-  FileSystem,
-  Path,
-} from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
 import assert from "node:assert";
-import { Effect, Inspectable, Layer, Option, Sink, Stream } from "effect";
+import {
+  Effect,
+  FileSystem,
+  Layer,
+  Option,
+  PlatformError,
+} from "effect";
 import {
   AlreadyManaged,
   AlreadySymlink,
@@ -20,82 +20,21 @@ import {
   StowLink,
   SymlinkMismatch,
 } from "../src/services/Stow.js";
-import { StowConfig } from "../src/services/StowConfig.js";
+import {
+  makeFailingChildProcessSpawner,
+  makeMockChildProcessSpawner,
+  TestPath,
+  TestStowConfig,
+} from "./testSupport.js";
 
-// Test paths
-const testDotfilesRoot = "/test/dotfiles";
-const testHomeDir = "/test/home";
-
-// Mock StowConfig
-const TestStowConfig = Layer.succeed(
-  StowConfig,
-  StowConfig.make({
-    dotfilesRoot: testDotfilesRoot,
-    homeDir: testHomeDir,
-  }),
-);
-
-// Use built-in POSIX Path layer
-const TestPath = Path.layer;
-
-// Process prototype matching Effect's internal pattern
-const ProcessProto = {
-  [CommandExecutor.ProcessTypeId]: CommandExecutor.ProcessTypeId,
-  ...Inspectable.BaseProto,
-  toJSON(this: CommandExecutor.Process) {
-    return {
-      _id: "@effect/platform/CommandExecutor/Process",
-      pid: this.pid,
-    };
-  },
-};
-
-const mockProcess = (
-  exitCode: number,
-  stderr: string,
-): CommandExecutor.Process =>
-  Object.assign(Object.create(ProcessProto), {
-    pid: CommandExecutor.ProcessId(1),
-    exitCode: Effect.succeed(CommandExecutor.ExitCode(exitCode)),
-    isRunning: Effect.succeed(false),
-    stdin: Sink.drain,
-    stdout: Stream.empty,
-    stderr: Stream.make(new TextEncoder().encode(stderr)),
-    kill: () => Effect.void,
-  });
-
-const mockExecutor = (exitCode: number, stderr: string) =>
-  Layer.succeed(
-    CommandExecutor.CommandExecutor,
-    CommandExecutor.makeExecutor(() =>
-      Effect.succeed(mockProcess(exitCode, stderr)),
-    ),
-  );
-
-const mockExecutorFailure = () =>
-  Layer.succeed(
-    CommandExecutor.CommandExecutor,
-    CommandExecutor.makeExecutor(() =>
-      Effect.fail(
-        new PlatformError.SystemError({
-          reason: "NotFound",
-          module: "Command",
-          method: "spawn",
-          pathOrDescriptor: "stow",
-        }),
-      ),
-    ),
-  );
-
-// Helper to create mock FileSystem
 type FsState = {
   exists: Set<string>;
-  symlinks: Map<string, string>; // path -> link target
+  symlinks: Map<string, string>;
   directories: Set<string>;
   renamed: Array<{ from: string; to: string }>;
   removed: string[];
   mkdirs: string[];
-  directoryContents: Map<string, string[]>; // dir path -> entries
+  directoryContents: Map<string, string[]>;
 };
 
 const makeFsState = (overrides: Partial<FsState> = {}): FsState => ({
@@ -110,10 +49,10 @@ const makeFsState = (overrides: Partial<FsState> = {}): FsState => ({
 });
 
 const notFound = (method: string, path: string) =>
-  new PlatformError.SystemError({
+  PlatformError.systemError({
+    _tag: "NotFound",
     module: "FileSystem",
     method,
-    reason: "NotFound",
     pathOrDescriptor: path,
   });
 
@@ -141,9 +80,7 @@ const mockFileSystem = (state: FsState) =>
     stat: (path) =>
       state.exists.has(path)
         ? Effect.succeed({
-            type: state.directories.has(path)
-              ? ("Directory" as const)
-              : ("File" as const),
+            type: state.directories.has(path) ? "Directory" : "File",
             mtime: Option.some(new Date()),
             atime: Option.some(new Date()),
             birthtime: Option.some(new Date()),
@@ -167,18 +104,19 @@ const mockFileSystem = (state: FsState) =>
     },
   });
 
-// Compose all test dependencies into single layer
 const makeTestLayer = (exitCode: number, stderr: string, fsState: FsState) =>
-  Stow.Default.pipe(
-    Layer.provideMerge(mockExecutor(exitCode, stderr)),
+  Stow.Live.pipe(
+    Layer.provideMerge(
+      makeMockChildProcessSpawner({ exitCode, stderr }),
+    ),
     Layer.provideMerge(mockFileSystem(fsState)),
     Layer.provideMerge(TestStowConfig),
     Layer.provideMerge(TestPath),
   );
 
-const makeTestLayerWithFailingExecutor = (fsState: FsState) =>
-  Stow.Default.pipe(
-    Layer.provideMerge(mockExecutorFailure()),
+const makeTestLayerWithFailingSpawner = (fsState: FsState) =>
+  Stow.Live.pipe(
+    Layer.provideMerge(makeFailingChildProcessSpawner("stow")),
     Layer.provideMerge(mockFileSystem(fsState)),
     Layer.provideMerge(TestStowConfig),
     Layer.provideMerge(TestPath),
@@ -522,7 +460,7 @@ describe("Stow service", () => {
   });
 
   describe("runStow error handling", () => {
-    it.effect("executor failure -> StowError", () => {
+    it.effect("spawner failure -> StowError", () => {
       const fsState = makeFsState();
 
       return Effect.gen(function* () {
@@ -531,7 +469,7 @@ describe("Stow service", () => {
 
         expect(result).toBeInstanceOf(StowError);
         expect(result.message).toContain("Failed to execute stow");
-      }).pipe(Effect.provide(makeTestLayerWithFailingExecutor(fsState)));
+      }).pipe(Effect.provide(makeTestLayerWithFailingSpawner(fsState)));
     });
   });
 
@@ -565,7 +503,6 @@ describe("Stow service", () => {
     it.effect("not a symlink -> NotSymlink", () => {
       const fsState = makeFsState({
         exists: new Set(["/test/dotfiles/home/.bashrc", "/test/home/.bashrc"]),
-        // No symlink entry - readLink will fail
       });
 
       return Effect.gen(function* () {
@@ -615,9 +552,7 @@ describe("Stow service", () => {
         const result = yield* stow.removeDotfile(".bashrc");
 
         expect(result).toBe(".bashrc");
-        // Should remove symlink first
         expect(fsState.removed).toContain("/test/home/.bashrc");
-        // Should move file back
         expect(fsState.renamed).toContainEqual({
           from: "/test/dotfiles/home/.bashrc",
           to: "/test/home/.bashrc",

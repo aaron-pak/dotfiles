@@ -1,13 +1,11 @@
-import { FileSystem, Path } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from "effect";
 import { parse, stringify } from "smol-toml";
 import type { ManagedTool } from "./AiState.js";
 import { StowConfig } from "./StowConfig.js";
 
-export class AiLocalStateError extends Schema.TaggedError<AiLocalStateError>()(
-  "AiLocalStateError",
-  { details: Schema.String },
-) {
+export class AiLocalStateError extends Data.TaggedError("AiLocalStateError")<{
+  readonly details: string;
+}> {
   override get message() {
     return `AI local state error: ${this.details}`;
   }
@@ -23,6 +21,9 @@ export type AiLocalStateData = {
     readonly codex: ToolLocalState;
   };
 };
+
+const failAiLocalState = (details: string) =>
+  Effect.failSync(() => new AiLocalStateError({ details }));
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
@@ -55,9 +56,7 @@ const parseToolLocalState = (
   }
 
   if (!isRecord(value)) {
-    return AiLocalStateError.make({
-      details: `tools.${tool} must be a table`,
-    });
+    return failAiLocalState(`tools.${tool} must be a table`);
   }
 
   const ignoredSections = value.ignored_shared_sections;
@@ -67,9 +66,9 @@ const parseToolLocalState = (
   }
 
   if (!isStringArray(ignoredSections)) {
-    return AiLocalStateError.make({
-      details: `tools.${tool}.ignored_shared_sections must be a string array`,
-    });
+    return failAiLocalState(
+      `tools.${tool}.ignored_shared_sections must be a string array`,
+    );
   }
 
   return Effect.succeed({
@@ -82,15 +81,14 @@ const decodeAiLocalState = (
 ): Effect.Effect<AiLocalStateData, AiLocalStateError> =>
   Effect.gen(function* () {
     if (!isRecord(value)) {
-      return yield* AiLocalStateError.make({
+      return yield* new AiLocalStateError({
         details: "ai-local state must be a TOML table",
       });
     }
 
     const tools = value.tools;
-
     if (tools !== undefined && !isRecord(tools)) {
-      return yield* AiLocalStateError.make({
+      return yield* new AiLocalStateError({
         details: "tools must be a table",
       });
     }
@@ -105,10 +103,28 @@ const decodeAiLocalState = (
     };
   });
 
-export class AiLocalState extends Effect.Service<AiLocalState>()(
-  "@dotfiles/AiLocalState",
+export class AiLocalState extends ServiceMap.Service<
+  AiLocalState,
   {
-    effect: Effect.gen(function* () {
+    readonly localStatePath: string;
+    readonly read: () => Effect.Effect<AiLocalStateData, AiLocalStateError>;
+    readonly write: (state: AiLocalStateData) => Effect.Effect<void, AiLocalStateError>;
+    readonly getIgnoredSections: (
+      tool: ManagedTool,
+    ) => Effect.Effect<readonly string[], AiLocalStateError>;
+    readonly ignore: (
+      tool: ManagedTool,
+      section: string,
+    ) => Effect.Effect<{ readonly key: string }, AiLocalStateError>;
+    readonly unignore: (
+      tool: ManagedTool,
+      section: string,
+    ) => Effect.Effect<{ readonly key: string }, AiLocalStateError>;
+  }
+>()("@dotfiles/AiLocalState") {
+  static readonly Live = Layer.effect(
+    AiLocalState,
+    Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const { homeDir } = yield* StowConfig;
@@ -121,16 +137,24 @@ export class AiLocalState extends Effect.Service<AiLocalState>()(
       );
 
       const read = Effect.fn("AiLocalState.read")(function* () {
-        const exists = yield* fs.exists(localStatePath);
+        const exists = yield* fs.exists(localStatePath).pipe(
+          Effect.mapError(
+            (error) =>
+              new AiLocalStateError({
+                details: `Failed to check ${localStatePath}: ${error}`,
+              }),
+          ),
+        );
         if (!exists) {
           return makeDefaultAiLocalState();
         }
 
         const content = yield* fs.readFileString(localStatePath).pipe(
-          Effect.catchAll((error) =>
-            AiLocalStateError.make({
-              details: `Failed to read ${localStatePath}: ${error}`,
-            }),
+          Effect.mapError(
+            (error) =>
+              new AiLocalStateError({
+                details: `Failed to read ${localStatePath}: ${error}`,
+              }),
           ),
         );
 
@@ -148,15 +172,15 @@ export class AiLocalState extends Effect.Service<AiLocalState>()(
       const write = Effect.fn("AiLocalState.write")(function* (
         state: AiLocalStateData,
       ) {
-        yield* fs
-          .makeDirectory(path.dirname(localStatePath), { recursive: true })
-          .pipe(
-            Effect.catchAll((error) =>
-              AiLocalStateError.make({
-                details: `Failed to create ${path.dirname(localStatePath)}: ${error}`,
+        const stateDirectory = path.dirname(localStatePath);
+        yield* fs.makeDirectory(stateDirectory, { recursive: true }).pipe(
+          Effect.mapError(
+            (error) =>
+              new AiLocalStateError({
+                details: `Failed to create ${stateDirectory}: ${error}`,
               }),
-            ),
-          );
+          ),
+        );
 
         const toml = stringify({
           tools: {
@@ -174,10 +198,11 @@ export class AiLocalState extends Effect.Service<AiLocalState>()(
         });
 
         yield* fs.writeFileString(localStatePath, toml).pipe(
-          Effect.catchAll((error) =>
-            AiLocalStateError.make({
-              details: `Failed to write ${localStatePath}: ${error}`,
-            }),
+          Effect.mapError(
+            (error) =>
+              new AiLocalStateError({
+                details: `Failed to write ${localStatePath}: ${error}`,
+              }),
           ),
         );
       });
@@ -257,14 +282,16 @@ export class AiLocalState extends Effect.Service<AiLocalState>()(
         return { key: section };
       });
 
-      return {
+      return AiLocalState.of({
         localStatePath,
         read,
         write,
         getIgnoredSections,
         ignore,
         unignore,
-      };
+      });
     }),
-  },
-) {}
+  );
+}
+
+export const AiLocalStateLive = AiLocalState.Live;

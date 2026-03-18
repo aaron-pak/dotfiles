@@ -1,9 +1,9 @@
-import { Command, Options } from "@effect/cli";
+import { Command, Flag } from "effect/unstable/cli";
 import { runFullSync } from "./syncFlow.js";
 
-const dry = Options.boolean("dry").pipe(
-  Options.withAlias("n"),
-  Options.withDescription("Show what would be synced without doing it"),
+const dry = Flag.boolean("dry").pipe(
+  Flag.withAlias("n"),
+  Flag.withDescription("Show what would be synced without doing it"),
 );
 
 export const sync = Command.make("sync", { dry }, ({ dry }) =>

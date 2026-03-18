@@ -1,6 +1,5 @@
-import { Prompt } from "@effect/cli";
-import { Terminal } from "@effect/platform";
-import { Effect } from "effect";
+import { Data, Effect, Terminal } from "effect";
+import { Prompt } from "effect/unstable/cli";
 
 type ChecklistChoice<Value> = {
   readonly value: Value;
@@ -120,23 +119,18 @@ const wrapPlainText = (value: string, width: number) => {
   return lines;
 };
 
-const beep = <State, Output>(): Prompt.Prompt.Action<State, Output> => ({
-  _tag: "Beep",
-});
+const PromptAction = Data.taggedEnum<Prompt.ActionDefinition>();
+
+const beep = <State, Output>(): Prompt.Action<State, Output> =>
+  PromptAction.Beep();
 
 const nextFrame = <State, Output>(
   state: State,
-): Prompt.Prompt.Action<State, Output> => ({
-  _tag: "NextFrame",
-  state,
-});
+): Prompt.Action<State, Output> => PromptAction.NextFrame({ state });
 
 const submit = <State, Output>(
   value: Output,
-): Prompt.Prompt.Action<State, Output> => ({
-  _tag: "Submit",
-  value,
-});
+): Prompt.Action<State, Output> => PromptAction.Submit({ value });
 
 const getVisibleWindow = (
   index: number,
@@ -273,9 +267,9 @@ const renderChecklistFrame = <Value, Extra extends string>(
   state: PromptState,
   options: ChecklistPromptOptions<Value, Extra>,
 ) =>
-  Terminal.Terminal.pipe(
-    Effect.flatMap((terminal) => terminal.columns),
-    Effect.map((columns) => {
+  Effect.gen(function* () {
+    const terminal = yield* Terminal.Terminal;
+    const columns = yield* terminal.columns;
       const maxPerPage = options.maxPerPage ?? maxPerPageDefault;
       const visibleWindow = getVisibleWindow(
         state.index,
@@ -408,16 +402,15 @@ const renderChecklistFrame = <Value, Extra extends string>(
 
       const rendered = `${lines.join("\n")}\n`;
       return columns >= 0 ? rendered : rendered;
-    }),
-  );
+    });
 
 const renderChecklistSubmission = <Value, Extra extends string>(
   result: ChecklistPromptResult<Value, Extra>,
   options: ChecklistPromptOptions<Value, Extra>,
 ) =>
-  Terminal.Terminal.pipe(
-    Effect.flatMap((terminal) => terminal.columns),
-    Effect.map((columns) => {
+  Effect.gen(function* () {
+    const terminal = yield* Terminal.Terminal;
+    const columns = yield* terminal.columns;
       const symbol =
         result._tag === "cancel" ? cancelSymbol : confirmSymbol;
       const label =
@@ -444,24 +437,18 @@ const renderChecklistSubmission = <Value, Extra extends string>(
       }
 
       return `${lines.join("\n")}\n`;
-    }),
-  );
+    });
 
 const clearChecklistFrame = <Value, Extra extends string>(
   state: PromptState,
   options: ChecklistPromptOptions<Value, Extra>,
 ) =>
-  Terminal.Terminal.pipe(
-    Effect.flatMap((terminal) =>
-      terminal.columns.pipe(
-        Effect.flatMap((columns) =>
-          renderChecklistFrame(state, options).pipe(
-            Effect.map((rendered) => eraseRenderedText(rendered, columns)),
-          ),
-        ),
-      ),
-    ),
-  );
+  Effect.gen(function* () {
+    const terminal = yield* Terminal.Terminal;
+    const columns = yield* terminal.columns;
+    const rendered = yield* renderChecklistFrame(state, options);
+    return eraseRenderedText(rendered, columns);
+  });
 
 const initialSelectedIndices = <Value>(
   choices: readonly ChecklistChoice<Value>[],
@@ -478,93 +465,70 @@ const initialSelectedIndices = <Value>(
 const runChecklistPrompt = <Value, Extra extends string>(
   options: ChecklistPromptOptions<Value, Extra>,
 ) =>
-  Prompt.custom<PromptState, ChecklistPromptResult<Value, Extra>>(
-    {
-      index: 0,
-      selectedIndices: initialSelectedIndices(options.choices),
-      error: undefined,
-    },
-    {
-      render: (state, action) =>
-        action._tag === "Submit"
-          ? renderChecklistSubmission(action.value, options)
-          : renderChecklistFrame(state, options),
-      process: (input, state) => {
-        switch (input.key.name) {
-          case "k":
-          case "up":
-            return Effect.succeed(
-              nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>(
-                updateHighlightedIndex(state, options.choices.length, "up"),
-              ),
-            );
-          case "j":
-          case "down":
-          case "tab":
-            return Effect.succeed(
-              nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>(
-                updateHighlightedIndex(state, options.choices.length, "down"),
-              ),
-            );
-          case "space":
-            if ((options.selectionMode ?? "multiple") === "single") {
+  Prompt.run(
+    Prompt.custom<PromptState, ChecklistPromptResult<Value, Extra>>(
+      {
+        index: 0,
+        selectedIndices: initialSelectedIndices(options.choices),
+        error: undefined,
+      },
+      {
+        render: (state, action) =>
+          action._tag === "Submit"
+            ? renderChecklistSubmission(action.value, options)
+            : renderChecklistFrame(state, options),
+        process: (input, state) => {
+          switch (input.key.name) {
+            case "k":
+            case "up":
               return Effect.succeed(
-                beep<PromptState, ChecklistPromptResult<Value, Extra>>(),
+                nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>(
+                  updateHighlightedIndex(state, options.choices.length, "up"),
+                ),
               );
-            }
-            if (options.choices.length === 0) {
+            case "j":
+            case "down":
+            case "tab":
               return Effect.succeed(
-                beep<PromptState, ChecklistPromptResult<Value, Extra>>(),
+                nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>(
+                  updateHighlightedIndex(state, options.choices.length, "down"),
+                ),
               );
-            }
+            case "space":
+              if ((options.selectionMode ?? "multiple") === "single") {
+                return Effect.succeed(
+                  beep<PromptState, ChecklistPromptResult<Value, Extra>>(),
+                );
+              }
+              if (options.choices.length === 0) {
+                return Effect.succeed(
+                  beep<PromptState, ChecklistPromptResult<Value, Extra>>(),
+                );
+              }
 
-            return Effect.succeed(
-              nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>(
-                toggleSelectedIndex(state, state.index),
-              ),
-            );
-          case "left":
-          case "right":
-          case "h":
-          case "l":
-            return Effect.succeed(
-              beep<PromptState, ChecklistPromptResult<Value, Extra>>(),
-            );
-          case "escape":
-            return Effect.succeed(
-              submit<PromptState, ChecklistPromptResult<Value, Extra>>({
-                _tag: "cancel",
-              }),
-            );
-          case "enter":
-          case "return": {
-            const values = selectedValuesForAction(state, options);
-            const min = options.min ?? 0;
-            if (values.length < min) {
               return Effect.succeed(
-                nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>({
-                  index: state.index,
-                  selectedIndices: state.selectedIndices,
-                  error: selectionError(options),
+                nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>(
+                  toggleSelectedIndex(state, state.index),
+                ),
+              );
+            case "left":
+            case "right":
+            case "h":
+            case "l":
+              return Effect.succeed(
+                beep<PromptState, ChecklistPromptResult<Value, Extra>>(),
+              );
+            case "escape":
+              return Effect.succeed(
+                submit<PromptState, ChecklistPromptResult<Value, Extra>>({
+                  _tag: "cancel",
                 }),
               );
-            }
-
-            return Effect.succeed(
-              submit<PromptState, ChecklistPromptResult<Value, Extra>>({
-                _tag: "confirm",
-                values,
-              }),
-            );
-          }
-          default: {
-            const extraAction = options.extraActions?.find(
-              (action) => action.key === input.key.name,
-            );
-
-            if (extraAction !== undefined) {
+            case "enter":
+            case "return": {
               const values = selectedValuesForAction(state, options);
-              if (values.length === 0) {
+              const min = options.min ?? 0;
+              if (values.length < min) {
                 return Effect.succeed(
                   nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>({
                     index: state.index,
@@ -576,21 +540,46 @@ const runChecklistPrompt = <Value, Extra extends string>(
 
               return Effect.succeed(
                 submit<PromptState, ChecklistPromptResult<Value, Extra>>({
-                  _tag: "extra",
-                  action: extraAction.action,
+                  _tag: "confirm",
                   values,
                 }),
               );
             }
+            default: {
+              const extraAction = options.extraActions?.find(
+                (action) => action.key === input.key.name,
+              );
 
-            return Effect.succeed(
-              beep<PromptState, ChecklistPromptResult<Value, Extra>>(),
-            );
+              if (extraAction !== undefined) {
+                const values = selectedValuesForAction(state, options);
+                if (values.length === 0) {
+                  return Effect.succeed(
+                    nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>({
+                      index: state.index,
+                      selectedIndices: state.selectedIndices,
+                      error: selectionError(options),
+                    }),
+                  );
+                }
+
+                return Effect.succeed(
+                  submit<PromptState, ChecklistPromptResult<Value, Extra>>({
+                    _tag: "extra",
+                    action: extraAction.action,
+                    values,
+                  }),
+                );
+              }
+
+              return Effect.succeed(
+                beep<PromptState, ChecklistPromptResult<Value, Extra>>(),
+              );
+            }
           }
-        }
+        },
+        clear: (state) => clearChecklistFrame(state, options),
       },
-      clear: (state) => clearChecklistFrame(state, options),
-    },
+    ),
   );
 
 export {

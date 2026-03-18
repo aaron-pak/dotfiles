@@ -1,7 +1,6 @@
-import { Command } from "@effect/cli";
-import { Path } from "@effect/platform";
-import { BunContext, BunRuntime } from "@effect/platform-bun";
-import { Cause, Chunk, Console, Effect, Layer } from "effect";
+import { BunRuntime, BunServices } from "@effect/platform-bun";
+import { Console, Effect, Layer } from "effect";
+import { Command } from "effect/unstable/cli";
 import { add } from "./commands/add.js";
 import { ai } from "./commands/ai.js";
 import { init } from "./commands/init.js";
@@ -24,41 +23,43 @@ const dot = Command.make("dot", {}, () =>
   Command.withSubcommands([sync, add, remove, init, ai]),
 );
 
-// CLI application
-const cli = Command.run(dot, { name: "dot", version: "0.1.0" });
+const BunLayer = BunServices.layer;
 
-const ManagedAiLayer = Layer.provideMerge(
-  Layer.mergeAll(ClaudeSettings.Default, CodexSettings.Default, AiSkills.Default),
-  Layer.merge(AiState.Default, AiLocalState.Default),
+const StowConfigLayer = StowConfig.Live.pipe(Layer.provideMerge(BunLayer));
+const PlatformLayer = Layer.merge(BunLayer, StowConfigLayer);
+
+const StateLayer = Layer.merge(
+  AiState.Live.pipe(Layer.provideMerge(PlatformLayer)),
+  AiLocalState.Live.pipe(Layer.provideMerge(PlatformLayer)),
 );
 
-const PlatformLayer = Layer.mergeAll(
-  Path.layer,
-  Layer.provideMerge(StowConfig.Default, Path.layer),
-  BunContext.layer,
+const ManagedAiLayer = Layer.mergeAll(
+  ClaudeSettings.Live.pipe(
+    Layer.provideMerge(StateLayer),
+    Layer.provideMerge(PlatformLayer),
+  ),
+  CodexSettings.Live.pipe(
+    Layer.provideMerge(StateLayer),
+    Layer.provideMerge(PlatformLayer),
+  ),
+  AiSkills.Live.pipe(
+    Layer.provideMerge(StateLayer),
+    Layer.provideMerge(PlatformLayer),
+  ),
 );
 
-const MainLayer = Layer.provideMerge(
-  Layer.merge(Layer.merge(Stow.Default, Homebrew.Default), ManagedAiLayer),
+const RuntimeLayer = Layer.merge(
+  Stow.Live.pipe(Layer.provideMerge(PlatformLayer)),
+  Homebrew.Live.pipe(Layer.provideMerge(PlatformLayer)),
+);
+
+const MainLayer = Layer.mergeAll(
   PlatformLayer,
+  StateLayer,
+  ManagedAiLayer,
+  RuntimeLayer,
 );
 
-// Run
-cli(process.argv).pipe(
-  Effect.tapErrorCause((cause) => {
-    if (Cause.isInterruptedOnly(cause)) return Effect.void;
-    const errors = Cause.failures(cause);
-    if (Chunk.isNonEmpty(errors)) {
-      return Console.error(
-        [...errors]
-          .map((error) =>
-            error instanceof Error ? error.message : String(error),
-          )
-          .join("\n"),
-      );
-    }
-    return Console.error(Cause.pretty(cause));
-  }),
-  Effect.provide(MainLayer),
-  BunRuntime.runMain({ disableErrorReporting: true }),
+BunRuntime.runMain(
+  Command.run(dot, { version: "0.1.0" }).pipe(Effect.provide(MainLayer)),
 );

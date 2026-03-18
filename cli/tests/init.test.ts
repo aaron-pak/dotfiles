@@ -2,6 +2,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { runInitializationWithHooks } from "../src/commands/init.js";
 import { AiSkills } from "../src/services/AiSkills.js";
+import type { SkillTarget } from "../src/services/AiState.js";
 import { ClaudeSettings } from "../src/services/ClaudeSettings.js";
 import { CodexSettings } from "../src/services/CodexSettings.js";
 import {
@@ -18,7 +19,6 @@ type CallLog = {
 
 const makeHomebrewLayer = (callLog: CallLog) =>
   Layer.succeed(Homebrew, {
-    _tag: "@dotfiles/Homebrew",
     checkInstalled: () =>
       Effect.sync(() => {
         callLog.steps.push("brew.checkInstalled");
@@ -46,11 +46,10 @@ const makeHomebrewLayer = (callLog: CallLog) =>
 
 const makeStowLayer = (callLog: CallLog) =>
   Layer.succeed(Stow, {
-    _tag: "@dotfiles/Stow",
     dryRun: () =>
       Effect.sync(() => {
         callLog.steps.push("stow.dryRun");
-        return StowResult.make({ conflicts: [], links: [] });
+        return new StowResult({ conflicts: [], links: [] });
       }),
     sync: () =>
       Effect.sync(() => {
@@ -68,7 +67,6 @@ const makeStowLayer = (callLog: CallLog) =>
 
 const makeClaudeLayer = (callLog: CallLog) =>
   Layer.succeed(ClaudeSettings, {
-    _tag: "@dotfiles/ClaudeSettings",
     localPath: "/test/home/.claude/settings.json",
     getSharedPath: () =>
       Effect.succeed("/test/dotfiles/ai/claude-settings-shared.json"),
@@ -96,7 +94,6 @@ const makeClaudeLayer = (callLog: CallLog) =>
 
 const makeAiSkillsLayer = (callLog: CallLog) =>
   Layer.succeed(AiSkills, {
-    _tag: "@dotfiles/AiSkills",
     canonicalRoot: "/test/dotfiles/ai/skills",
     listLocalSkills: () => Effect.succeed([]),
     sourcePathForSurface: () => Effect.succeed(""),
@@ -123,12 +120,15 @@ const makeAiSkillsLayer = (callLog: CallLog) =>
         canonicalDir: "ai/skills/batch",
         targets: ["claude", "codex", "agents"],
       }),
-    updateTargets: (_name, targets) =>
+    updateTargets: (_name: string, targets: readonly SkillTarget[]) =>
       Effect.succeed({
         name: "batch",
         targets,
       }),
-    updateTargetsMany: (names, targets) =>
+    updateTargetsMany: (
+      names: readonly string[],
+      targets: readonly SkillTarget[],
+    ) =>
       Effect.succeed({
         names: [...names],
         targets,
@@ -138,7 +138,10 @@ const makeAiSkillsLayer = (callLog: CallLog) =>
         name: "batch",
         disposition: "keep-local-copies",
       }),
-    unmanageMany: (names, disposition = "keep-local-copies") =>
+    unmanageMany: (
+      names: readonly string[],
+      disposition = "keep-local-copies",
+    ) =>
       Effect.succeed({
         names: [...names],
         disposition,
@@ -148,7 +151,6 @@ const makeAiSkillsLayer = (callLog: CallLog) =>
 
 const makeCodexLayer = (callLog: CallLog) =>
   Layer.succeed(CodexSettings, {
-    _tag: "@dotfiles/CodexSettings",
     localPath: "/test/home/.codex/config.toml",
     getSharedPath: () =>
       Effect.succeed("/test/dotfiles/ai/codex-settings-shared.toml"),

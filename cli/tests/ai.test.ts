@@ -21,7 +21,6 @@ const makeAiSkillsLayer = (
   unmanageDispositions?: Ref.Ref<readonly UnmanageDisposition[]>,
 ) =>
   Layer.succeed(AiSkills, {
-    _tag: "@dotfiles/AiSkills",
     canonicalRoot: "/test/dotfiles/ai/skills",
     listLocalSkills: () => Effect.succeed([]),
     sourcePathForSurface: () => Effect.succeed(""),

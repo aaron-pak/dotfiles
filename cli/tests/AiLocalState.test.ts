@@ -1,25 +1,19 @@
 import { describe, expect, it } from "@effect/vitest";
-import { parse } from "smol-toml";
 import { Effect, Layer } from "effect";
-import { AiLocalState } from "../src/services/AiLocalState.js";
+import { parse } from "smol-toml";
+import { AiLocalState, AiLocalStateLive } from "../src/services/AiLocalState.js";
 import {
   defaultAiLocalStateToml,
   type FsFiles,
-  makeMockFs,
+  makeTestBaseLayer,
   readFile,
-  TestPath,
-  TestStowConfig,
   testHomeDir,
 } from "./testSupport.js";
 
 const aiLocalPath = `${testHomeDir}/.config/dot/ai-local.toml`;
 
 const makeTestLayer = (files: FsFiles) =>
-  AiLocalState.Default.pipe(
-    Layer.provideMerge(makeMockFs(files)),
-    Layer.provideMerge(TestStowConfig),
-    Layer.provideMerge(TestPath),
-  );
+  AiLocalStateLive.pipe(Layer.provideMerge(makeTestBaseLayer(files)));
 
 describe("AiLocalState service", () => {
   it.effect("defaults to no ignored sections when the file is missing", () => {

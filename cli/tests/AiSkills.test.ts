@@ -1,8 +1,7 @@
-import { Error as PlatformError, FileSystem } from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer, Option } from "effect";
-import { AiSkills, AiSkillsError } from "../src/services/AiSkills.js";
-import { AiState } from "../src/services/AiState.js";
+import { Effect, FileSystem, Layer, Option, PlatformError } from "effect";
+import { AiSkills, AiSkillsError, AiSkillsLive } from "../src/services/AiSkills.js";
+import { AiStateLive } from "../src/services/AiState.js";
 import { testDotfilesRoot, testHomeDir, TestPath, TestStowConfig } from "./testSupport.js";
 
 type Entry =
@@ -26,11 +25,11 @@ shared_settings_file = "ai/codex-settings-shared.toml"
 `.trimStart();
 
 const systemError = (method: string, path: string, reason: "NotFound") =>
-  new PlatformError.SystemError({
+  PlatformError.systemError({
+    _tag: reason,
     module: "FileSystem",
     method,
     pathOrDescriptor: path,
-    reason,
   });
 
 const dirname = (pathValue: string) => {
@@ -155,30 +154,29 @@ const makeSkillFsLayer = (entries: FsEntries) =>
         ensureParents(entries, pathValue);
         entries[pathValue] = { type: "File", content };
       }),
-    stat: (pathValue) =>
-      Effect.gen(function* () {
-        const entry = entries[pathValue];
-        if (entry === undefined) {
-          return yield* systemError("stat", pathValue, "NotFound");
-        }
+    stat: (pathValue) => {
+      const entry = entries[pathValue];
+      if (entry === undefined) {
+        return Effect.fail(systemError("stat", pathValue, "NotFound"));
+      }
 
-        return {
-          type: entry.type,
-          mtime: Option.none(),
-          atime: Option.none(),
-          birthtime: Option.none(),
-          dev: 0,
-          ino: Option.none(),
-          mode: 0,
-          nlink: Option.none(),
-          uid: Option.none(),
-          gid: Option.none(),
-          rdev: Option.none(),
-          size: FileSystem.Size(0),
-          blksize: Option.none(),
-          blocks: Option.none(),
-        };
-      }),
+      return Effect.succeed({
+        type: entry.type,
+        mtime: Option.none(),
+        atime: Option.none(),
+        birthtime: Option.none(),
+        dev: 0,
+        ino: Option.none(),
+        mode: 0,
+        nlink: Option.none(),
+        uid: Option.none(),
+        gid: Option.none(),
+        rdev: Option.none(),
+        size: FileSystem.Size(0),
+        blksize: Option.none(),
+        blocks: Option.none(),
+      });
+    },
     readDirectory: (pathValue) =>
       pathValue in entries
         ? Effect.succeed(readDirectory(entries, pathValue))
@@ -208,13 +206,17 @@ const makeSkillFsLayer = (entries: FsEntries) =>
       }),
   });
 
-const makeTestLayer = (entries: FsEntries) =>
-  AiSkills.Default.pipe(
-    Layer.provideMerge(AiState.Default),
-    Layer.provideMerge(makeSkillFsLayer(entries)),
-    Layer.provideMerge(TestStowConfig),
-    Layer.provideMerge(TestPath),
+const makeTestLayer = (entries: FsEntries) => {
+  const baseLayer = Layer.mergeAll(
+    makeSkillFsLayer(entries),
+    TestStowConfig,
+    TestPath,
   );
+  const aiStateLayer = AiStateLive.pipe(Layer.provide(baseLayer));
+  const dependencies = Layer.merge(baseLayer, aiStateLayer);
+
+  return AiSkillsLive.pipe(Layer.provide(dependencies));
+};
 
 describe("AiSkills service", () => {
   it.effect("adopts a local Codex skill into canonical storage and projects selected targets", () => {
