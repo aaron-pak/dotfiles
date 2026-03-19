@@ -122,6 +122,12 @@ Synced via stow. Catppuccin Mocha status bar on neutral dark background. Pane la
 
 Synced via stow. Uses Cursor Dark theme (Nord palette on `#141414` background). Nerd Font icons: only Material Design range (U+F0000+, `nf-md-*`) renders reliably via font fallback — other ranges may not display.
 
+### Karabiner (`home/.config/karabiner/karabiner.json`)
+
+Synced via stow. Only the main `karabiner.json` is managed in the repo; Karabiner's `automatic_backups/` snapshots and empty `assets/complex_modifications/` folder stay local.
+
+The file currently includes per-device vendor and product IDs, so syncing it across machines is straightforward but may need a quick edit if the attached keyboard or mouse set changes.
+
 ### Neovim (`home/.config/nvim/`)
 
 LazyVim-based, supports standalone + VSCode-Neovim. See `home/.config/nvim/CLAUDE.md`.

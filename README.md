@@ -146,6 +146,7 @@ dot ai skills unmanage my-skill
 | Codex            | `home/.codex/`          | AGENTS.md symlink and Codex runtime files                     |
 | Managed AI skills | `ai/skills/`           | Canonical repo copy for whole-skill sharing                   |
 | Ghostty          | `home/.config/ghostty/` | Terminal config                                               |
+| Karabiner        | `home/.config/karabiner/` | Main `karabiner.json` only; backups stay local             |
 | Ripgrep          | `home/.config/ripgrep/` | Search config                                                 |
 
 ## Development
