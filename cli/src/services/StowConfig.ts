@@ -1,15 +1,20 @@
-import { Path } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Layer, Path, ServiceMap } from "effect";
 import * as os from "node:os";
 
 /**
  * Configuration service for Stow operations.
  * Provides injectable paths for dotfiles root and home directory.
  */
-export class StowConfig extends Effect.Service<StowConfig>()(
-  "@dotfiles/StowConfig",
+export class StowConfig extends ServiceMap.Service<
+  StowConfig,
   {
-    effect: Effect.gen(function* () {
+    readonly dotfilesRoot: string;
+    readonly homeDir: string;
+  }
+>()("@dotfiles/StowConfig") {
+  static readonly Live = Layer.effect(
+    StowConfig,
+    Effect.gen(function* () {
       const path = yield* Path.Path;
 
       // In compiled binary, import.meta.dirname is virtual (/$bunfs/root/...)
@@ -24,8 +29,10 @@ export class StowConfig extends Effect.Service<StowConfig>()(
         ? path.resolve(path.dirname(binaryPath))
         : path.resolve(dirname, "..", "..", "..");
 
-      const homeDir = os.homedir();
-      return { dotfilesRoot, homeDir };
+      return StowConfig.of({
+        dotfilesRoot,
+        homeDir: os.homedir(),
+      });
     }),
-  },
-) {}
+  );
+}

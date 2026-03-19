@@ -1,23 +1,17 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import { AiState, AiStateError } from "../src/services/AiState.js";
+import { AiState, AiStateError, AiStateLive } from "../src/services/AiState.js";
 import {
   defaultAiStateToml,
   type FsFiles,
-  makeMockFs,
-  TestPath,
-  TestStowConfig,
+  makeTestBaseLayer,
   testDotfilesRoot,
 } from "./testSupport.js";
 
 const aiStatePath = `${testDotfilesRoot}/ai/state.toml`;
 
 const makeTestLayer = (files: FsFiles) =>
-  AiState.Default.pipe(
-    Layer.provideMerge(makeMockFs(files)),
-    Layer.provideMerge(TestStowConfig),
-    Layer.provideMerge(TestPath),
-  );
+  AiStateLive.pipe(Layer.provideMerge(makeTestBaseLayer(files)));
 
 describe("AiState service", () => {
   it.effect("reads settings metadata and managed skill registry", () => {

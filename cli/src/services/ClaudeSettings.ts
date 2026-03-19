@@ -1,5 +1,14 @@
-import { FileSystem, Path } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import {
+  Data,
+  Effect,
+  FileSystem,
+  Layer,
+  Option,
+  Path,
+  Schema,
+  ServiceMap,
+} from "effect";
+import * as SchemaGetter from "effect/SchemaGetter";
 import { AiLocalState } from "./AiLocalState.js";
 import { AiState } from "./AiState.js";
 import {
@@ -9,10 +18,11 @@ import {
 } from "./ManagedSettings.js";
 import { StowConfig } from "./StowConfig.js";
 
-export class ClaudeSettingsError extends Schema.TaggedError<ClaudeSettingsError>()(
+export class ClaudeSettingsError extends Data.TaggedError(
   "ClaudeSettingsError",
-  { details: Schema.String },
-) {
+)<{
+  readonly details: string;
+}> {
   override get message() {
     return `Claude settings error: ${this.details}`;
   }
@@ -20,88 +30,143 @@ export class ClaudeSettingsError extends Schema.TaggedError<ClaudeSettingsError>
 
 type SettingsObject = Record<string, unknown>;
 
-const isRecord = (value: unknown): value is SettingsObject =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const jsonObjectFromString = Schema.fromJsonString(
+  Schema.Record(Schema.String, Schema.Unknown),
+);
 
-const jsonObjectSchema = Schema.Record({
-  key: Schema.String,
-  value: Schema.Unknown,
-});
+const decodeJsonObject = Schema.decodeUnknownSync(jsonObjectFromString);
+const stringifyJson = SchemaGetter.stringifyJson({ space: 2 });
+const readJsonObject = (
+  content: string,
+  filePath: string,
+): Effect.Effect<SettingsObject, ClaudeSettingsError> =>
+  Effect.try({
+    try: () => decodeJsonObject(content),
+    catch: () =>
+      new ClaudeSettingsError({
+        details: `Failed to parse ${filePath} as JSON`,
+      }),
+  });
 
-export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
-  "@dotfiles/ClaudeSettings",
+const encodeJsonObject = (
+  filePath: string,
+  data: SettingsObject,
+): Effect.Effect<string, ClaudeSettingsError> =>
+  stringifyJson.run(Option.some(data), {}).pipe(
+    Effect.mapError(
+      () =>
+        new ClaudeSettingsError({
+          details: `Failed to encode ${filePath} as JSON`,
+        }),
+    ),
+    Effect.flatMap((encoded) =>
+      Option.match(encoded, {
+        onNone: () =>
+          Effect.fail(
+            new ClaudeSettingsError({
+              details: `Failed to encode ${filePath} as JSON`,
+            }),
+          ),
+        onSome: Effect.succeed,
+      }),
+    ),
+  );
+
+export class ClaudeSettings extends ServiceMap.Service<
+  ClaudeSettings,
   {
-    effect: Effect.gen(function* () {
+    readonly localPath: string;
+    readonly getSharedPath: () => Effect.Effect<string, ClaudeSettingsError>;
+    readonly previewPull: () => Effect.Effect<
+      ReturnType<typeof buildManagedSettingsPreview>,
+      ClaudeSettingsError
+    >;
+    readonly pull: () => Effect.Effect<
+      {
+        readonly applicableKeys: readonly string[];
+        readonly changedKeys: readonly string[];
+        readonly skippedKeys: readonly string[];
+        readonly totalKeys: number;
+      },
+      ClaudeSettingsError
+    >;
+    readonly adopt: (
+      key: string,
+    ) => Effect.Effect<{ readonly key: string }, ClaudeSettingsError>;
+    readonly ignore: (
+      key: string,
+    ) => Effect.Effect<{ readonly key: string }, ClaudeSettingsError>;
+    readonly unignore: (
+      key: string,
+    ) => Effect.Effect<{ readonly key: string }, ClaudeSettingsError>;
+  }
+>()("@dotfiles/ClaudeSettings") {
+  static readonly Live = Layer.effect(
+    ClaudeSettings,
+    Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const { dotfilesRoot, homeDir } = yield* StowConfig;
       const aiState = yield* AiState;
       const aiLocalState = yield* AiLocalState;
-      const decodeJsonObject = Schema.decodeUnknown(
-        Schema.parseJson(jsonObjectSchema),
-      );
-      const encodeJsonObject = Schema.encode(
-        Schema.parseJson(jsonObjectSchema, { space: 2 }),
-      );
 
       const localPath = path.join(homeDir, ".claude", "settings.json");
 
       const readJsonFile = (filePath: string) =>
         Effect.gen(function* () {
-          const exists = yield* fs.exists(filePath);
-          if (!exists) {
-            return {};
-          }
-
           const content = yield* fs.readFileString(filePath).pipe(
-            Effect.catchAll((error) =>
-              ClaudeSettingsError.make({
-                details: `Failed to read ${filePath}: ${error}`,
-              }),
+            Effect.catchIf(
+              (error) => error.reason._tag === "NotFound",
+              () => Effect.succeed(""),
             ),
-          );
-
-          const parsed = yield* decodeJsonObject(content).pipe(
             Effect.mapError(
-              () =>
+              (error) =>
                 new ClaudeSettingsError({
-                  details: `Failed to parse ${filePath} as JSON`,
+                  details: `Failed to read ${filePath}: ${error}`,
                 }),
             ),
           );
 
-          if (!isRecord(parsed)) {
-            return yield* ClaudeSettingsError.make({
-              details: `${filePath} must decode to a JSON object`,
-            });
+          if (content.length === 0) {
+            return {};
           }
 
-          return parsed;
+          return yield* readJsonObject(content, filePath);
         });
 
       const writeJsonFile = (filePath: string, data: SettingsObject) =>
         Effect.gen(function* () {
-          const content = yield* encodeJsonObject(data).pipe(
+          const parentDirectory = path.dirname(filePath);
+          yield* fs.makeDirectory(parentDirectory, { recursive: true }).pipe(
             Effect.mapError(
-              () =>
+              (error) =>
                 new ClaudeSettingsError({
-                  details: `Failed to encode ${filePath} as JSON`,
+                  details: `Failed to create ${parentDirectory}: ${error}`,
                 }),
             ),
           );
 
+          const content = yield* encodeJsonObject(filePath, data);
           yield* fs.writeFileString(filePath, `${content}\n`).pipe(
-            Effect.catchAll((error) =>
-              ClaudeSettingsError.make({
-                details: `Failed to write ${filePath}: ${error}`,
-              }),
+            Effect.mapError(
+              (error) =>
+                new ClaudeSettingsError({
+                  details: `Failed to write ${filePath}: ${error}`,
+                }),
             ),
           );
         });
 
       const getSharedPath = Effect.fn("ClaudeSettings.getSharedPath")(
         function* () {
-          const tool = yield* aiState.getTool("claude");
+          const tool = yield* aiState.getTool("claude").pipe(
+            Effect.mapError(
+              (error) =>
+                new ClaudeSettingsError({
+                  details: error.message,
+                }),
+            ),
+          );
           return path.join(dotfilesRoot, tool.settings.shared_settings_file);
         },
       );
@@ -109,7 +174,16 @@ export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
       const previewPull = Effect.fn("ClaudeSettings.previewPull")(function* () {
         const sharedPath = yield* getSharedPath();
         const shared = yield* readJsonFile(sharedPath);
-        const ignoredSections = yield* aiLocalState.getIgnoredSections("claude");
+        const ignoredSections = yield* aiLocalState
+          .getIgnoredSections("claude")
+          .pipe(
+            Effect.mapError(
+              (error) =>
+                new ClaudeSettingsError({
+                  details: error.message,
+                }),
+            ),
+          );
         return buildManagedSettingsPreview(shared, ignoredSections);
       });
 
@@ -137,7 +211,7 @@ export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
         const local = yield* readJsonFile(localPath);
 
         if (!(key in local)) {
-          return yield* ClaudeSettingsError.make({
+          return yield* new ClaudeSettingsError({
             details: `Section "${key}" not found in local settings`,
           });
         }
@@ -157,13 +231,13 @@ export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
       )(function* (key: string) {
         const preview = yield* previewPull();
         if (preview.skippedKeys.includes(key)) {
-          return yield* ClaudeSettingsError.make({
+          return yield* new ClaudeSettingsError({
             details: `This machine is already keeping its own value for "${key}"`,
           });
         }
 
         if (!preview.sharedKeys.includes(key)) {
-          return yield* ClaudeSettingsError.make({
+          return yield* new ClaudeSettingsError({
             details: `Key "${key}" is not currently shared`,
           });
         }
@@ -187,9 +261,18 @@ export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
       const unignore = Effect.fn("ClaudeSettings.unignore")(function* (
         key: string,
       ) {
-        const ignoredSections = yield* aiLocalState.getIgnoredSections("claude");
+        const ignoredSections = yield* aiLocalState
+          .getIgnoredSections("claude")
+          .pipe(
+            Effect.mapError(
+              (error) =>
+                new ClaudeSettingsError({
+                  details: error.message,
+                }),
+          ),
+          );
         if (!ignoredSections.includes(key)) {
-          return yield* ClaudeSettingsError.make({
+          return yield* new ClaudeSettingsError({
             details: `This machine is not keeping its own value for "${key}"`,
           });
         }
@@ -204,7 +287,7 @@ export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
         );
       });
 
-      return {
+      return ClaudeSettings.of({
         localPath,
         getSharedPath,
         previewPull,
@@ -212,7 +295,9 @@ export class ClaudeSettings extends Effect.Service<ClaudeSettings>()(
         adopt,
         ignore,
         unignore,
-      };
+      });
     }),
-  },
-) {}
+  );
+}
+
+export const ClaudeSettingsLive = ClaudeSettings.Live;

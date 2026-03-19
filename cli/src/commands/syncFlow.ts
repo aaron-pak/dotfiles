@@ -1,4 +1,4 @@
-import { Prompt } from "@effect/cli";
+import { Prompt } from "effect/unstable/cli";
 import { Console, Effect, Option } from "effect";
 import {
   printManagedSettingsApply,
@@ -57,27 +57,29 @@ const previewManagedSettings = Effect.fn("syncFlow.previewManagedSettings")(
   },
 );
 
-const selectConflictChoice = () =>
-  Prompt.select<ConflictChoice>({
-    message: "How would you like to resolve these conflicts?",
-    choices: [
-      {
-        title: "Backup",
-        value: "backup",
-        description: "Rename conflicting files to .bak and sync",
-      },
-      {
-        title: "Delete",
-        value: "delete",
-        description: "Delete conflicting files and sync",
-      },
-      {
-        title: "Abort",
-        value: "abort",
-        description: "Do nothing and exit",
-      },
-    ],
-  });
+export const selectConflictChoice = () =>
+  Prompt.run(
+    Prompt.select<ConflictChoice>({
+      message: "How would you like to resolve these conflicts?",
+      choices: [
+        {
+          title: "Backup",
+          value: "backup",
+          description: "Rename conflicting files to .bak and sync",
+        },
+        {
+          title: "Delete",
+          value: "delete",
+          description: "Delete conflicting files and sync",
+        },
+        {
+          title: "Abort",
+          value: "abort",
+          description: "Do nothing and exit",
+        },
+      ],
+    }),
+  );
 
 export const runManagedSkillsSync = Effect.fn(
   "syncFlow.runManagedSkillsSync",

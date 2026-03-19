@@ -1,5 +1,11 @@
-import { FileSystem, Path } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import {
+  Data,
+  Effect,
+  FileSystem,
+  Layer,
+  Path,
+  ServiceMap,
+} from "effect";
 import { parse, stringify } from "smol-toml";
 import { AiLocalState } from "./AiLocalState.js";
 import { AiState } from "./AiState.js";
@@ -10,10 +16,9 @@ import {
 } from "./ManagedSettings.js";
 import { StowConfig } from "./StowConfig.js";
 
-export class CodexSettingsError extends Schema.TaggedError<CodexSettingsError>()(
-  "CodexSettingsError",
-  { details: Schema.String },
-) {
+export class CodexSettingsError extends Data.TaggedError("CodexSettingsError")<{
+  readonly details: string;
+}> {
   override get message() {
     return `Codex settings error: ${this.details}`;
   }
@@ -26,10 +31,60 @@ const isRecord = (value: unknown): value is SettingsObject =>
 
 const neverSharedSections = ["projects"];
 
-export class CodexSettings extends Effect.Service<CodexSettings>()(
-  "@dotfiles/CodexSettings",
+const readTomlObject = (
+  content: string,
+  filePath: string,
+): Effect.Effect<SettingsObject, CodexSettingsError> =>
+  Effect.try({
+    try: () => parse(content),
+    catch: () =>
+      new CodexSettingsError({
+        details: `Failed to parse ${filePath} as TOML`,
+      }),
+  }).pipe(
+    Effect.flatMap((parsed) =>
+      isRecord(parsed)
+        ? Effect.succeed(parsed)
+        : Effect.fail(
+            new CodexSettingsError({
+              details: `${filePath} must decode to a TOML table`,
+            }),
+          ),
+    ),
+  );
+
+export class CodexSettings extends ServiceMap.Service<
+  CodexSettings,
   {
-    effect: Effect.gen(function* () {
+    readonly localPath: string;
+    readonly getSharedPath: () => Effect.Effect<string, CodexSettingsError>;
+    readonly previewPull: () => Effect.Effect<
+      ReturnType<typeof buildManagedSettingsPreview>,
+      CodexSettingsError
+    >;
+    readonly pull: () => Effect.Effect<
+      {
+        readonly applicableKeys: readonly string[];
+        readonly changedKeys: readonly string[];
+        readonly skippedKeys: readonly string[];
+        readonly totalKeys: number;
+      },
+      CodexSettingsError
+    >;
+    readonly adopt: (
+      key: string,
+    ) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
+    readonly ignore: (
+      key: string,
+    ) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
+    readonly unignore: (
+      key: string,
+    ) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
+  }
+>()("@dotfiles/CodexSettings") {
+  static readonly Live = Layer.effect(
+    CodexSettings,
+    Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const { homeDir, dotfilesRoot } = yield* StowConfig;
@@ -40,48 +95,46 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
 
       const readTomlFile = (filePath: string) =>
         Effect.gen(function* () {
-          const exists = yield* fs.exists(filePath);
-          if (!exists) {
-            return {};
-          }
-
           const content = yield* fs.readFileString(filePath).pipe(
-            Effect.catchAll((error) =>
-              CodexSettingsError.make({
-                details: `Failed to read ${filePath}: ${error}`,
-              }),
+            Effect.catchIf(
+              (error) => error.reason._tag === "NotFound",
+              () => Effect.succeed(""),
+            ),
+            Effect.mapError(
+              (error) =>
+                new CodexSettingsError({
+                  details: `Failed to read ${filePath}: ${error}`,
+                }),
             ),
           );
 
-          const parsed = yield* Effect.try({
-            try: () => parse(content),
-            catch: () =>
-              new CodexSettingsError({
-                details: `Failed to parse ${filePath} as TOML`,
-              }),
-          });
-
-          if (!isRecord(parsed)) {
-            return yield* CodexSettingsError.make({
-              details: `${filePath} must decode to a TOML table`,
-            });
+          if (content.length === 0) {
+            return {};
           }
 
-          return parsed;
+          return yield* readTomlObject(content, filePath);
         });
 
       const writeTomlFile = (filePath: string, data: SettingsObject) =>
         fs.writeFileString(filePath, stringify(data)).pipe(
-          Effect.catchAll((error) =>
-            CodexSettingsError.make({
-              details: `Failed to write ${filePath}: ${error}`,
-            }),
+          Effect.mapError(
+            (error) =>
+              new CodexSettingsError({
+                details: `Failed to write ${filePath}: ${error}`,
+              }),
           ),
         );
 
       const getSharedPath = Effect.fn("CodexSettings.getSharedPath")(
         function* () {
-          const tool = yield* aiState.getTool("codex");
+          const tool = yield* aiState.getTool("codex").pipe(
+            Effect.mapError(
+              (error) =>
+                new CodexSettingsError({
+                  details: error.message,
+                }),
+            ),
+          );
           return path.join(dotfilesRoot, tool.settings.shared_settings_file);
         },
       );
@@ -89,7 +142,16 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
       const previewPull = Effect.fn("CodexSettings.previewPull")(function* () {
         const sharedPath = yield* getSharedPath();
         const shared = yield* readTomlFile(sharedPath);
-        const ignoredSections = yield* aiLocalState.getIgnoredSections("codex");
+        const ignoredSections = yield* aiLocalState
+          .getIgnoredSections("codex")
+          .pipe(
+            Effect.mapError(
+              (error) =>
+                new CodexSettingsError({
+                  details: error.message,
+                }),
+            ),
+          );
         return buildManagedSettingsPreview(
           shared,
           ignoredSections,
@@ -117,7 +179,7 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
 
       const adopt = Effect.fn("CodexSettings.adopt")(function* (key: string) {
         if (neverSharedSections.includes(key)) {
-          return yield* CodexSettingsError.make({
+          return yield* new CodexSettingsError({
             details: `Section "${key}" is machine-local and cannot be adopted`,
           });
         }
@@ -127,7 +189,7 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
         const local = yield* readTomlFile(localPath);
 
         if (!(key in local)) {
-          return yield* CodexSettingsError.make({
+          return yield* new CodexSettingsError({
             details: `Section "${key}" not found in local config`,
           });
         }
@@ -146,7 +208,7 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
         "CodexSettings.validateIgnoreTarget",
       )(function* (key: string) {
         if (neverSharedSections.includes(key)) {
-          return yield* CodexSettingsError.make({
+          return yield* new CodexSettingsError({
             details: `Section "${key}" is machine-local and is never shared`,
           });
         }
@@ -154,13 +216,13 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
         const preview = yield* previewPull();
 
         if (preview.skippedKeys.includes(key)) {
-          return yield* CodexSettingsError.make({
+          return yield* new CodexSettingsError({
             details: `This machine is already keeping its own value for "${key}"`,
           });
         }
 
         if (!preview.sharedKeys.includes(key)) {
-          return yield* CodexSettingsError.make({
+          return yield* new CodexSettingsError({
             details: `Section "${key}" is not currently shared`,
           });
         }
@@ -184,9 +246,18 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
       const unignore = Effect.fn("CodexSettings.unignore")(function* (
         key: string,
       ) {
-        const ignoredSections = yield* aiLocalState.getIgnoredSections("codex");
+        const ignoredSections = yield* aiLocalState
+          .getIgnoredSections("codex")
+          .pipe(
+            Effect.mapError(
+              (error) =>
+                new CodexSettingsError({
+                  details: error.message,
+                }),
+          ),
+          );
         if (!ignoredSections.includes(key)) {
-          return yield* CodexSettingsError.make({
+          return yield* new CodexSettingsError({
             details: `This machine is not keeping its own value for "${key}"`,
           });
         }
@@ -201,7 +272,7 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
         );
       });
 
-      return {
+      return CodexSettings.of({
         localPath,
         getSharedPath,
         previewPull,
@@ -209,7 +280,9 @@ export class CodexSettings extends Effect.Service<CodexSettings>()(
         adopt,
         ignore,
         unignore,
-      };
+      });
     }),
-  },
-) {}
+  );
+}
+
+export const CodexSettingsLive = CodexSettings.Live;

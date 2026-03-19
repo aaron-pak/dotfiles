@@ -1,11 +1,5 @@
-import {
-  CommandExecutor,
-  Error as PlatformError,
-  FileSystem,
-  Path,
-} from "@effect/platform";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Inspectable, Layer, Sink, Stream } from "effect";
+import { Effect, FileSystem, Layer } from "effect";
 import {
   BrewBundleError,
   BrewfileNotFound,
@@ -15,75 +9,13 @@ import {
   HomebrewInstallError,
   InstalledPackage,
 } from "../src/services/Homebrew.js";
-import { StowConfig } from "../src/services/StowConfig.js";
+import {
+  makeFailingChildProcessSpawner,
+  makeMockChildProcessSpawner,
+  TestPath,
+  TestStowConfig,
+} from "./testSupport.js";
 
-// Test paths
-const testDotfilesRoot = "/test/dotfiles";
-const testHomeDir = "/test/home";
-
-// Mock StowConfig
-const TestStowConfig = Layer.succeed(
-  StowConfig,
-  StowConfig.make({
-    dotfilesRoot: testDotfilesRoot,
-    homeDir: testHomeDir,
-  }),
-);
-
-// Use built-in POSIX Path layer
-const TestPath = Path.layer;
-
-// Process prototype matching Effect's internal pattern
-const ProcessProto = {
-  [CommandExecutor.ProcessTypeId]: CommandExecutor.ProcessTypeId,
-  ...Inspectable.BaseProto,
-  toJSON(this: CommandExecutor.Process) {
-    return {
-      _id: "@effect/platform/CommandExecutor/Process",
-      pid: this.pid,
-    };
-  },
-};
-
-const mockProcess = (
-  exitCode: number,
-  stdout: string,
-  stderr: string = "",
-): CommandExecutor.Process =>
-  Object.assign(Object.create(ProcessProto), {
-    pid: CommandExecutor.ProcessId(1),
-    exitCode: Effect.succeed(CommandExecutor.ExitCode(exitCode)),
-    isRunning: Effect.succeed(false),
-    stdin: Sink.drain,
-    stdout: Stream.make(new TextEncoder().encode(stdout)),
-    stderr: Stream.make(new TextEncoder().encode(stderr)),
-    kill: () => Effect.void,
-  });
-
-const mockExecutor = (exitCode: number, stdout: string, stderr: string = "") =>
-  Layer.succeed(
-    CommandExecutor.CommandExecutor,
-    CommandExecutor.makeExecutor(() =>
-      Effect.succeed(mockProcess(exitCode, stdout, stderr)),
-    ),
-  );
-
-const mockExecutorFailure = () =>
-  Layer.succeed(
-    CommandExecutor.CommandExecutor,
-    CommandExecutor.makeExecutor(() =>
-      Effect.fail(
-        new PlatformError.SystemError({
-          reason: "NotFound",
-          module: "Command",
-          method: "spawn",
-          pathOrDescriptor: "brew",
-        }),
-      ),
-    ),
-  );
-
-// Helper to create mock FileSystem
 type FsState = {
   exists: Set<string>;
 };
@@ -98,23 +30,24 @@ const mockFileSystem = (state: FsState) =>
     exists: (path) => Effect.succeed(state.exists.has(path)),
   });
 
-// Compose test layer
 const makeTestLayer = (
   exitCode: number,
   stdout: string,
   stderr: string,
   fsState: FsState,
 ) =>
-  Homebrew.Default.pipe(
-    Layer.provideMerge(mockExecutor(exitCode, stdout, stderr)),
+  Homebrew.Live.pipe(
+    Layer.provideMerge(
+      makeMockChildProcessSpawner({ exitCode, stdout, stderr }),
+    ),
     Layer.provideMerge(mockFileSystem(fsState)),
     Layer.provideMerge(TestStowConfig),
     Layer.provideMerge(TestPath),
   );
 
-const makeTestLayerWithFailingExecutor = (fsState: FsState) =>
-  Homebrew.Default.pipe(
-    Layer.provideMerge(mockExecutorFailure()),
+const makeTestLayerWithFailingSpawner = (fsState: FsState) =>
+  Homebrew.Live.pipe(
+    Layer.provideMerge(makeFailingChildProcessSpawner("brew")),
     Layer.provideMerge(mockFileSystem(fsState)),
     Layer.provideMerge(TestStowConfig),
     Layer.provideMerge(TestPath),
@@ -144,13 +77,13 @@ describe("Homebrew service", () => {
       }).pipe(Effect.provide(makeTestLayer(1, "", "", makeFsState()))),
     );
 
-    it.effect("returns false on executor failure", () =>
+    it.effect("returns false on spawner failure", () =>
       Effect.gen(function* () {
         const homebrew = yield* Homebrew;
         const result = yield* homebrew.checkInstalled();
 
         expect(result).toBe(false);
-      }).pipe(Effect.provide(makeTestLayerWithFailingExecutor(makeFsState()))),
+      }).pipe(Effect.provide(makeTestLayerWithFailingSpawner(makeFsState()))),
     );
   });
 
@@ -159,7 +92,6 @@ describe("Homebrew service", () => {
       Effect.gen(function* () {
         const homebrew = yield* Homebrew;
         yield* homebrew.install();
-        // No error means success
       }).pipe(
         Effect.provide(
           makeTestLayer(0, "==> Installation successful!", "", makeFsState()),

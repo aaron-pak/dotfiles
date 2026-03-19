@@ -1,5 +1,5 @@
-import { Args, Command, Options, Prompt } from "@effect/cli";
 import { Console, Effect, Option } from "effect";
+import { Argument, Command, Flag, Prompt } from "effect/unstable/cli";
 import {
   AiSkills,
   AiSkillsError,
@@ -16,38 +16,38 @@ import {
   runChecklistPrompt,
 } from "./interactiveChecklist.js";
 
-const dry = Options.boolean("dry").pipe(
-  Options.withAlias("n"),
-  Options.withDescription("Show what would happen without making changes"),
+const dry = Flag.boolean("dry").pipe(
+  Flag.withAlias("n"),
+  Flag.withDescription("Show what would happen without making changes"),
 );
 
-const toolChoice = Options.choice("tool", ["claude", "codex", "all"]).pipe(
-  Options.optional,
-  Options.withDescription("Which tool settings to manage"),
+const toolChoice = Flag.choice("tool", ["claude", "codex", "all"]).pipe(
+  Flag.optional,
+  Flag.withDescription("Which tool settings to manage"),
 );
 
-const settingsNameArg = Args.text({ name: "name" }).pipe(
-  Args.withDescription("Top-level setting key or section name"),
+const settingsNameArg = Argument.string("name").pipe(
+  Argument.withDescription("Top-level setting key or section name"),
 );
 
-const toolOnlyChoice = Options.choice("tool", ["claude", "codex"]).pipe(
-  Options.optional,
-  Options.withDescription("Which tool to manage"),
+const toolOnlyChoice = Flag.choice("tool", ["claude", "codex"]).pipe(
+  Flag.optional,
+  Flag.withDescription("Which tool to manage"),
 );
 
-const skillNameArg = Args.text({ name: "name" }).pipe(
-  Args.optional,
-  Args.withDescription("Managed skill name"),
+const skillNameArg = Argument.string("name").pipe(
+  Argument.optional,
+  Argument.withDescription("Managed skill name"),
 );
 
-const fromOption = Options.text("from").pipe(
-  Options.optional,
-  Options.withDescription("claude, codex, agents, or a filesystem path"),
+const fromOption = Flag.string("from").pipe(
+  Flag.optional,
+  Flag.withDescription("claude, codex, agents, or a filesystem path"),
 );
 
-const targetsOption = Options.text("targets").pipe(
-  Options.optional,
-  Options.withDescription("Comma-separated list of claude,codex,agents"),
+const targetsOption = Flag.string("targets").pipe(
+  Flag.optional,
+  Flag.withDescription("Comma-separated list of claude,codex,agents"),
 );
 
 const allSkillTargets: readonly SkillTarget[] = ["claude", "codex", "agents"];
@@ -70,17 +70,21 @@ const parseTargets = (value: string) => {
     .filter((part) => part.length > 0);
 
   if (parts.length === 0) {
-    return AiSkillsError.make({
-      details: "At least one skill target must be provided",
-    });
+    return Effect.fail(
+      new AiSkillsError({
+        details: "At least one skill target must be provided",
+      }),
+    );
   }
 
   const targets: SkillTarget[] = [];
   for (const part of parts) {
     if (!isSkillTarget(part)) {
-      return AiSkillsError.make({
-        details: `Invalid skill target "${part}". Expected claude, codex, or agents`,
-      });
+      return Effect.fail(
+        new AiSkillsError({
+          details: `Invalid skill target "${part}". Expected claude, codex, or agents`,
+        }),
+      );
     }
     targets.push(part);
   }
@@ -89,62 +93,66 @@ const parseTargets = (value: string) => {
 };
 
 const selectManagedTool = () =>
-  Prompt.select<ManagedTool>({
-    message: "Which tool do you want to manage?",
-    choices: [
-      {
-        title: "Claude",
-        value: "claude",
-        description: "Manage Claude settings",
-      },
-      {
-        title: "Codex",
-        value: "codex",
-        description: "Manage Codex settings",
-      },
-    ],
-  });
+  Prompt.run(
+    Prompt.select<ManagedTool>({
+      message: "Which tool do you want to manage?",
+      choices: [
+        {
+          title: "Claude",
+          value: "claude",
+          description: "Manage Claude settings",
+        },
+        {
+          title: "Codex",
+          value: "codex",
+          description: "Manage Codex settings",
+        },
+      ],
+    }),
+  );
 
 const selectSkillSource = () =>
-  Prompt.select<"claude" | "codex" | "agents" | "path">({
-    message: "Where is the source skill currently located?",
-    choices: [
-      {
-        title: "Claude",
-        value: "claude",
-        description: "Use ~/.claude/skills/<name>",
-      },
-      {
-        title: "Codex",
-        value: "codex",
-        description: "Use ~/.codex/skills/<name>",
-      },
-      {
-        title: ".agents",
-        value: "agents",
-        description: "Use ~/.agents/skills/<name>",
-      },
-      {
-        title: "Filesystem path",
-        value: "path",
-        description: "Use an explicit local path",
-      },
-    ],
-  });
+  Prompt.run(
+    Prompt.select<"claude" | "codex" | "agents" | "path">({
+      message: "Where is the source skill currently located?",
+      choices: [
+        {
+          title: "Claude",
+          value: "claude",
+          description: "Use ~/.claude/skills/<name>",
+        },
+        {
+          title: "Codex",
+          value: "codex",
+          description: "Use ~/.codex/skills/<name>",
+        },
+        {
+          title: ".agents",
+          value: "agents",
+          description: "Use ~/.agents/skills/<name>",
+        },
+        {
+          title: "Filesystem path",
+          value: "path",
+          description: "Use an explicit local path",
+        },
+      ],
+    }),
+  );
 
 const selectSkillTargets = Effect.fn("ai.selectSkillTargets")(function* () {
   const claude = yield* Prompt.confirm({
     message: "Project this skill into Claude?",
     initial: true,
-  });
+  }).pipe(Prompt.run);
   const codex = yield* Prompt.confirm({
     message: "Project this skill into Codex?",
     initial: true,
-  });
+  }).pipe(Prompt.run);
   const agents = yield* Prompt.confirm({
     message: "Project this skill into .agents?",
     initial: false,
-  });
+  }).pipe(Prompt.run);
 
   const targets: SkillTarget[] = [];
   if (claude) targets.push("claude");
@@ -152,7 +160,7 @@ const selectSkillTargets = Effect.fn("ai.selectSkillTargets")(function* () {
   if (agents) targets.push("agents");
 
   if (targets.length === 0) {
-    return yield* AiSkillsError.make({
+    return yield* new AiSkillsError({
       details: "Select at least one target surface for a managed skill",
     });
   }
@@ -168,19 +176,21 @@ const selectSkillNameFromSurface = (
     const available = yield* skills.listLocalSkills(surface);
 
     if (available.length === 0) {
-      return yield* AiSkillsError.make({
+      return yield* new AiSkillsError({
         details: `No local skills were found on ${surface}`,
       });
     }
 
-    return yield* Prompt.select<string>({
-      message: "Which skill do you want to adopt?",
-      choices: available.map((name) => ({
-        title: name,
-        value: name,
-        description: `Adopt ${name} from ${surface}`,
-      })),
-    });
+    return yield* Prompt.run(
+      Prompt.select<string>({
+        message: "Which skill do you want to adopt?",
+        choices: available.map((name: string) => ({
+          title: name,
+          value: name,
+          description: `Adopt ${name} from ${surface}`,
+        })),
+      }),
+    );
   });
 
 type ManagedSkillEntry = {
@@ -299,7 +309,7 @@ const selectManagedSkills = (
   Effect.gen(function* () {
     const result = yield* runChecklistPrompt<string, "unmanage">({
       message: "Manage skills",
-      choices: entries.map((entry) => ({
+      choices: entries.map((entry: ManagedSkillEntry) => ({
         title: entry.name,
         value: entry.name,
         detail: formatSkillTargetSummary(entry.targets),
@@ -471,7 +481,9 @@ export const runSkillsManagerWithHooks = <E, R>({
         return;
       }
 
-      const availableNames = new Set(entries.map((entry) => entry.name));
+      const availableNames = new Set(
+        entries.map((entry: ManagedSkillEntry) => entry.name),
+      );
       selectedNames = selectedNames.filter((name) => availableNames.has(name));
 
       const selection = yield* selectSkills(entries, selectedNames);
@@ -506,7 +518,7 @@ export const runSkillsManagerWithHooks = <E, R>({
         continue;
       }
 
-      const selectedEntries = entries.filter((entry) =>
+      const selectedEntries = entries.filter((entry: ManagedSkillEntry) =>
         selection.names.includes(entry.name),
       );
       const initialTargets = deriveInitialTargets(selectedEntries);
@@ -767,17 +779,21 @@ const adoptSkill = Command.make(
       const sourcePath = yield* (sourceChoice === "path"
         ? Option.match(from, {
             onNone: () =>
-              Prompt.text({
-                message: "Enter the skill directory path to adopt",
-              }),
+              Prompt.run(
+                Prompt.text({
+                  message: "Enter the skill directory path to adopt",
+                }),
+              ),
             onSome: (value) =>
               value === "claude" ||
               value === "codex" ||
               value === "agents" ||
               value === "path"
-                ? Prompt.text({
-                    message: "Enter the skill directory path to adopt",
-                  })
+                ? Prompt.run(
+                    Prompt.text({
+                      message: "Enter the skill directory path to adopt",
+                    }),
+                  )
                 : Effect.succeed(value),
           })
         : Effect.gen(function* () {
@@ -793,10 +809,12 @@ const adoptSkill = Command.make(
         onNone: () =>
           Effect.gen(function* () {
             if (sourceChoice === "path") {
-              const pathParts = sourcePath.split("/").filter((part) => part.length > 0);
+              const pathParts = sourcePath
+                .split("/")
+                .filter((part: string) => part.length > 0);
               const inferred = pathParts[pathParts.length - 1];
               if (inferred === undefined) {
-                return yield* AiSkillsError.make({
+                return yield* new AiSkillsError({
                   details:
                     "Could not infer a managed skill name from the path",
                 });
@@ -804,10 +822,12 @@ const adoptSkill = Command.make(
               return inferred;
             }
 
-            const pathParts = sourcePath.split("/").filter((part) => part.length > 0);
+            const pathParts = sourcePath
+              .split("/")
+              .filter((part: string) => part.length > 0);
             const inferred = pathParts[pathParts.length - 1];
             if (inferred === undefined) {
-              return yield* AiSkillsError.make({
+              return yield* new AiSkillsError({
                 details: "Could not infer a managed skill name from the source",
               });
             }
@@ -834,8 +854,8 @@ const adoptSkill = Command.make(
     }),
 ).pipe(Command.withDescription("Adopt one local skill into managed AI storage"));
 
-const unmanageSkillName = Args.text({ name: "name" }).pipe(
-  Args.withDescription("Managed skill name"),
+const unmanageSkillName = Argument.string("name").pipe(
+  Argument.withDescription("Managed skill name"),
 );
 
 const unmanageSkill = Command.make(

@@ -1,20 +1,21 @@
-import { Command, Options, Prompt } from "@effect/cli";
+import { Command, Flag, Prompt } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 import { Homebrew } from "../services/Homebrew.js";
 import {
   runManagedSettingsSync,
   runManagedSkillsSync,
+  selectConflictChoice,
   runStowSyncWithChoice,
 } from "./syncFlow.js";
 import type { ConflictChoice } from "../services/Stow.js";
 
-const dry = Options.boolean("dry").pipe(
-  Options.withAlias("n"),
-  Options.withDescription("Show what would happen without making changes"),
+const dry = Flag.boolean("dry").pipe(
+  Flag.withAlias("n"),
+  Flag.withDescription("Show what would happen without making changes"),
 );
 
-const skipBrew = Options.boolean("skip-brew").pipe(
-  Options.withDescription("Skip Homebrew installation phase"),
+const skipBrew = Flag.boolean("skip-brew").pipe(
+  Flag.withDescription("Skip Homebrew installation phase"),
 );
 
 export const runInitialization = Effect.fn("init.runInitialization")(function* (
@@ -25,31 +26,13 @@ export const runInitialization = Effect.fn("init.runInitialization")(function* (
     dry,
     skipBrew,
     () =>
-      Prompt.confirm({
-        message: "Homebrew is not installed. Install it now?",
-        initial: true,
-      }),
-    () =>
-      Prompt.select<ConflictChoice>({
-        message: "How would you like to resolve these conflicts?",
-        choices: [
-          {
-            title: "Backup",
-            value: "backup",
-            description: "Rename conflicting files to .bak and sync",
-          },
-          {
-            title: "Delete",
-            value: "delete",
-            description: "Delete conflicting files and sync",
-          },
-          {
-            title: "Abort",
-            value: "abort",
-            description: "Do nothing and exit",
-          },
-        ],
-      }),
+      Prompt.run(
+        Prompt.confirm({
+          message: "Homebrew is not installed. Install it now?",
+          initial: true,
+        }),
+      ),
+    selectConflictChoice,
   );
 });
 

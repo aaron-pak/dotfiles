@@ -1,10 +1,29 @@
-import { Command, CommandExecutor, FileSystem, Path } from "@effect/platform";
-import { Effect, Option, Schema, Stream } from "effect";
+import {
+  Data,
+  Effect,
+  FileSystem,
+  Layer,
+  Option,
+  Path,
+  Schema,
+  ServiceMap,
+  Stream,
+} from "effect";
+import type * as PlatformError from "effect/PlatformError";
+import {
+  ChildProcess as Process,
+  ChildProcessSpawner,
+} from "effect/unstable/process";
 import { StowConfig } from "./StowConfig.js";
 
 // -------------------------------------------------------------------------------------
 // Data Types
 // -------------------------------------------------------------------------------------
+
+const installedPackageTypes = ["formula", "cask"] satisfies readonly [
+  "formula",
+  "cask",
+];
 
 /**
  * Package installed by brew bundle.
@@ -13,7 +32,7 @@ export class InstalledPackage extends Schema.Class<InstalledPackage>(
   "InstalledPackage",
 )({
   name: Schema.String,
-  type: Schema.Literal("formula", "cask"),
+  type: Schema.Literals(installedPackageTypes),
 }) {}
 
 /**
@@ -38,37 +57,33 @@ export class BundleCheckResult extends Schema.Class<BundleCheckResult>(
 // Errors
 // -------------------------------------------------------------------------------------
 
-export class HomebrewNotFound extends Schema.TaggedError<HomebrewNotFound>()(
-  "HomebrewNotFound",
-  {},
-) {
+export class HomebrewNotFound extends Data.TaggedError("HomebrewNotFound")<{}> {
   override get message() {
     return "Homebrew is not installed";
   }
 }
 
-export class HomebrewInstallError extends Schema.TaggedError<HomebrewInstallError>()(
+export class HomebrewInstallError extends Data.TaggedError(
   "HomebrewInstallError",
-  { details: Schema.String },
-) {
+)<{
+  readonly details: string;
+}> {
   override get message() {
     return `Failed to install Homebrew: ${this.details}`;
   }
 }
 
-export class BrewBundleError extends Schema.TaggedError<BrewBundleError>()(
-  "BrewBundleError",
-  { details: Schema.String },
-) {
+export class BrewBundleError extends Data.TaggedError("BrewBundleError")<{
+  readonly details: string;
+}> {
   override get message() {
     return `brew bundle failed: ${this.details}`;
   }
 }
 
-export class BrewfileNotFound extends Schema.TaggedError<BrewfileNotFound>()(
-  "BrewfileNotFound",
-  { path: Schema.String },
-) {
+export class BrewfileNotFound extends Data.TaggedError("BrewfileNotFound")<{
+  readonly path: string;
+}> {
   override get message() {
     return `Brewfile not found at: ${this.path}`;
   }
@@ -119,13 +134,11 @@ const parseUsingLine = (
 const parseMissingLine = (
   line: string,
 ): Option.Option<{ name: string; type: "formula" | "cask" }> => {
-  // "→ Formula <name> needs to be installed"
   const formulaName = line.match(/Formula (\S+) needs/)?.[1];
   if (formulaName) {
     return Option.some({ name: formulaName, type: "formula" });
   }
 
-  // "→ Cask <name> needs to be installed"
   const caskName = line.match(/Cask (\S+) needs/)?.[1];
   if (caskName) {
     return Option.some({ name: caskName, type: "cask" });
@@ -138,194 +151,212 @@ const parseMissingLine = (
 // Service
 // -------------------------------------------------------------------------------------
 
-export class Homebrew extends Effect.Service<Homebrew>()("@dotfiles/Homebrew", {
-  effect: Effect.gen(function* () {
-    const executor = yield* CommandExecutor.CommandExecutor;
-    const fs = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
-    const { dotfilesRoot } = yield* StowConfig;
+export class Homebrew extends ServiceMap.Service<
+  Homebrew,
+  {
+    readonly checkInstalled: () => Effect.Effect<boolean>;
+    readonly install: () => Effect.Effect<void, HomebrewInstallError>;
+    readonly bundle: (opts?: {
+      readonly verbose?: boolean;
+    }) => Effect.Effect<
+      BundleResult,
+      BrewfileNotFound | BrewBundleError | PlatformError.PlatformError
+    >;
+    readonly bundleDryRun: () => Effect.Effect<
+      BundleCheckResult,
+      BrewfileNotFound | BrewBundleError | PlatformError.PlatformError
+    >;
+  }
+>()("@dotfiles/Homebrew") {
+  static readonly Live = Layer.effect(
+    Homebrew,
+    Effect.gen(function* () {
+      const processSpawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const { dotfilesRoot } = yield* StowConfig;
 
-    const brewfilePath = path.join(dotfilesRoot, "Brewfile");
+      const brewfilePath = path.join(dotfilesRoot, "Brewfile");
 
-    /** Run a command and capture stdout/stderr. */
-    const runCommand = (cmd: Command.Command) =>
-      Effect.scoped(
-        Effect.gen(function* () {
-          const process = yield* executor.start(cmd);
+      const collectText = (
+        stream: Stream.Stream<string, PlatformError.PlatformError>,
+      ): Effect.Effect<string, PlatformError.PlatformError> =>
+        stream.pipe(Stream.runFold(() => "", (acc, chunk) => acc + chunk));
 
-          const stdout = yield* process.stdout.pipe(
-            Stream.decodeText(),
-            Stream.runFold("", (acc, chunk) => acc + chunk),
-          );
+      /** Run a command and capture stdout/stderr. */
+      const runCommand = (
+        command: Process.Command,
+      ): Effect.Effect<
+        {
+          readonly exitCode: ChildProcessSpawner.ExitCode;
+          readonly stdout: string;
+          readonly stderr: string;
+        },
+        PlatformError.PlatformError,
+        never
+      > =>
+        Effect.scoped(
+          Effect.gen(function* () {
+            const handle = yield* processSpawner.spawn(command);
+            return yield* Effect.all({
+              exitCode: handle.exitCode,
+              stdout: collectText(handle.stdout.pipe(Stream.decodeText())),
+              stderr: collectText(handle.stderr.pipe(Stream.decodeText())),
+            });
+          }),
+        );
 
-          const stderr = yield* process.stderr.pipe(
-            Stream.decodeText(),
-            Stream.runFold("", (acc, chunk) => acc + chunk),
-          );
+      /**
+       * Check if Homebrew is installed.
+       */
+      const checkInstalled = Effect.fn("Homebrew.checkInstalled")(function* () {
+        const command = Process.make("which", ["brew"]);
+        return yield* runCommand(command).pipe(
+          Effect.map((result) => result.exitCode === 0),
+          Effect.catchTag("PlatformError", () => Effect.succeed(false)),
+        );
+      });
 
-          const exitCode = yield* process.exitCode;
+      /**
+       * Install Homebrew using the official install script.
+       */
+      const install = Effect.fn("Homebrew.install")(function* () {
+        const installScript =
+          '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"';
+        const command = Process.make("bash", ["-c", installScript]);
 
-          return { exitCode, stdout, stderr };
-        }),
-      );
+        const result = yield* runCommand(command).pipe(
+          Effect.catchTag(
+            "PlatformError",
+            (error) =>
+              Effect.fail(new HomebrewInstallError({ details: error.message })),
+          ),
+        );
 
-    /**
-     * Check if Homebrew is installed.
-     */
-    const checkInstalled = Effect.fn("Homebrew.checkInstalled")(function* () {
-      const cmd = Command.make("which", "brew");
+        if (result.exitCode !== 0) {
+          return yield* new HomebrewInstallError({
+            details: result.stderr || "Unknown error",
+          });
+        }
+      });
 
-      const result = yield* runCommand(cmd).pipe(
-        Effect.catchAll(() =>
-          Effect.succeed({ exitCode: 1, stdout: "", stderr: "" }),
-        ),
-      );
-
-      return result.exitCode === 0;
-    });
-
-    /**
-     * Install Homebrew using the official install script.
-     */
-    const install = Effect.fn("Homebrew.install")(function* () {
-      // Use the official Homebrew install script
-      const installScript =
-        '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"';
-
-      const cmd = Command.make("bash", "-c", installScript);
-
-      const result = yield* runCommand(cmd).pipe(
-        Effect.catchAll((error) =>
-          HomebrewInstallError.make({ details: String(error) }),
-        ),
-      );
-
-      if (result.exitCode !== 0) {
-        return yield* HomebrewInstallError.make({
-          details: result.stderr || "Unknown error",
-        });
-      }
-
-      return;
-    });
-
-    /**
-     * Run brew bundle to install packages from Brewfile.
-     */
-    const bundle = Effect.fn("Homebrew.bundle")(function* (opts?: {
-      verbose?: boolean;
-    }) {
-      // Check Brewfile exists
-      const brewfileExists = yield* fs.exists(brewfilePath);
-      if (!brewfileExists) {
-        return yield* BrewfileNotFound.make({ path: brewfilePath });
-      }
-
-      const args = ["bundle", "--file", brewfilePath];
-      if (opts?.verbose) {
-        args.push("--verbose");
-      }
-
-      const cmd = Command.make("brew", ...args);
-
-      const result = yield* runCommand(cmd).pipe(
-        Effect.catchAll((error) =>
-          BrewBundleError.make({ details: String(error) }),
-        ),
-      );
-
-      if (result.exitCode !== 0) {
-        return yield* BrewBundleError.make({
-          details: result.stderr || result.stdout || "Unknown error",
-        });
-      }
-
-      // Parse output for installed/skipped packages
-      const lines = (result.stdout + result.stderr).split("\n");
-      const installed: InstalledPackage[] = [];
-      const skipped: InstalledPackage[] = [];
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-
-        const installingResult = parseInstallingLine(trimmed);
-        if (Option.isSome(installingResult)) {
-          installed.push(
-            new InstalledPackage({
-              name: installingResult.value.name,
-              type: installingResult.value.type,
-            }),
-          );
-          continue;
+      /**
+       * Run brew bundle to install packages from Brewfile.
+       */
+      const bundle = Effect.fn("Homebrew.bundle")(function* (opts?: {
+        readonly verbose?: boolean;
+      }) {
+        const brewfileExists = yield* fs.exists(brewfilePath);
+        if (!brewfileExists) {
+          return yield* new BrewfileNotFound({ path: brewfilePath });
         }
 
-        const usingResult = parseUsingLine(trimmed);
-        if (Option.isSome(usingResult)) {
-          skipped.push(
-            new InstalledPackage({
-              name: usingResult.value.name,
-              type: usingResult.value.type,
-            }),
-          );
+        const args = ["bundle", "--file", brewfilePath];
+        if (opts?.verbose) {
+          args.push("--verbose");
         }
-      }
 
-      return BundleResult.make({ installed, skipped });
-    });
+        const command = Process.make("brew", args);
+        const result = yield* runCommand(command).pipe(
+          Effect.catchTag(
+            "PlatformError",
+            (error) =>
+              Effect.fail(new BrewBundleError({ details: error.message })),
+          ),
+        );
 
-    /**
-     * Run brew bundle check to see what packages are missing.
-     */
-    const bundleDryRun = Effect.fn("Homebrew.bundleDryRun")(function* () {
-      // Check Brewfile exists
-      const brewfileExists = yield* fs.exists(brewfilePath);
-      if (!brewfileExists) {
-        return yield* BrewfileNotFound.make({ path: brewfilePath });
-      }
-
-      const cmd = Command.make(
-        "brew",
-        "bundle",
-        "check",
-        "--verbose",
-        "--file",
-        brewfilePath,
-      );
-
-      const result = yield* runCommand(cmd).pipe(
-        Effect.catchAll((error) =>
-          BrewBundleError.make({ details: String(error) }),
-        ),
-      );
-
-      // Exit code 1 means packages are missing (expected)
-      // Parse output for missing packages
-      const lines = (result.stdout + result.stderr).split("\n");
-      const missing: InstalledPackage[] = [];
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        const missingResult = parseMissingLine(trimmed);
-        if (Option.isSome(missingResult)) {
-          missing.push(
-            new InstalledPackage({
-              name: missingResult.value.name,
-              type: missingResult.value.type,
-            }),
-          );
+        if (result.exitCode !== 0) {
+          return yield* new BrewBundleError({
+            details: result.stderr || result.stdout || "Unknown error",
+          });
         }
-      }
 
-      const satisfied = result.exitCode === 0 && missing.length === 0;
+        const lines = (result.stdout + result.stderr).split("\n");
+        const installed: InstalledPackage[] = [];
+        const skipped: InstalledPackage[] = [];
 
-      return BundleCheckResult.make({ missing, satisfied });
-    });
+        for (const line of lines) {
+          const trimmed = line.trim();
 
-    return {
-      checkInstalled,
-      install,
-      bundle,
-      bundleDryRun,
-    };
-  }),
-}) {}
+          const installingResult = parseInstallingLine(trimmed);
+          if (Option.isSome(installingResult)) {
+            installed.push(
+              new InstalledPackage({
+                name: installingResult.value.name,
+                type: installingResult.value.type,
+              }),
+            );
+            continue;
+          }
+
+          const usingResult = parseUsingLine(trimmed);
+          if (Option.isSome(usingResult)) {
+            skipped.push(
+              new InstalledPackage({
+                name: usingResult.value.name,
+                type: usingResult.value.type,
+              }),
+            );
+          }
+        }
+
+        return new BundleResult({ installed, skipped });
+      });
+
+      /**
+       * Run brew bundle check to see what packages are missing.
+       */
+      const bundleDryRun = Effect.fn("Homebrew.bundleDryRun")(function* () {
+        const brewfileExists = yield* fs.exists(brewfilePath);
+        if (!brewfileExists) {
+          return yield* new BrewfileNotFound({ path: brewfilePath });
+        }
+
+        const command = Process.make("brew", [
+          "bundle",
+          "check",
+          "--verbose",
+          "--file",
+          brewfilePath,
+        ]);
+
+        const result = yield* runCommand(command).pipe(
+          Effect.catchTag(
+            "PlatformError",
+            (error) =>
+              Effect.fail(new BrewBundleError({ details: error.message })),
+          ),
+        );
+
+        // Exit code 1 means packages are missing (expected)
+        const lines = (result.stdout + result.stderr).split("\n");
+        const missing: InstalledPackage[] = [];
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          const missingResult = parseMissingLine(trimmed);
+          if (Option.isSome(missingResult)) {
+            missing.push(
+              new InstalledPackage({
+                name: missingResult.value.name,
+                type: missingResult.value.type,
+              }),
+            );
+          }
+        }
+
+        const satisfied = result.exitCode === 0 && missing.length === 0;
+        return new BundleCheckResult({ missing, satisfied });
+      });
+
+      return Homebrew.of({
+        checkInstalled,
+        install,
+        bundle,
+        bundleDryRun,
+      });
+    }),
+  );
+}
+
+export const HomebrewLive = Homebrew.Live;
