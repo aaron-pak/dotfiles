@@ -1,0 +1,22 @@
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+plan_mode_reasoning_effort = "high"
+
+[mcp_servers.context7]
+command = "bunx"
+args = [ "-y", "@upstash/context7-mcp" ]
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+
+[features]
+multi_agent = true
+prevent_idle_sleep = true
+voice_transcription = true
+
+[notice]
+hide_rate_limit_model_nudge = true
+hide_full_access_warning = true
+
+[projects."/Users/aaronpak/projects"]
+trust_level = "trusted"

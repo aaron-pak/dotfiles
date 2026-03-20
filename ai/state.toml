@@ -11,35 +11,7 @@ shared_settings_file = "ai/codex-settings-shared.toml"
 canonical_dir = "ai/skills/batch"
 targets = [ "codex" ]
 
-[skills.doc]
-canonical_dir = "ai/skills/doc"
-targets = [ "codex" ]
-
-[skills.frontend-design]
-canonical_dir = "ai/skills/frontend-design"
-targets = [ "codex" ]
-
-[skills.next-task]
-canonical_dir = "ai/skills/next-task"
-targets = [ "claude" ]
-
-[skills.openai-docs]
-canonical_dir = "ai/skills/openai-docs"
-targets = [ "codex" ]
-
-[skills.playwright]
-canonical_dir = "ai/skills/playwright"
-targets = [ "codex" ]
-
-[skills.progress]
-canonical_dir = "ai/skills/progress"
-targets = [ "claude" ]
-
 [skills.simplify]
 canonical_dir = "ai/skills/simplify"
 targets = [ "codex" ]
-
-[skills.task-list]
-canonical_dir = "ai/skills/task-list"
-targets = [ "claude" ]
 

@@ -1,0 +1,57 @@
+2026-03-19T22:10:31.803096Z  INFO codex_core::auth: Reloading auth
+2026-03-19T22:10:31.803878Z  INFO codex_core::auth: Reloaded auth, changed: true
+2026-03-19T22:10:38.831363Z  INFO get_default_model{model.provided=true refresh_strategy=offline}: codex_core::models_manager::manager: new
+2026-03-19T22:10:38.831526Z  INFO get_default_model{model.provided=true refresh_strategy=offline}: codex_core::models_manager::manager: close time.busy=4.04µs time.idle=143µs
+2026-03-19T22:10:38.831552Z  INFO list_models{refresh_strategy=offline}: codex_core::models_manager::manager: new
+2026-03-19T22:10:38.831591Z  INFO list_models{refresh_strategy=offline}: codex_core::models_manager::manager: models cache: evaluating cache eligibility client_version="0.116.0"
+2026-03-19T22:10:38.831614Z  INFO list_models{refresh_strategy=offline}: codex_core::models_manager::cache: models cache: attempting load_fresh cache_path=/Users/aaronpak/.codex/models_cache.json expected_version="0.116.0"
+2026-03-19T22:10:38.831801Z  INFO list_models{refresh_strategy=offline}: codex_core::models_manager::manager: models cache: no usable cache entry
+2026-03-19T22:10:38.832103Z  INFO list_models{refresh_strategy=offline}: codex_core::models_manager::manager: close time.busy=377µs time.idle=173µs
+2026-03-19T22:10:38.836596Z  INFO thread_spawn{otel.name="thread_spawn"}: codex_core::codex: new
+2026-03-19T22:10:38.843706Z  INFO thread_spawn{otel.name="thread_spawn"}:load: codex_core::exec_policy: new
+2026-03-19T22:10:38.844095Z  INFO thread_spawn{otel.name="thread_spawn"}:load: codex_core::exec_policy: close time.busy=298µs time.idle=90.6µs
+2026-03-19T22:10:38.844154Z  INFO thread_spawn{otel.name="thread_spawn"}:list_models{refresh_strategy=online_if_uncached}: codex_core::models_manager::manager: new
+2026-03-19T22:10:38.844178Z  INFO thread_spawn{otel.name="thread_spawn"}:list_models{refresh_strategy=online_if_uncached}: codex_core::models_manager::manager: models cache: evaluating cache eligibility client_version="0.116.0"
+2026-03-19T22:10:38.844203Z  INFO thread_spawn{otel.name="thread_spawn"}:list_models{refresh_strategy=online_if_uncached}: codex_core::models_manager::cache: models cache: attempting load_fresh cache_path=/Users/aaronpak/.codex/models_cache.json expected_version="0.116.0"
+2026-03-19T22:10:38.844290Z  INFO thread_spawn{otel.name="thread_spawn"}:list_models{refresh_strategy=online_if_uncached}: codex_core::models_manager::manager: models cache: no usable cache entry
+2026-03-19T22:10:38.844298Z  INFO thread_spawn{otel.name="thread_spawn"}:list_models{refresh_strategy=online_if_uncached}: codex_core::models_manager::manager: models cache: cache miss, fetching remote models
+2026-03-19T22:10:39.476095Z  INFO thread_spawn{otel.name="thread_spawn"}:list_models{refresh_strategy=online_if_uncached}: codex_core::models_manager::manager: close time.busy=11.2ms time.idle=621ms
+2026-03-19T22:10:39.476121Z  INFO thread_spawn{otel.name="thread_spawn"}:get_default_model{model.provided=true refresh_strategy=online_if_uncached}: codex_core::models_manager::manager: new
+2026-03-19T22:10:39.476151Z  INFO thread_spawn{otel.name="thread_spawn"}:get_default_model{model.provided=true refresh_strategy=online_if_uncached}: codex_core::models_manager::manager: close time.busy=876ns time.idle=28.9µs
+2026-03-19T22:10:39.476160Z  INFO thread_spawn{otel.name="thread_spawn"}:get_model_info{model="gpt-5.4"}: codex_core::models_manager::manager: new
+2026-03-19T22:10:39.476256Z  INFO thread_spawn{otel.name="thread_spawn"}:get_model_info{model="gpt-5.4"}: codex_core::models_manager::manager: close time.busy=93.3µs time.idle=3.00µs
+2026-03-19T22:10:39.476332Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init: codex_core::codex: new
+2026-03-19T22:10:39.476538Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.rollout{otel.name="session_init.rollout" session_init.ephemeral=false}: codex_core::codex: new
+2026-03-19T22:10:39.476544Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.history_metadata{otel.name="session_init.history_metadata" session_init.is_subagent=false}: codex_core::codex: new
+2026-03-19T22:10:39.476548Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.auth_mcp{otel.name="session_init.auth_mcp"}: codex_core::codex: new
+2026-03-19T22:10:39.481313Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.history_metadata{otel.name="session_init.history_metadata" session_init.is_subagent=false}: codex_core::codex: close time.busy=46.9µs time.idle=4.72ms
+2026-03-19T22:10:39.492675Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.rollout{otel.name="session_init.rollout" session_init.ephemeral=false}: codex_core::codex: close time.busy=9.61ms time.idle=6.53ms
+2026-03-19T22:10:39.492980Z  INFO codex_core::rollout::metadata: state db backfill scanned=0, upserted=0, failed=0
+2026-03-19T22:10:40.008610Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.auth_mcp{otel.name="session_init.auth_mcp"}: codex_core::codex: close time.busy=29.6ms time.idle=502ms
+2026-03-19T22:10:40.011212Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:shell_snapshot{thread_id=019d0826-94f4-72c0-991b-08541049cb71}: codex_core::shell_snapshot: new
+2026-03-19T22:10:40.011243Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.thread_name_lookup{otel.name="session_init.thread_name_lookup"}: codex_core::codex: new
+2026-03-19T22:10:40.011341Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.thread_name_lookup{otel.name="session_init.thread_name_lookup"}: codex_core::codex: close time.busy=89.0µs time.idle=8.04µs
+2026-03-19T22:10:40.012298Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.mcp_manager_init{otel.name="session_init.mcp_manager_init" session_init.enabled_mcp_server_count=2 session_init.required_mcp_server_count=0}: codex_core::codex: new
+2026-03-19T22:10:40.014671Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:session_init.mcp_manager_init{otel.name="session_init.mcp_manager_init" session_init.enabled_mcp_server_count=2 session_init.required_mcp_server_count=0}: codex_core::codex: close time.busy=2.36ms time.idle=14.2µs
+2026-03-19T22:10:40.015308Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:get_model_info{model="gpt-5.4"}: codex_core::models_manager::manager: new
+2026-03-19T22:10:40.016682Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:get_model_info{model="gpt-5.4"}: codex_core::models_manager::manager: close time.busy=1.37ms time.idle=8.46µs
+2026-03-19T22:10:40.018908Z  INFO get_model_info{model="gpt-5.4"}: codex_core::models_manager::manager: new
+2026-03-19T22:10:40.019258Z  INFO get_model_info{model="gpt-5.4"}: codex_core::models_manager::manager: close time.busy=119µs time.idle=232µs
+2026-03-19T22:10:40.019631Z  INFO session_loop{thread_id=019d0826-94f4-72c0-991b-08541049cb71}: codex_core::codex: new
+2026-03-19T22:10:40.020866Z  INFO session_loop{thread_id=019d0826-94f4-72c0-991b-08541049cb71}:submission_dispatch{otel.name="op.dispatch.list_custom_prompts" submission.id="019d0826-9714-79d0-ac12-067235cc0537" codex.op="list_custom_prompts"}: codex_core::codex: new
+2026-03-19T22:10:40.021122Z  INFO session_loop{thread_id=019d0826-94f4-72c0-991b-08541049cb71}:submission_dispatch{otel.name="op.dispatch.list_custom_prompts" submission.id="019d0826-9714-79d0-ac12-067235cc0537" codex.op="list_custom_prompts"}: codex_core::codex: close time.busy=243µs time.idle=12.8µs
+2026-03-19T22:10:40.021212Z  INFO session_loop{thread_id=019d0826-94f4-72c0-991b-08541049cb71}:submission_dispatch{otel.name="op.dispatch.list_skills" submission.id="019d0826-9714-79d0-ac12-068089c3f306" codex.op="list_skills"}: codex_core::codex: new
+2026-03-19T22:10:40.026632Z  INFO session_loop{thread_id=019d0826-94f4-72c0-991b-08541049cb71}:submission_dispatch{otel.name="op.dispatch.list_skills" submission.id="019d0826-9714-79d0-ac12-068089c3f306" codex.op="list_skills"}: codex_core::codex: close time.busy=5.06ms time.idle=363µs
+2026-03-19T22:10:40.064341Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:shell_snapshot{thread_id=019d0826-94f4-72c0-991b-08541049cb71}: codex_core::shell_snapshot: Shell snapshot successfully created: /Users/aaronpak/.codex/shell_snapshots/019d0826-94f4-72c0-991b-08541049cb71.tmp-1773958240012111000
+2026-03-19T22:10:40.069303Z  WARN thread_spawn{otel.name="thread_spawn"}:session_init:shell_snapshot{thread_id=019d0826-94f4-72c0-991b-08541049cb71}: codex_core::shell_snapshot: Failed to delete shell snapshot at "/Users/aaronpak/.codex/shell_snapshots/019d0826-94f4-72c0-991b-08541049cb71.tmp-1773958240012111000": Os { code: 2, kind: NotFound, message: "No such file or directory" }
+2026-03-19T22:10:40.069429Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init:shell_snapshot{thread_id=019d0826-94f4-72c0-991b-08541049cb71}: codex_core::shell_snapshot: close time.busy=6.70ms time.idle=51.5ms
+2026-03-19T22:10:40.069437Z  INFO thread_spawn{otel.name="thread_spawn"}:session_init: codex_core::codex: close time.busy=41.5ms time.idle=552ms
+2026-03-19T22:10:40.069438Z  INFO thread_spawn{otel.name="thread_spawn"}: codex_core::codex: close time.busy=60.9ms time.idle=1.17s
+2026-03-19T22:10:40.078382Z  INFO codex_rmcp_client::rmcp_client: MCP server stderr (bunx): Resolving dependencies
+2026-03-19T22:10:40.489360Z  INFO codex_rmcp_client::rmcp_client: MCP server stderr (bunx): Resolved, downloaded and extracted [420]
+2026-03-19T22:10:40.540238Z  INFO codex_rmcp_client::rmcp_client: MCP server stderr (bunx): Saved lockfile
+2026-03-19T22:10:40.985102Z  INFO codex_rmcp_client::rmcp_client: MCP server stderr (bunx): Context7 Documentation MCP Server v2.1.4 running on stdio
+2026-03-19T22:10:40.989529Z  INFO model_client.stream_responses_websocket{model=gpt-5.4 wire_api=responses transport="responses_websocket" api.path="responses" turn.has_metadata_header=true websocket.warmup=true}: codex_core::client: new
+2026-03-19T22:10:40.989677Z  INFO model_client.stream_responses_websocket{model=gpt-5.4 wire_api=responses transport="responses_websocket" api.path="responses" turn.has_metadata_header=true websocket.warmup=true}:model_client.websocket_connection{provider=OpenAI wire_api=responses transport="responses_websocket" api.path="responses" turn.has_metadata_header=true}: codex_core::client: new
+2026-03-19T22:10:41.904528Z  INFO model_client.stream_responses_websocket{model=gpt-5.4 wire_api=responses transport="responses_websocket" api.path="responses" turn.has_metadata_header=true websocket.warmup=true}:model_client.websocket_connection{provider=OpenAI wire_api=responses transport="responses_websocket" api.path="responses" turn.has_metadata_header=true}: codex_core::client: close time.busy=94.0ms time.idle=821ms
+2026-03-19T22:10:42.240929Z  INFO model_client.stream_responses_websocket{model=gpt-5.4 wire_api=responses transport="responses_websocket" api.path="responses" turn.has_metadata_header=true websocket.warmup=true}: codex_core::client: close time.busy=94.8ms time.idle=1.16s
