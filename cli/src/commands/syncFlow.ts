@@ -6,6 +6,7 @@ import {
 } from "./managedSettingsOutput.js";
 import { AiSkills } from "../services/AiSkills.js";
 import { ClaudeSettings } from "../services/ClaudeSettings.js";
+import { CodexHome } from "../services/CodexHome.js";
 import { CodexSettings } from "../services/CodexSettings.js";
 import {
   type ConflictChoice,
@@ -167,7 +168,29 @@ export const runStowSyncWithChoice = <E, R>(
   chooseConflictResolution: () => Effect.Effect<ConflictChoice, E, R>,
 ) =>
   Effect.gen(function* () {
+    const codexHome = yield* CodexHome;
     const stow = yield* Stow;
+
+    if (dry) {
+      const preview = yield* codexHome.previewRepair();
+      if (preview.needsRepair) {
+        yield* Console.log(
+          "Would repair the legacy ~/.codex repo symlink before syncing.",
+        );
+        yield* Console.log(`  ${preview.path}`);
+        yield* Console.log("");
+      }
+    } else {
+      const repairResult = yield* codexHome.repairIfNeeded();
+      if (repairResult.repaired) {
+        yield* Console.log(
+          "Repaired the legacy ~/.codex repo symlink before syncing.",
+        );
+        yield* Console.log(`  ${repairResult.path}`);
+        yield* Console.log("");
+      }
+    }
+
     const result = yield* stow.dryRun();
 
     if (dry) {

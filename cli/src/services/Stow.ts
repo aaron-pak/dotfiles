@@ -331,7 +331,14 @@ export class Stow extends ServiceMap.Service<
        * Run a dry-run of stow and return conflicts and links that would be created.
        */
       const dryRun = Effect.fn("Stow.dryRun")(function* () {
-        const { stderr } = yield* runStow(["-n", "-v", "home", "-t", homeDir]);
+        const { stderr } = yield* runStow([
+          "--no-folding",
+          "-n",
+          "-v",
+          "home",
+          "-t",
+          homeDir,
+        ]);
 
         // Exit code 1 with conflicts is expected during dry-run
         // Parse conflicts and links from stderr regardless of exit code
@@ -347,6 +354,7 @@ export class Stow extends ServiceMap.Service<
        */
       const sync = Effect.fn("Stow.sync")(function* () {
         const { exitCode, stderr } = yield* runStow([
+          "--no-folding",
           "-v",
           "home",
           "-t",

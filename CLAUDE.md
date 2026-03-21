@@ -82,11 +82,13 @@ The repo no longer stows `home/.claude/skills`, `home/.codex/skills`, or `home/.
 
 Synced via stow: `AGENTS.md`
 
-Not synced (machine-specific): `config.toml`, auth, history, caches, worktrees, SQLite state, and other runtime artifacts.
+Not synced (machine-specific): `config.toml`, auth, history, caches, sessions, worktrees, SQLite state, shell snapshots, temp files, vendor imports, and other runtime artifacts.
 
 **Instruction source:** `home/.codex/AGENTS.md` is a symlink to `home/.claude/CLAUDE.md`, which is the canonical global instruction file for all tools.
 
 **Settings sync:** `~/.codex/config.toml` is NOT symlinked. `ai/codex-settings-shared.toml` is the shared file, and `dot ai settings pull --tool codex` or `dot sync` applies every top-level section from that file into the local config except sections this machine has been told to keep locally in `~/.config/dot/ai-local.toml`. `projects` always remains local and is never adopted or pulled from shared state. If a section stops being shared, machines keep the value they already have.
+
+**Directory behavior:** `dot sync` invokes GNU Stow with `--no-folding`, so `~/.codex` and `~/.claude` stay real local directories. Only the intended managed entries inside them are symlinked.
 
 ## AI Ownership Model
 
@@ -144,6 +146,7 @@ Located at repo root. Format: `brew "pkg"`, `cask "app"`. Run via `dot init`.
 ## Stow Behavior
 
 - **Tree folding:** Stow symlinks entire directories when possible, not individual files
+- `dot` disables tree folding during sync (`stow --no-folding`) so app homes such as `~/.claude` and `~/.codex` always stay real directories with managed files linked inside them
 - Remove must handle both: dir symlink vs individual file symlinks inside
 
 ## Color Palette

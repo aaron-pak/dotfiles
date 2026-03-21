@@ -22,6 +22,12 @@ require_symlink() {
   [[ -L "$path_value" ]] || fail "expected symlink: $path_value"
 }
 
+require_directory() {
+  local path_value="$1"
+  [[ -d "$path_value" && ! -L "$path_value" ]] ||
+    fail "expected real directory: $path_value"
+}
+
 require_absent() {
   local path_value="$1"
   [[ ! -e "$path_value" && ! -L "$path_value" ]] ||
@@ -38,6 +44,7 @@ require_file_contains() {
 command -v stow >/dev/null 2>&1 || fail "stow is required on PATH"
 command -v rsync >/dev/null 2>&1 || fail "rsync is required on PATH"
 command -v python3 >/dev/null 2>&1 || fail "python3 is required on PATH"
+command -v bun >/dev/null 2>&1 || fail "bun is required on PATH"
 
 [[ -x "$repo_root/dot" ]] || fail "built dot binary not found at $repo_root/dot"
 
@@ -66,72 +73,72 @@ cp \
   "$temp_repo/ai/"
 
 shared_claude_skill="$(
-  python3 - "$temp_repo/ai/state.toml" claude <<'PY'
-import sys
-import tomllib
-
-state_path = sys.argv[1]
-target = sys.argv[2]
-
-with open(state_path, "rb") as handle:
-    data = tomllib.load(handle)
-
-for name, skill in sorted(data.get("skills", {}).items()):
-    targets = skill.get("targets", [])
-    if target in targets:
-        print(name)
-        break
-else:
-    raise SystemExit(f"no managed skill targets {target}")
-PY
+  bun -e '
+const [statePath, target] = process.argv.slice(1);
+const data = Bun.TOML.parse(await Bun.file(statePath).text());
+const skills = data.skills ?? {};
+for (const name of Object.keys(skills).sort()) {
+  const skill = skills[name];
+  const targets = Array.isArray(skill?.targets) ? skill.targets : [];
+  if (targets.includes(target)) {
+    console.log(name);
+    process.exit(0);
+  }
+}
+' "$temp_repo/ai/state.toml" claude
 )"
 
 shared_codex_skill="$(
-  python3 - "$temp_repo/ai/state.toml" codex <<'PY'
-import sys
-import tomllib
-
-state_path = sys.argv[1]
-target = sys.argv[2]
-
-with open(state_path, "rb") as handle:
-    data = tomllib.load(handle)
-
-for name, skill in sorted(data.get("skills", {}).items()):
-    targets = skill.get("targets", [])
-    if target in targets:
-        print(name)
-        break
-else:
-    raise SystemExit(f"no managed skill targets {target}")
-PY
+  bun -e '
+const [statePath, target] = process.argv.slice(1);
+const data = Bun.TOML.parse(await Bun.file(statePath).text());
+const skills = data.skills ?? {};
+for (const name of Object.keys(skills).sort()) {
+  const skill = skills[name];
+  const targets = Array.isArray(skill?.targets) ? skill.targets : [];
+  if (targets.includes(target)) {
+    console.log(name);
+    process.exit(0);
+  }
+}
+throw new Error(`no managed skill targets ${target}`);
+' "$temp_repo/ai/state.toml" codex
 )"
 
 shared_codex_probe="$(
-  python3 - "$temp_repo/ai/codex-settings-shared.toml" <<'PY'
-import sys
-import tomllib
+  bun -e '
+const [settingsPath] = process.argv.slice(1);
+const data = Bun.TOML.parse(await Bun.file(settingsPath).text());
+for (const [key, value] of Object.entries(data)) {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    console.log(`[${key}]`);
+    process.exit(0);
+  }
+  if (typeof value === "string") {
+    console.log(`${key} = "${value}"`);
+    process.exit(0);
+  }
+  if (typeof value === "boolean") {
+    console.log(`${key} = ${value ? "true" : "false"}`);
+    process.exit(0);
+  }
+  console.log(`${key} = ${value}`);
+  process.exit(0);
+}
+throw new Error("no shared Codex settings found");
+' "$temp_repo/ai/codex-settings-shared.toml"
+)"
 
-settings_path = sys.argv[1]
-
-with open(settings_path, "rb") as handle:
-    data = tomllib.load(handle)
-
-for key, value in data.items():
-    if isinstance(value, dict):
-        print(f"[{key}]")
-        break
-    if isinstance(value, str):
-        print(f'{key} = "{value}"')
-        break
-    if isinstance(value, bool):
-        print(f"{key} = {'true' if value else 'false'}")
-        break
-    print(f"{key} = {value}")
-    break
-else:
-    raise SystemExit("no shared Codex settings found")
-PY
+shared_claude_probe="$(
+  bun -e '
+const [settingsPath] = process.argv.slice(1);
+const data = JSON.parse(await Bun.file(settingsPath).text());
+for (const [key] of Object.entries(data)) {
+  console.log(`"${key}"`);
+  process.exit(0);
+}
+throw new Error("no shared Claude settings found");
+' "$temp_repo/ai/claude-settings-shared.json"
 )"
 
 mkdir -p "$home_a/.claude" "$home_a/.codex" "$home_a/.config/dot"
@@ -159,19 +166,27 @@ sync_a_output="$(cd "$temp_repo" && run_dot "$home_a" sync)"
 require_contains "$sync_a_output" "Created these managed skill links:"
 require_contains "$sync_a_output" "Applied these shared Claude settings:"
 require_contains "$sync_a_output" "Applied these shared Codex settings:"
-require_symlink "$home_a/.claude/skills/$shared_claude_skill"
+require_directory "$home_a/.claude"
+require_directory "$home_a/.codex"
+if [[ -n "$shared_claude_skill" ]]; then
+  require_symlink "$home_a/.claude/skills/$shared_claude_skill"
+fi
 require_symlink "$home_a/.codex/skills/$shared_codex_skill"
 require_file_contains "$home_a/.claude/settings.json" '"localOnly": true'
-require_file_contains "$home_a/.claude/settings.json" '"permissions"'
+require_file_contains "$home_a/.claude/settings.json" "$shared_claude_probe"
 require_file_contains "$home_a/.codex/config.toml" 'projects."/tmp/example"'
 require_file_contains "$home_a/.codex/config.toml" "$shared_codex_probe"
 
 printf 'Running sync on machine B...\n'
 sync_b_output="$(cd "$temp_repo" && run_dot "$home_b" sync)"
 require_contains "$sync_b_output" "Created these managed skill links:"
-require_symlink "$home_b/.claude/skills/$shared_claude_skill"
+require_directory "$home_b/.claude"
+require_directory "$home_b/.codex"
+if [[ -n "$shared_claude_skill" ]]; then
+  require_symlink "$home_b/.claude/skills/$shared_claude_skill"
+fi
 require_symlink "$home_b/.codex/skills/$shared_codex_skill"
-require_file_contains "$home_b/.claude/settings.json" '"permissions"'
+require_file_contains "$home_b/.claude/settings.json" "$shared_claude_probe"
 require_file_contains "$home_b/.codex/config.toml" "$shared_codex_probe"
 
 printf 'Adopting a dummy local Codex skill...\n'

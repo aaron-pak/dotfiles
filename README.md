@@ -60,11 +60,13 @@ dot remove -n .zshrc        # dry run
 Actual content stays in native files:
 
 - managed skills: `ai/skills/`
-- global instructions: `home/.claude/` and `home/.codex/`
+- global instructions: `home/.claude/` and `home/.codex/AGENTS.md`
 - shared Claude settings: `ai/claude-settings-shared.json`
 - shared Codex settings: `ai/codex-settings-shared.toml`
 
 The live skill surfaces `~/.claude/skills`, `~/.codex/skills`, and `~/.agents/skills` are no longer stowed from `home/`. They are local directories populated only by `dot ai skills sync` / `dot sync`.
+
+`dot sync` invokes GNU Stow with `--no-folding`, so app homes such as `~/.claude` and `~/.codex` stay real local directories and only their managed entries are symlinked.
 
 Local merged settings remain machine-specific:
 
@@ -143,7 +145,7 @@ dot ai skills unmanage my-skill
 | ---------------- | ----------------------- | ------------------------------------------------------------- |
 | Neovim           | `home/.config/nvim/`    | LazyVim with VSCode-Neovim support                            |
 | Claude Code      | `home/.claude/`         | Canonical global instructions and statusline                  |
-| Codex            | `home/.codex/`          | AGENTS.md symlink and Codex runtime files                     |
+| Codex            | `home/.codex/`          | Repo only keeps `AGENTS.md`; runtime files always stay local  |
 | Managed AI skills | `ai/skills/`           | Canonical repo copy for whole-skill sharing                   |
 | Ghostty          | `home/.config/ghostty/` | Terminal config                                               |
 | Karabiner        | `home/.config/karabiner/` | Main `karabiner.json` only; backups stay local             |

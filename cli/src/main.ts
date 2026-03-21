@@ -10,6 +10,7 @@ import { AiLocalState } from "./services/AiLocalState.js";
 import { AiSkills } from "./services/AiSkills.js";
 import { AiState } from "./services/AiState.js";
 import { ClaudeSettings } from "./services/ClaudeSettings.js";
+import { CodexHome } from "./services/CodexHome.js";
 import { CodexSettings } from "./services/CodexSettings.js";
 import { Homebrew } from "./services/Homebrew.js";
 import { Stow } from "./services/Stow.js";
@@ -46,6 +47,7 @@ const ManagedAiLayer = Layer.mergeAll(
     Layer.provideMerge(StateLayer),
     Layer.provideMerge(PlatformLayer),
   ),
+  CodexHome.Live.pipe(Layer.provideMerge(PlatformLayer)),
 );
 
 const RuntimeLayer = Layer.merge(

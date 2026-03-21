@@ -7,6 +7,7 @@ import {
   Option,
   PlatformError,
 } from "effect";
+import { ChildProcessSpawner } from "effect/unstable/process";
 import {
   AlreadyManaged,
   AlreadySymlink,
@@ -22,6 +23,7 @@ import {
 } from "../src/services/Stow.js";
 import {
   makeFailingChildProcessSpawner,
+  makeMockChildProcessHandle,
   makeMockChildProcessSpawner,
   TestPath,
   TestStowConfig,
@@ -162,6 +164,40 @@ describe("Stow service", () => {
         ),
       ),
     );
+
+    it.effect("passes --no-folding to stow dry-run", () => {
+      const commands: string[][] = [];
+
+      const recordingSpawner = Layer.succeed(
+        ChildProcessSpawner.ChildProcessSpawner,
+        ChildProcessSpawner.make((command) =>
+          Effect.sync(() => {
+            if (command._tag === "StandardCommand") {
+              commands.push([command.command, ...command.args]);
+            }
+            return makeMockChildProcessHandle({ exitCode: 0, stderr: "" });
+          }),
+        ),
+      );
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        yield* stow.dryRun();
+
+        expect(commands).toEqual([
+          ["stow", "--no-folding", "-n", "-v", "home", "-t", "/test/home"],
+        ]);
+      }).pipe(
+        Effect.provide(
+          Stow.Live.pipe(
+            Layer.provideMerge(recordingSpawner),
+            Layer.provideMerge(mockFileSystem(makeFsState())),
+            Layer.provideMerge(TestStowConfig),
+            Layer.provideMerge(TestPath),
+          ),
+        ),
+      );
+    });
   });
 
   describe("sync", () => {
@@ -206,6 +242,40 @@ describe("Stow service", () => {
         expect(result.message).toContain("Stow failed with exit code 1");
       }).pipe(Effect.provide(makeTestLayer(1, "some error", makeFsState()))),
     );
+
+    it.effect("passes --no-folding to stow sync", () => {
+      const commands: string[][] = [];
+
+      const recordingSpawner = Layer.succeed(
+        ChildProcessSpawner.ChildProcessSpawner,
+        ChildProcessSpawner.make((command) =>
+          Effect.sync(() => {
+            if (command._tag === "StandardCommand") {
+              commands.push([command.command, ...command.args]);
+            }
+            return makeMockChildProcessHandle({ exitCode: 0, stderr: "" });
+          }),
+        ),
+      );
+
+      return Effect.gen(function* () {
+        const stow = yield* Stow;
+        yield* stow.sync();
+
+        expect(commands).toEqual([
+          ["stow", "--no-folding", "-v", "home", "-t", "/test/home"],
+        ]);
+      }).pipe(
+        Effect.provide(
+          Stow.Live.pipe(
+            Layer.provideMerge(recordingSpawner),
+            Layer.provideMerge(mockFileSystem(makeFsState())),
+            Layer.provideMerge(TestStowConfig),
+            Layer.provideMerge(TestPath),
+          ),
+        ),
+      );
+    });
   });
 
   describe("resolveConflicts", () => {
