@@ -88,7 +88,7 @@ Not synced (machine-specific): `config.toml`, auth, history, caches, sessions, w
 
 **Settings sync:** `~/.codex/config.toml` is NOT symlinked. `ai/codex-settings-shared.toml` is the shared file, and `dot ai settings pull --tool codex` or `dot sync` applies every top-level section from that file into the local config except sections this machine has been told to keep locally in `~/.config/dot/ai-local.toml`. `projects` always remains local and is never adopted or pulled from shared state. If a section stops being shared, machines keep the value they already have.
 
-**Directory behavior:** `dot sync` invokes GNU Stow with `--no-folding`, so `~/.codex` and `~/.claude` stay real local directories. Only the intended managed entries inside them are symlinked.
+**Directory behavior:** `dot sync` invokes GNU Stow with `--no-folding`, so `~/.codex`, `~/.claude`, and `~/.local/bin` stay real local directories. Only the intended managed entries inside them are symlinked.
 
 ## AI Ownership Model
 
@@ -146,37 +146,12 @@ Located at repo root. Format: `brew "pkg"`, `cask "app"`. Run via `dot init`.
 ## Stow Behavior
 
 - **Tree folding:** Stow symlinks entire directories when possible, not individual files
-- `dot` disables tree folding during sync (`stow --no-folding`) so app homes such as `~/.claude` and `~/.codex` always stay real directories with managed files linked inside them
+- `dot` disables tree folding during sync (`stow --no-folding`) so app homes such as `~/.claude`, `~/.codex`, and `~/.local/bin` always stay real directories with managed files linked inside them
 - Remove must handle both: dir symlink vs individual file symlinks inside
 
 ## Color Palette
 
 Use **Catppuccin Mocha** as the default palette for all UI and config styling. User-specified overrides (e.g. burnt orange `#d08770` for tmux pane labels) take precedence — preserve them as-is during future changes.
-
-<!-- effect-solutions:start -->
-
-## Effect Best Practices
-
-**IMPORTANT:** Always consult effect-solutions before writing Effect code.
-
-1. Run `effect-solutions list` to see available guides
-2. Run `effect-solutions show <topic>...` for relevant patterns (supports multiple topics)
-
-Topics: quick-start, project-setup, tsconfig, basics, services-and-layers, data-modeling, error-handling, config, testing, cli.
-
-Never guess at Effect patterns - check the guide first.
-
-**Override:** Prefer `Effect.Service` over `Context.Tag` (interface inferred, `.Default` auto-generated):
-
-```typescript
-class Foo extends Effect.Service<Foo>()("Foo", {
-  effect: Effect.gen(function* () {
-    return { bar: Effect.fn("Foo.bar")(function* () { ... }) }
-  }),
-}) {}
-```
-
-<!-- effect-solutions:end -->
 
 ## Effect Gotchas
 

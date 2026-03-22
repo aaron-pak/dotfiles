@@ -8,7 +8,6 @@ import {
 import { AiSkills } from "../src/services/AiSkills.js";
 import type { SkillTarget } from "../src/services/AiState.js";
 import { ClaudeSettings } from "../src/services/ClaudeSettings.js";
-import { CodexHome } from "../src/services/CodexHome.js";
 import { CodexSettings } from "../src/services/CodexSettings.js";
 import { ResolveResult, Stow, StowResult } from "../src/services/Stow.js";
 
@@ -65,30 +64,6 @@ const makeClaudeLayer = (callLog: CallLog) =>
     adopt: (key: string) => Effect.succeed({ key }),
     ignore: (key: string) => Effect.succeed({ key }),
     unignore: (key: string) => Effect.succeed({ key }),
-  });
-
-const makeCodexHomeLayer = (
-  callLog: CallLog,
-  options: { needsRepair: boolean } = { needsRepair: false },
-) =>
-  Layer.succeed(CodexHome, {
-    path: "/test/home/.codex",
-    previewRepair: () =>
-      Effect.sync(() => {
-        callLog.steps.push("codexHome.previewRepair");
-        return {
-          needsRepair: options.needsRepair,
-          path: "/test/home/.codex",
-        };
-      }),
-    repairIfNeeded: () =>
-      Effect.sync(() => {
-        callLog.steps.push("codexHome.repairIfNeeded");
-        return {
-          repaired: options.needsRepair,
-          path: "/test/home/.codex",
-        };
-      }),
   });
 
 const makeAiSkillsLayer = (callLog: CallLog) =>
@@ -181,17 +156,11 @@ const makeCodexLayer = (callLog: CallLog) =>
     unignore: (key: string) => Effect.succeed({ key }),
   });
 
-const makeTestLayer = (
-  callLog: CallLog,
-  options: { needsRepair?: boolean } = {},
-) =>
+const makeTestLayer = (callLog: CallLog) =>
   Layer.mergeAll(
     makeStowLayer(callLog),
     makeAiSkillsLayer(callLog),
     makeClaudeLayer(callLog),
-    makeCodexHomeLayer(callLog, {
-      needsRepair: options.needsRepair ?? false,
-    }),
     makeCodexLayer(callLog),
   );
 
@@ -222,7 +191,6 @@ describe("sync flow", () => {
       return Effect.gen(function* () {
         yield* runFullSyncWithChoice(false, () => Effect.succeed("abort"));
         expect(callLog.steps).toEqual([
-          "codexHome.repairIfNeeded",
           "stow.dryRun",
           "stow.sync",
           "skills.sync",
@@ -242,18 +210,17 @@ describe("sync flow", () => {
     }).pipe(Effect.provide(makeTestLayer(callLog)));
   });
 
-  it.effect("dry full sync previews legacy Codex repair before stow", () => {
+  it.effect("dry full sync previews the stow, skills, and settings phases", () => {
     const callLog: CallLog = { steps: [] };
 
     return Effect.gen(function* () {
       yield* runFullSyncWithChoice(true, () => Effect.succeed("abort"));
       expect(callLog.steps).toEqual([
-        "codexHome.previewRepair",
         "stow.dryRun",
         "skills.previewSync",
         "claude.previewPull",
         "codex.previewPull",
       ]);
-    }).pipe(Effect.provide(makeTestLayer(callLog, { needsRepair: true })));
+    }).pipe(Effect.provide(makeTestLayer(callLog)));
   });
 });

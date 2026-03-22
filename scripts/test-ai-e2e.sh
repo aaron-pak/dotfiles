@@ -168,10 +168,12 @@ require_contains "$sync_a_output" "Applied these shared Claude settings:"
 require_contains "$sync_a_output" "Applied these shared Codex settings:"
 require_directory "$home_a/.claude"
 require_directory "$home_a/.codex"
+require_directory "$home_a/.local/bin"
 if [[ -n "$shared_claude_skill" ]]; then
   require_symlink "$home_a/.claude/skills/$shared_claude_skill"
 fi
 require_symlink "$home_a/.codex/skills/$shared_codex_skill"
+require_symlink "$home_a/.local/bin/tmux-sessionizer"
 require_file_contains "$home_a/.claude/settings.json" '"localOnly": true'
 require_file_contains "$home_a/.claude/settings.json" "$shared_claude_probe"
 require_file_contains "$home_a/.codex/config.toml" 'projects."/tmp/example"'
@@ -182,10 +184,12 @@ sync_b_output="$(cd "$temp_repo" && run_dot "$home_b" sync)"
 require_contains "$sync_b_output" "Created these managed skill links:"
 require_directory "$home_b/.claude"
 require_directory "$home_b/.codex"
+require_directory "$home_b/.local/bin"
 if [[ -n "$shared_claude_skill" ]]; then
   require_symlink "$home_b/.claude/skills/$shared_claude_skill"
 fi
 require_symlink "$home_b/.codex/skills/$shared_codex_skill"
+require_symlink "$home_b/.local/bin/tmux-sessionizer"
 require_file_contains "$home_b/.claude/settings.json" "$shared_claude_probe"
 require_file_contains "$home_b/.codex/config.toml" "$shared_codex_probe"
 

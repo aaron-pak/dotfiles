@@ -4,7 +4,6 @@ import { runInitializationWithHooks } from "../src/commands/init.js";
 import { AiSkills } from "../src/services/AiSkills.js";
 import type { SkillTarget } from "../src/services/AiState.js";
 import { ClaudeSettings } from "../src/services/ClaudeSettings.js";
-import { CodexHome } from "../src/services/CodexHome.js";
 import { CodexSettings } from "../src/services/CodexSettings.js";
 import {
   BundleCheckResult,
@@ -91,24 +90,6 @@ const makeClaudeLayer = (callLog: CallLog) =>
     adopt: (key: string) => Effect.succeed({ key }),
     ignore: (key: string) => Effect.succeed({ key }),
     unignore: (key: string) => Effect.succeed({ key }),
-  });
-
-const makeCodexHomeLayer = (callLog: CallLog) =>
-  Layer.succeed(CodexHome, {
-    path: "/test/home/.codex",
-    previewRepair: () =>
-      Effect.succeed({
-        needsRepair: false,
-        path: "/test/home/.codex",
-      }),
-    repairIfNeeded: () =>
-      Effect.sync(() => {
-        callLog.steps.push("codexHome.repairIfNeeded");
-        return {
-          repaired: false,
-          path: "/test/home/.codex",
-        };
-      }),
   });
 
 const makeAiSkillsLayer = (callLog: CallLog) =>
@@ -201,7 +182,6 @@ const makeTestLayer = (callLog: CallLog) =>
     makeStowLayer(callLog),
     makeAiSkillsLayer(callLog),
     makeClaudeLayer(callLog),
-    makeCodexHomeLayer(callLog),
     makeCodexLayer(callLog),
   );
 
@@ -220,7 +200,6 @@ describe("init flow", () => {
       expect(callLog.steps).toEqual([
         "brew.checkInstalled",
         "brew.bundle",
-        "codexHome.repairIfNeeded",
         "stow.dryRun",
         "stow.sync",
         "skills.sync",
@@ -242,7 +221,6 @@ describe("init flow", () => {
       );
 
       expect(callLog.steps).toEqual([
-        "codexHome.repairIfNeeded",
         "stow.dryRun",
         "stow.sync",
         "skills.sync",

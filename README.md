@@ -66,7 +66,7 @@ Actual content stays in native files:
 
 The live skill surfaces `~/.claude/skills`, `~/.codex/skills`, and `~/.agents/skills` are no longer stowed from `home/`. They are local directories populated only by `dot ai skills sync` / `dot sync`.
 
-`dot sync` invokes GNU Stow with `--no-folding`, so app homes such as `~/.claude` and `~/.codex` stay real local directories and only their managed entries are symlinked.
+`dot sync` invokes GNU Stow with `--no-folding`, so app homes and managed bins such as `~/.claude`, `~/.codex`, and `~/.local/bin` stay real local directories and only their managed entries are symlinked.
 
 Local merged settings remain machine-specific:
 
