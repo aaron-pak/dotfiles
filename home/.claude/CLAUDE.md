@@ -1,16 +1,9 @@
-# Global AI Instructions
+# Agent Instructions
 
-## Code Quality Standards
+## Code Standards
 
-- **Never compromise type safety**: No `any`, no non-null assertion operator (`!`), no type assertions (`as Type`)
-- **Maximize type inference**: Prefer inferred types over explicit annotations. Only annotate when the compiler cannot infer or when an explicit type genuinely improves readability (e.g., function return types on public APIs).
-- **Warnings are failures**: Do not leave compiler, linter, test, or runtime warnings behind. Finish with clean checks only.
-- **Checks must pass**: `bun run typecheck` and `bun run test` must both pass before considering work complete.
-
-## Code Organization
-
-Favor cohesion — proximity in code should reflect relatedness in purpose. When organizing or writing code, optimize for the reader who needs to understand or modify a single behavior.
-
-## Plans
-
-- End plans with unresolved questions only when there are real unresolved questions.
+- Prefer inferred types over explicit types. When we rely on type inference, we can easily change type definitions without having to modify downstream code. Only use explicit types when defining core interfaces and abstractions or when we may want to reuse and compose the type.
+- Prioritize high type safety. Don't use `any`, non-null assertion operator (`!`), or type assertions (`as Type`)
+- Do not leave compiler, linter, test, or runtime warnings behind unless specified otherwise
+- Favor cohesion. Proximity in code should reflect relatedness in purpose. When organizing or writing code, optimize for the reader who needs to understand or modify a single behavior.
+- Establish clear boundaries. When creating core interfaces and abstractions, think carefully about the purpose of that piece of code and define boundaries based on purpose. Strive to create abstractions that are flexible, composable, and or extensible.
