@@ -1,18 +1,9 @@
-import {
-  Effect,
-  FileSystem,
-  Layer,
-  Path,
-  PlatformError,
-  Schema,
-  Sink,
-  Stream,
-} from "effect";
-import { ChildProcessSpawner } from "effect/unstable/process";
-import { StowConfig } from "../src/services/StowConfig.js";
+import { Effect, FileSystem, Layer, Path, PlatformError, Schema, Sink, Stream } from 'effect';
+import { ChildProcessSpawner } from 'effect/unstable/process';
+import { StowConfig } from '../src/services/StowConfig.js';
 
-export const testDotfilesRoot = "/test/dotfiles";
-export const testHomeDir = "/test/home";
+export const testDotfilesRoot = '/test/dotfiles';
+export const testHomeDir = '/test/home';
 
 export const TestStowConfig = Layer.succeed(StowConfig)({
   dotfilesRoot: testDotfilesRoot,
@@ -33,9 +24,7 @@ export const readFile = (files: FsFiles, path: string): string => {
   return content;
 };
 
-const jsonObjectFromString = Schema.fromJsonString(
-  Schema.Record(Schema.String, Schema.Unknown),
-);
+const jsonObjectFromString = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
 const decodeJsonObject = Schema.decodeUnknownSync(jsonObjectFromString);
 const encodeJsonObject = Schema.encodeSync(jsonObjectFromString);
 
@@ -47,8 +36,8 @@ export const stringifyJsonObject = (value: Record<string, unknown>) =>
 
 const notFound = (method: string, path: string) =>
   PlatformError.systemError({
-    _tag: "NotFound",
-    module: "FileSystem",
+    _tag: 'NotFound',
+    module: 'FileSystem',
     method,
     pathOrDescriptor: path,
   });
@@ -61,7 +50,7 @@ export const makeMockFs = (files: FsFiles) =>
       const content = files[path];
       return content !== undefined
         ? Effect.succeed(content)
-        : Effect.fail(notFound("readFileString", path));
+        : Effect.fail(notFound('readFileString', path));
     },
     writeFileString: (path, content) =>
       Effect.sync(() => {
@@ -80,8 +69,8 @@ type MockChildProcessResult = {
 
 export const makeMockChildProcessHandle = ({
   exitCode,
-  stdout = "",
-  stderr = "",
+  stdout = '',
+  stderr = '',
 }: MockChildProcessResult) =>
   ChildProcessSpawner.makeHandle({
     pid: ChildProcessSpawner.ProcessId(1),
@@ -89,10 +78,8 @@ export const makeMockChildProcessHandle = ({
     isRunning: Effect.succeed(false),
     kill: () => Effect.void,
     stdin: Sink.drain,
-    stdout:
-      stdout.length > 0 ? Stream.make(encoder.encode(stdout)) : Stream.empty,
-    stderr:
-      stderr.length > 0 ? Stream.make(encoder.encode(stderr)) : Stream.empty,
+    stdout: stdout.length > 0 ? Stream.make(encoder.encode(stdout)) : Stream.empty,
+    stderr: stderr.length > 0 ? Stream.make(encoder.encode(stderr)) : Stream.empty,
     all:
       stdout.length > 0 || stderr.length > 0
         ? Stream.make(encoder.encode(stdout + stderr))
@@ -104,9 +91,7 @@ export const makeMockChildProcessHandle = ({
 export const makeMockChildProcessSpawner = (result: MockChildProcessResult) =>
   Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
-    ChildProcessSpawner.make(() =>
-      Effect.succeed(makeMockChildProcessHandle(result)),
-    ),
+    ChildProcessSpawner.make(() => Effect.succeed(makeMockChildProcessHandle(result))),
   );
 
 export const makeFailingChildProcessSpawner = (pathOrDescriptor: string) =>
@@ -115,9 +100,9 @@ export const makeFailingChildProcessSpawner = (pathOrDescriptor: string) =>
     ChildProcessSpawner.make(() =>
       Effect.fail(
         PlatformError.systemError({
-          _tag: "NotFound",
-          module: "Command",
-          method: "spawn",
+          _tag: 'NotFound',
+          module: 'Command',
+          method: 'spawn',
           pathOrDescriptor,
         }),
       ),

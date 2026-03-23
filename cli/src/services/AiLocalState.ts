@@ -1,9 +1,10 @@
-import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from "effect";
-import { parse, stringify } from "smol-toml";
-import type { ManagedTool } from "./AiState.js";
-import { StowConfig } from "./StowConfig.js";
+import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from 'effect';
+import { parse, stringify } from 'smol-toml';
+import type { ManagedTool } from './AiState.js';
+import { StowConfig } from './StowConfig.js';
+import { errorMessage } from './errorMessage.js';
 
-export class AiLocalStateError extends Data.TaggedError("AiLocalStateError")<{
+export class AiLocalStateError extends Data.TaggedError('AiLocalStateError')<{
   readonly details: string;
 }> {
   override get message() {
@@ -25,13 +26,13 @@ export type AiLocalStateData = {
 const failAiLocalState = (details: string) =>
   Effect.failSync(() => new AiLocalStateError({ details }));
 
-const isString = (value: unknown): value is string => typeof value === "string";
+const isString = (value: unknown): value is string => typeof value === 'string';
 
 const isStringArray = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && value.every(isString);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const emptyToolLocalState = (): ToolLocalState => ({
   ignored_shared_sections: [],
@@ -66,9 +67,7 @@ const parseToolLocalState = (
   }
 
   if (!isStringArray(ignoredSections)) {
-    return failAiLocalState(
-      `tools.${tool}.ignored_shared_sections must be a string array`,
-    );
+    return failAiLocalState(`tools.${tool}.ignored_shared_sections must be a string array`);
   }
 
   return Effect.succeed({
@@ -76,20 +75,18 @@ const parseToolLocalState = (
   });
 };
 
-const decodeAiLocalState = (
-  value: unknown,
-): Effect.Effect<AiLocalStateData, AiLocalStateError> =>
+const decodeAiLocalState = (value: unknown): Effect.Effect<AiLocalStateData, AiLocalStateError> =>
   Effect.gen(function* () {
     if (!isRecord(value)) {
       return yield* new AiLocalStateError({
-        details: "ai-local state must be a TOML table",
+        details: 'ai-local state must be a TOML table',
       });
     }
 
     const tools = value.tools;
     if (tools !== undefined && !isRecord(tools)) {
       return yield* new AiLocalStateError({
-        details: "tools must be a table",
+        details: 'tools must be a table',
       });
     }
 
@@ -97,8 +94,8 @@ const decodeAiLocalState = (
 
     return {
       tools: {
-        claude: yield* parseToolLocalState("claude", toolValues.claude),
-        codex: yield* parseToolLocalState("codex", toolValues.codex),
+        claude: yield* parseToolLocalState('claude', toolValues.claude),
+        codex: yield* parseToolLocalState('codex', toolValues.codex),
       },
     };
   });
@@ -108,9 +105,7 @@ export class AiLocalState extends ServiceMap.Service<
   {
     readonly localStatePath: string;
     readonly read: () => Effect.Effect<AiLocalStateData, AiLocalStateError>;
-    readonly write: (
-      state: AiLocalStateData,
-    ) => Effect.Effect<void, AiLocalStateError>;
+    readonly write: (state: AiLocalStateData) => Effect.Effect<void, AiLocalStateError>;
     readonly getIgnoredSections: (
       tool: ManagedTool,
     ) => Effect.Effect<readonly string[], AiLocalStateError>;
@@ -123,7 +118,7 @@ export class AiLocalState extends ServiceMap.Service<
       section: string,
     ) => Effect.Effect<{ readonly key: string }, AiLocalStateError>;
   }
->()("@dotfiles/AiLocalState") {
+>()('@dotfiles/AiLocalState') {
   static readonly Live = Layer.effect(
     AiLocalState,
     Effect.gen(function* () {
@@ -131,19 +126,14 @@ export class AiLocalState extends ServiceMap.Service<
       const path = yield* Path.Path;
       const { homeDir } = yield* StowConfig;
 
-      const localStatePath = path.join(
-        homeDir,
-        ".config",
-        "dot",
-        "ai-local.toml",
-      );
+      const localStatePath = path.join(homeDir, '.config', 'dot', 'ai-local.toml');
 
-      const read = Effect.fn("AiLocalState.read")(function* () {
+      const read = Effect.fn('AiLocalState.read')(function* () {
         const exists = yield* fs.exists(localStatePath).pipe(
           Effect.mapError(
             (error) =>
               new AiLocalStateError({
-                details: `Failed to check ${localStatePath}: ${error}`,
+                details: `Failed to check ${localStatePath}: ${errorMessage(error)}`,
               }),
           ),
         );
@@ -155,7 +145,7 @@ export class AiLocalState extends ServiceMap.Service<
           Effect.mapError(
             (error) =>
               new AiLocalStateError({
-                details: `Failed to read ${localStatePath}: ${error}`,
+                details: `Failed to read ${localStatePath}: ${errorMessage(error)}`,
               }),
           ),
         );
@@ -171,15 +161,13 @@ export class AiLocalState extends ServiceMap.Service<
         return yield* decodeAiLocalState(parsed);
       });
 
-      const write = Effect.fn("AiLocalState.write")(function* (
-        state: AiLocalStateData,
-      ) {
+      const write = Effect.fn('AiLocalState.write')(function* (state: AiLocalStateData) {
         const stateDirectory = path.dirname(localStatePath);
         yield* fs.makeDirectory(stateDirectory, { recursive: true }).pipe(
           Effect.mapError(
             (error) =>
               new AiLocalStateError({
-                details: `Failed to create ${stateDirectory}: ${error}`,
+                details: `Failed to create ${stateDirectory}: ${errorMessage(error)}`,
               }),
           ),
         );
@@ -187,14 +175,10 @@ export class AiLocalState extends ServiceMap.Service<
         const toml = stringify({
           tools: {
             claude: {
-              ignored_shared_sections: [
-                ...state.tools.claude.ignored_shared_sections,
-              ],
+              ignored_shared_sections: [...state.tools.claude.ignored_shared_sections],
             },
             codex: {
-              ignored_shared_sections: [
-                ...state.tools.codex.ignored_shared_sections,
-              ],
+              ignored_shared_sections: [...state.tools.codex.ignored_shared_sections],
             },
           },
         });
@@ -203,28 +187,28 @@ export class AiLocalState extends ServiceMap.Service<
           Effect.mapError(
             (error) =>
               new AiLocalStateError({
-                details: `Failed to write ${localStatePath}: ${error}`,
+                details: `Failed to write ${localStatePath}: ${errorMessage(error)}`,
               }),
           ),
         );
       });
 
-      const getIgnoredSections = Effect.fn("AiLocalState.getIgnoredSections")(
-        function* (tool: ManagedTool) {
-          const state = yield* read();
-          return tool === "claude"
-            ? state.tools.claude.ignored_shared_sections
-            : state.tools.codex.ignored_shared_sections;
-        },
-      );
+      const getIgnoredSections = Effect.fn('AiLocalState.getIgnoredSections')(function* (
+        tool: ManagedTool,
+      ) {
+        const state = yield* read();
+        return tool === 'claude'
+          ? state.tools.claude.ignored_shared_sections
+          : state.tools.codex.ignored_shared_sections;
+      });
 
-      const ignore = Effect.fn("AiLocalState.ignore")(function* (
+      const ignore = Effect.fn('AiLocalState.ignore')(function* (
         tool: ManagedTool,
         section: string,
       ) {
         const state = yield* read();
         const current =
-          tool === "claude"
+          tool === 'claude'
             ? state.tools.claude.ignored_shared_sections
             : state.tools.codex.ignored_shared_sections;
 
@@ -233,7 +217,7 @@ export class AiLocalState extends ServiceMap.Service<
         };
 
         const nextState: AiLocalStateData =
-          tool === "claude"
+          tool === 'claude'
             ? {
                 tools: {
                   claude: nextToolState,
@@ -251,13 +235,13 @@ export class AiLocalState extends ServiceMap.Service<
         return { key: section };
       });
 
-      const unignore = Effect.fn("AiLocalState.unignore")(function* (
+      const unignore = Effect.fn('AiLocalState.unignore')(function* (
         tool: ManagedTool,
         section: string,
       ) {
         const state = yield* read();
         const current =
-          tool === "claude"
+          tool === 'claude'
             ? state.tools.claude.ignored_shared_sections
             : state.tools.codex.ignored_shared_sections;
 
@@ -266,7 +250,7 @@ export class AiLocalState extends ServiceMap.Service<
         };
 
         const nextState: AiLocalStateData =
-          tool === "claude"
+          tool === 'claude'
             ? {
                 tools: {
                   claude: nextToolState,

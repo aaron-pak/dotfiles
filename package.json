@@ -1,35 +1,39 @@
 {
   "name": "dotfiles-cli",
   "version": "0.1.0",
-  "description": "CLI for managing dotfiles - syncing, checking differences, and initializing on new devices",
-  "type": "module",
   "private": true,
+  "description": "CLI for managing dotfiles - syncing, checking differences, and initializing on new devices",
   "bin": {
     "dot": "./cli/dist/main.js"
   },
+  "type": "module",
   "scripts": {
     "build": "bun build cli/src/main.ts --compile --outfile dot",
     "build:dev": "tsc -p tsconfig.build.json",
+    "lint": "oxlint cli/src cli/tests",
+    "lint:fix": "oxlint --fix cli/src cli/tests",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:e2e:ai": "bun run build && bash scripts/test-ai-e2e.sh",
-    "format": "prettier --write 'cli/src/**/*.ts' 'cli/tests/**/*.ts'",
-    "format:check": "prettier --check 'cli/src/**/*.ts' 'cli/tests/**/*.ts'",
+    "format": "oxfmt --write cli/src cli/tests package.json tsconfig.json tsconfig.build.json .oxlintrc.json .oxfmtrc.json",
+    "format:check": "oxfmt --check cli/src cli/tests package.json tsconfig.json tsconfig.build.json .oxlintrc.json .oxfmtrc.json",
     "prepare": "effect-language-service patch",
     "dev": "bun run cli/src/main.ts",
     "sync": "git pull && bun run build && ./dot sync"
-  },
-  "devDependencies": {
-    "@effect/language-service": "^0.80.0",
-    "@effect/vitest": "4.0.0-beta.35",
-    "@types/bun": "latest",
-    "prettier": "^3.8.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.0"
   },
   "dependencies": {
     "@effect/platform-bun": "4.0.0-beta.35",
     "effect": "4.0.0-beta.35",
     "smol-toml": "^1.6.0"
+  },
+  "devDependencies": {
+    "@effect/language-service": "^0.80.0",
+    "@effect/vitest": "4.0.0-beta.35",
+    "@types/bun": "latest",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
+    "oxlint-tsgolint": "^0.17.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0"
   }
 }

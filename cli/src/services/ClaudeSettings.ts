@@ -1,26 +1,16 @@
-import {
-  Data,
-  Effect,
-  FileSystem,
-  Layer,
-  Option,
-  Path,
-  Schema,
-  ServiceMap,
-} from "effect";
-import * as SchemaGetter from "effect/SchemaGetter";
-import { AiLocalState } from "./AiLocalState.js";
-import { AiState } from "./AiState.js";
+import { Data, Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap } from 'effect';
+import * as SchemaGetter from 'effect/SchemaGetter';
+import { AiLocalState } from './AiLocalState.js';
+import { AiState } from './AiState.js';
 import {
   buildManagedSettingsPreview,
   changedManagedKeys,
   mergeManagedSettings,
-} from "./ManagedSettings.js";
-import { StowConfig } from "./StowConfig.js";
+} from './ManagedSettings.js';
+import { errorMessage } from './errorMessage.js';
+import { StowConfig } from './StowConfig.js';
 
-export class ClaudeSettingsError extends Data.TaggedError(
-  "ClaudeSettingsError",
-)<{
+export class ClaudeSettingsError extends Data.TaggedError('ClaudeSettingsError')<{
   readonly details: string;
 }> {
   override get message() {
@@ -30,9 +20,7 @@ export class ClaudeSettingsError extends Data.TaggedError(
 
 type SettingsObject = Record<string, unknown>;
 
-const jsonObjectFromString = Schema.fromJsonString(
-  Schema.Record(Schema.String, Schema.Unknown),
-);
+const jsonObjectFromString = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
 
 const decodeJsonObject = Schema.decodeUnknownSync(jsonObjectFromString);
 const stringifyJson = SchemaGetter.stringifyJson({ space: 2 });
@@ -90,17 +78,13 @@ export class ClaudeSettings extends ServiceMap.Service<
       },
       ClaudeSettingsError
     >;
-    readonly adopt: (
-      key: string,
-    ) => Effect.Effect<{ readonly key: string }, ClaudeSettingsError>;
-    readonly ignore: (
-      key: string,
-    ) => Effect.Effect<{ readonly key: string }, ClaudeSettingsError>;
+    readonly adopt: (key: string) => Effect.Effect<{ readonly key: string }, ClaudeSettingsError>;
+    readonly ignore: (key: string) => Effect.Effect<{ readonly key: string }, ClaudeSettingsError>;
     readonly unignore: (
       key: string,
     ) => Effect.Effect<{ readonly key: string }, ClaudeSettingsError>;
   }
->()("@dotfiles/ClaudeSettings") {
+>()('@dotfiles/ClaudeSettings') {
   static readonly Live = Layer.effect(
     ClaudeSettings,
     Effect.gen(function* () {
@@ -110,19 +94,19 @@ export class ClaudeSettings extends ServiceMap.Service<
       const aiState = yield* AiState;
       const aiLocalState = yield* AiLocalState;
 
-      const localPath = path.join(homeDir, ".claude", "settings.json");
+      const localPath = path.join(homeDir, '.claude', 'settings.json');
 
       const readJsonFile = (filePath: string) =>
         Effect.gen(function* () {
           const content = yield* fs.readFileString(filePath).pipe(
             Effect.catchIf(
-              (error) => error.reason._tag === "NotFound",
-              () => Effect.succeed(""),
+              (error) => error.reason._tag === 'NotFound',
+              () => Effect.succeed(''),
             ),
             Effect.mapError(
               (error) =>
                 new ClaudeSettingsError({
-                  details: `Failed to read ${filePath}: ${error}`,
+                  details: `Failed to read ${filePath}: ${errorMessage(error)}`,
                 }),
             ),
           );
@@ -141,7 +125,7 @@ export class ClaudeSettings extends ServiceMap.Service<
             Effect.mapError(
               (error) =>
                 new ClaudeSettingsError({
-                  details: `Failed to create ${parentDirectory}: ${error}`,
+                  details: `Failed to create ${parentDirectory}: ${errorMessage(error)}`,
                 }),
             ),
           );
@@ -151,43 +135,39 @@ export class ClaudeSettings extends ServiceMap.Service<
             Effect.mapError(
               (error) =>
                 new ClaudeSettingsError({
-                  details: `Failed to write ${filePath}: ${error}`,
+                  details: `Failed to write ${filePath}: ${errorMessage(error)}`,
                 }),
             ),
           );
         });
 
-      const getSharedPath = Effect.fn("ClaudeSettings.getSharedPath")(
-        function* () {
-          const tool = yield* aiState.getTool("claude").pipe(
-            Effect.mapError(
-              (error) =>
-                new ClaudeSettingsError({
-                  details: error.message,
-                }),
-            ),
-          );
-          return path.join(dotfilesRoot, tool.settings.shared_settings_file);
-        },
-      );
+      const getSharedPath = Effect.fn('ClaudeSettings.getSharedPath')(function* () {
+        const tool = yield* aiState.getTool('claude').pipe(
+          Effect.mapError(
+            (error) =>
+              new ClaudeSettingsError({
+                details: error.message,
+              }),
+          ),
+        );
+        return path.join(dotfilesRoot, tool.settings.shared_settings_file);
+      });
 
-      const previewPull = Effect.fn("ClaudeSettings.previewPull")(function* () {
+      const previewPull = Effect.fn('ClaudeSettings.previewPull')(function* () {
         const sharedPath = yield* getSharedPath();
         const shared = yield* readJsonFile(sharedPath);
-        const ignoredSections = yield* aiLocalState
-          .getIgnoredSections("claude")
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new ClaudeSettingsError({
-                  details: error.message,
-                }),
-            ),
-          );
+        const ignoredSections = yield* aiLocalState.getIgnoredSections('claude').pipe(
+          Effect.mapError(
+            (error) =>
+              new ClaudeSettingsError({
+                details: error.message,
+              }),
+          ),
+        );
         return buildManagedSettingsPreview(shared, ignoredSections);
       });
 
-      const pull = Effect.fn("ClaudeSettings.pull")(function* () {
+      const pull = Effect.fn('ClaudeSettings.pull')(function* () {
         const preview = yield* previewPull();
         const local = yield* readJsonFile(localPath);
         const changedKeys = changedManagedKeys(local, preview.applicableShared);
@@ -205,7 +185,7 @@ export class ClaudeSettings extends ServiceMap.Service<
         };
       });
 
-      const adopt = Effect.fn("ClaudeSettings.adopt")(function* (key: string) {
+      const adopt = Effect.fn('ClaudeSettings.adopt')(function* (key: string) {
         const sharedPath = yield* getSharedPath();
         const shared = yield* readJsonFile(sharedPath);
         const local = yield* readJsonFile(localPath);
@@ -226,9 +206,9 @@ export class ClaudeSettings extends ServiceMap.Service<
         return { key };
       });
 
-      const validateIgnoreTarget = Effect.fn(
-        "ClaudeSettings.validateIgnoreTarget",
-      )(function* (key: string) {
+      const validateIgnoreTarget = Effect.fn('ClaudeSettings.validateIgnoreTarget')(function* (
+        key: string,
+      ) {
         const preview = yield* previewPull();
         if (preview.skippedKeys.includes(key)) {
           return yield* new ClaudeSettingsError({
@@ -243,12 +223,10 @@ export class ClaudeSettings extends ServiceMap.Service<
         }
       });
 
-      const ignore = Effect.fn("ClaudeSettings.ignore")(function* (
-        key: string,
-      ) {
+      const ignore = Effect.fn('ClaudeSettings.ignore')(function* (key: string) {
         yield* validateIgnoreTarget(key);
 
-        return yield* aiLocalState.ignore("claude", key).pipe(
+        return yield* aiLocalState.ignore('claude', key).pipe(
           Effect.mapError(
             (error) =>
               new ClaudeSettingsError({
@@ -258,26 +236,22 @@ export class ClaudeSettings extends ServiceMap.Service<
         );
       });
 
-      const unignore = Effect.fn("ClaudeSettings.unignore")(function* (
-        key: string,
-      ) {
-        const ignoredSections = yield* aiLocalState
-          .getIgnoredSections("claude")
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new ClaudeSettingsError({
-                  details: error.message,
-                }),
-            ),
-          );
+      const unignore = Effect.fn('ClaudeSettings.unignore')(function* (key: string) {
+        const ignoredSections = yield* aiLocalState.getIgnoredSections('claude').pipe(
+          Effect.mapError(
+            (error) =>
+              new ClaudeSettingsError({
+                details: error.message,
+              }),
+          ),
+        );
         if (!ignoredSections.includes(key)) {
           return yield* new ClaudeSettingsError({
             details: `This machine is not keeping its own value for "${key}"`,
           });
         }
 
-        return yield* aiLocalState.unignore("claude", key).pipe(
+        return yield* aiLocalState.unignore('claude', key).pipe(
           Effect.mapError(
             (error) =>
               new ClaudeSettingsError({

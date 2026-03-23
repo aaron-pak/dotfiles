@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error"
+  },
+  "options": {
+    "denyWarnings": true,
+    "typeAware": true
+  },
+  "rules": {
+    "eslint/no-control-regex": "off",
+    "typescript/await-thenable": "error",
+    "typescript/no-base-to-string": "error",
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "ignoreVoid": true
+      }
+    ],
+    "typescript/no-misused-promises": "error",
+    "typescript/restrict-template-expressions": [
+      "error",
+      {
+        "allowBoolean": true,
+        "allowNumber": true,
+        "allowRegExp": true
+      }
+    ]
+  }
+}

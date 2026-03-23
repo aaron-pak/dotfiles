@@ -1,8 +1,9 @@
-import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from "effect";
-import { parse, stringify } from "smol-toml";
-import { StowConfig } from "./StowConfig.js";
+import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from 'effect';
+import { parse, stringify } from 'smol-toml';
+import { errorMessage } from './errorMessage.js';
+import { StowConfig } from './StowConfig.js';
 
-export class AiStateError extends Data.TaggedError("AiStateError")<{
+export class AiStateError extends Data.TaggedError('AiStateError')<{
   readonly details: string;
 }> {
   override get message() {
@@ -10,8 +11,8 @@ export class AiStateError extends Data.TaggedError("AiStateError")<{
   }
 }
 
-export type ManagedTool = "claude" | "codex";
-export type SkillTarget = "claude" | "codex" | "agents";
+export type ManagedTool = 'claude' | 'codex';
+export type SkillTarget = 'claude' | 'codex' | 'agents';
 
 type InstructionsState = {
   readonly canonical: string;
@@ -39,21 +40,18 @@ export type AiStateData = {
   readonly skills: Record<string, ManagedSkillState>;
 };
 
-const skillTargets: readonly SkillTarget[] = ["claude", "codex", "agents"];
-const failAiState = (details: string) =>
-  Effect.failSync(() => new AiStateError({ details }));
+const skillTargets: readonly SkillTarget[] = ['claude', 'codex', 'agents'];
+const failAiState = (details: string) => Effect.failSync(() => new AiStateError({ details }));
 
 const isSkillTarget = (value: string): value is SkillTarget =>
-  value === "claude" || value === "codex" || value === "agents";
+  value === 'claude' || value === 'codex' || value === 'agents';
 
-const isString = (value: unknown): value is string => typeof value === "string";
+const isString = (value: unknown): value is string => typeof value === 'string';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const normalizeTargets = (
-  targets: readonly SkillTarget[],
-): readonly SkillTarget[] =>
+const normalizeTargets = (targets: readonly SkillTarget[]): readonly SkillTarget[] =>
   [...new Set(targets)].sort(
     (left, right) => skillTargets.indexOf(left) - skillTargets.indexOf(right),
   );
@@ -69,9 +67,7 @@ const parseTargets = (
   const targets: SkillTarget[] = [];
   for (const target of value) {
     if (!isSkillTarget(target)) {
-      return failAiState(
-        `skills.${skillName}.targets contains invalid target "${target}"`,
-      );
+      return failAiState(`skills.${skillName}.targets contains invalid target "${target}"`);
     }
     targets.push(target);
   }
@@ -117,9 +113,7 @@ const parseToolSettings = (
 
   const sharedSettingsFile = value.shared_settings_file;
   if (!isString(sharedSettingsFile)) {
-    return failAiState(
-      `tools.${tool}.settings.shared_settings_file must be a string`,
-    );
+    return failAiState(`tools.${tool}.settings.shared_settings_file must be a string`);
   }
 
   return Effect.succeed({
@@ -127,13 +121,11 @@ const parseToolSettings = (
   });
 };
 
-const decodeAiState = (
-  value: unknown,
-): Effect.Effect<AiStateData, AiStateError> =>
+const decodeAiState = (value: unknown): Effect.Effect<AiStateData, AiStateError> =>
   Effect.gen(function* () {
     if (!isRecord(value)) {
       return yield* new AiStateError({
-        details: "ai/state.toml must be a TOML table",
+        details: 'ai/state.toml must be a TOML table',
       });
     }
 
@@ -143,19 +135,19 @@ const decodeAiState = (
 
     if (!isRecord(instructions) || !isString(instructions.canonical)) {
       return yield* new AiStateError({
-        details: "instructions.canonical must be a string",
+        details: 'instructions.canonical must be a string',
       });
     }
 
     if (!isRecord(tools)) {
       return yield* new AiStateError({
-        details: "tools must be a table",
+        details: 'tools must be a table',
       });
     }
 
     if (skillsValue !== undefined && !isRecord(skillsValue)) {
       return yield* new AiStateError({
-        details: "skills must be a table",
+        details: 'skills must be a table',
       });
     }
 
@@ -173,7 +165,7 @@ const decodeAiState = (
         };
       });
 
-    const parseSkills = Effect.fn("AiState.parseSkills")(function* () {
+    const parseSkills = Effect.fn('AiState.parseSkills')(function* () {
       const parsedSkills: Record<string, ManagedSkillState> = {};
 
       if (skillsValue === undefined) {
@@ -187,10 +179,7 @@ const decodeAiState = (
           });
         }
 
-        parsedSkills[skillName] = yield* parseManagedSkill(
-          skillName,
-          skillValue,
-        );
+        parsedSkills[skillName] = yield* parseManagedSkill(skillName, skillValue);
       }
 
       return parsedSkills;
@@ -199,8 +188,8 @@ const decodeAiState = (
     return {
       instructions: { canonical: instructions.canonical },
       tools: {
-        claude: yield* parseTool("claude"),
-        codex: yield* parseTool("codex"),
+        claude: yield* parseTool('claude'),
+        codex: yield* parseTool('codex'),
       },
       skills: yield* parseSkills(),
     };
@@ -239,13 +228,8 @@ export class AiState extends ServiceMap.Service<
     readonly statePath: string;
     readonly read: () => Effect.Effect<AiStateData, AiStateError>;
     readonly write: (state: AiStateData) => Effect.Effect<void, AiStateError>;
-    readonly getTool: (
-      tool: ManagedTool,
-    ) => Effect.Effect<ToolState, AiStateError>;
-    readonly listSkills: () => Effect.Effect<
-      Record<string, ManagedSkillState>,
-      AiStateError
-    >;
+    readonly getTool: (tool: ManagedTool) => Effect.Effect<ToolState, AiStateError>;
+    readonly listSkills: () => Effect.Effect<Record<string, ManagedSkillState>, AiStateError>;
     readonly getSkill: (
       skillName: string,
     ) => Effect.Effect<ManagedSkillState | undefined, AiStateError>;
@@ -253,11 +237,9 @@ export class AiState extends ServiceMap.Service<
       skillName: string,
       skill: ManagedSkillState,
     ) => Effect.Effect<void, AiStateError>;
-    readonly removeSkill: (
-      skillName: string,
-    ) => Effect.Effect<void, AiStateError>;
+    readonly removeSkill: (skillName: string) => Effect.Effect<void, AiStateError>;
   }
->()("@dotfiles/AiState") {
+>()('@dotfiles/AiState') {
   static readonly Live = Layer.effect(
     AiState,
     Effect.gen(function* () {
@@ -265,14 +247,14 @@ export class AiState extends ServiceMap.Service<
       const path = yield* Path.Path;
       const { dotfilesRoot } = yield* StowConfig;
 
-      const statePath = path.join(dotfilesRoot, "ai", "state.toml");
+      const statePath = path.join(dotfilesRoot, 'ai', 'state.toml');
 
-      const read = Effect.fn("AiState.read")(function* () {
+      const read = Effect.fn('AiState.read')(function* () {
         const content = yield* fs.readFileString(statePath).pipe(
           Effect.mapError(
             (error) =>
               new AiStateError({
-                details: `Failed to read ${statePath}: ${error}`,
+                details: `Failed to read ${statePath}: ${errorMessage(error)}`,
               }),
           ),
         );
@@ -288,38 +270,34 @@ export class AiState extends ServiceMap.Service<
         return yield* decodeAiState(parsed);
       });
 
-      const write = Effect.fn("AiState.write")(function* (state: AiStateData) {
+      const write = Effect.fn('AiState.write')(function* (state: AiStateData) {
         const content = stringify(encodeAiState(state));
         yield* fs.writeFileString(statePath, `${content}\n`).pipe(
           Effect.mapError(
             (error) =>
               new AiStateError({
-                details: `Failed to write ${statePath}: ${error}`,
+                details: `Failed to write ${statePath}: ${errorMessage(error)}`,
               }),
           ),
         );
       });
 
-      const getTool = Effect.fn("AiState.getTool")(function* (
-        tool: ManagedTool,
-      ) {
+      const getTool = Effect.fn('AiState.getTool')(function* (tool: ManagedTool) {
         const state = yield* read();
-        return tool === "claude" ? state.tools.claude : state.tools.codex;
+        return tool === 'claude' ? state.tools.claude : state.tools.codex;
       });
 
-      const listSkills = Effect.fn("AiState.listSkills")(function* () {
+      const listSkills = Effect.fn('AiState.listSkills')(function* () {
         const state = yield* read();
         return state.skills;
       });
 
-      const getSkill = Effect.fn("AiState.getSkill")(function* (
-        skillName: string,
-      ) {
+      const getSkill = Effect.fn('AiState.getSkill')(function* (skillName: string) {
         const skills = yield* listSkills();
         return skills[skillName];
       });
 
-      const upsertSkill = Effect.fn("AiState.upsertSkill")(function* (
+      const upsertSkill = Effect.fn('AiState.upsertSkill')(function* (
         skillName: string,
         skill: ManagedSkillState,
       ) {
@@ -338,9 +316,7 @@ export class AiState extends ServiceMap.Service<
         yield* write(nextState);
       });
 
-      const removeSkill = Effect.fn("AiState.removeSkill")(function* (
-        skillName: string,
-      ) {
+      const removeSkill = Effect.fn('AiState.removeSkill')(function* (skillName: string) {
         const state = yield* read();
         if (!(skillName in state.skills)) {
           return;

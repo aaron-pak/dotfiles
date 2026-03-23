@@ -1,4 +1,4 @@
-import { isDeepStrictEqual } from "node:util";
+import { isDeepStrictEqual } from 'node:util';
 
 type SettingsObject = Record<string, unknown>;
 

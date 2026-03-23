@@ -1,14 +1,11 @@
-import { Console, Effect } from "effect";
+import { Console, Effect } from 'effect';
 
 type ManagedSettingsSummary = {
   readonly applicableKeys: readonly string[];
   readonly skippedKeys: readonly string[];
 };
 
-export const printManagedSettingsPreview = (
-  label: string,
-  summary: ManagedSettingsSummary,
-) =>
+export const printManagedSettingsPreview = (label: string, summary: ManagedSettingsSummary) =>
   Effect.gen(function* () {
     if (summary.applicableKeys.length > 0) {
       yield* Console.log(`Would apply these shared ${label}:`);
@@ -16,17 +13,13 @@ export const printManagedSettingsPreview = (
         yield* Console.log(`  ${key}`);
       }
     } else if (summary.skippedKeys.length > 0) {
-      yield* Console.log(
-        `No shared ${label} would be applied on this machine right now.`,
-      );
+      yield* Console.log(`No shared ${label} would be applied on this machine right now.`);
     } else {
       yield* Console.log(`No shared ${label} are currently managed.`);
     }
 
     if (summary.skippedKeys.length > 0) {
-      yield* Console.log(
-        `This machine keeps its own value for these ${label}:`,
-      );
+      yield* Console.log(`This machine keeps its own value for these ${label}:`);
       for (const key of summary.skippedKeys) {
         yield* Console.log(`  ${key}`);
       }
@@ -47,9 +40,7 @@ export const printManagedSettingsApply = (
         yield* Console.log(`  ${key}`);
       }
     } else if (summary.applicableKeys.length > 0) {
-      yield* Console.log(
-        `Shared ${label} already match this machine. Nothing changed.`,
-      );
+      yield* Console.log(`Shared ${label} already match this machine. Nothing changed.`);
     } else if (summary.skippedKeys.length > 0) {
       yield* Console.log(`No shared ${label} were applied on this machine.`);
     } else {
@@ -63,7 +54,5 @@ export const printManagedSettingsApply = (
       }
     }
 
-    yield* Console.log(
-      `\n${summary.totalKeys} total setting(s) in the local file.`,
-    );
+    yield* Console.log(`\n${summary.totalKeys} total setting(s) in the local file.`);
   });

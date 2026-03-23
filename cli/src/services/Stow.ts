@@ -9,13 +9,10 @@ import {
   Schema,
   ServiceMap,
   Stream,
-} from "effect";
-import type * as PlatformError from "effect/PlatformError";
-import {
-  ChildProcess as Process,
-  ChildProcessSpawner,
-} from "effect/unstable/process";
-import { StowConfig } from "./StowConfig.js";
+} from 'effect';
+import type * as PlatformError from 'effect/PlatformError';
+import { ChildProcess as Process, ChildProcessSpawner } from 'effect/unstable/process';
+import { StowConfig } from './StowConfig.js';
 
 // -------------------------------------------------------------------------------------
 // Data Types
@@ -25,7 +22,7 @@ import { StowConfig } from "./StowConfig.js";
  * Parsed from stow stderr line:
  * "* cannot stow <source> over existing target <target> since <reason>"
  */
-export class StowConflict extends Schema.Class<StowConflict>("StowConflict")({
+export class StowConflict extends Schema.Class<StowConflict>('StowConflict')({
   source: Schema.String,
   target: Schema.String,
   reason: Schema.String,
@@ -36,11 +33,11 @@ export class StowConflict extends Schema.Class<StowConflict>("StowConflict")({
  * Extracts source path, target path, and reason from stderr output.
  */
 const ConflictLine = Schema.TemplateLiteralParser([
-  "* cannot stow ",
+  '* cannot stow ',
   Schema.String,
-  " over existing target ",
+  ' over existing target ',
   Schema.String,
-  " since ",
+  ' since ',
   Schema.String,
 ]);
 
@@ -51,12 +48,9 @@ const decodeConflictLine = Schema.decodeUnknownOption(ConflictLine);
  * Lines matching the ConflictLine schema are decoded into StowConflict instances.
  */
 export const parseConflicts = (stderr: string): readonly StowConflict[] =>
-  stderr.split("\n").flatMap((line) =>
+  stderr.split('\n').flatMap((line) =>
     decodeConflictLine(line.trim()).pipe(
-      Option.map(
-        ([, source, , target, , reason]) =>
-          new StowConflict({ source, target, reason }),
-      ),
+      Option.map(([, source, , target, , reason]) => new StowConflict({ source, target, reason })),
       Option.toArray,
     ),
   );
@@ -64,7 +58,7 @@ export const parseConflicts = (stderr: string): readonly StowConflict[] =>
 /**
  * Parsed from stow verbose output: "LINK: <target> => <source>"
  */
-export class StowLink extends Schema.Class<StowLink>("StowLink")({
+export class StowLink extends Schema.Class<StowLink>('StowLink')({
   target: Schema.String,
   source: Schema.String,
 }) {}
@@ -73,12 +67,7 @@ export class StowLink extends Schema.Class<StowLink>("StowLink")({
  * Schema parser for stow link lines using TemplateLiteralParser.
  * Extracts target and source paths from verbose stderr output.
  */
-const LinkLine = Schema.TemplateLiteralParser([
-  "LINK: ",
-  Schema.String,
-  " => ",
-  Schema.String,
-]);
+const LinkLine = Schema.TemplateLiteralParser(['LINK: ', Schema.String, ' => ', Schema.String]);
 
 const decodeLinkLine = Schema.decodeUnknownOption(LinkLine);
 
@@ -86,24 +75,19 @@ const decodeLinkLine = Schema.decodeUnknownOption(LinkLine);
  * Parse stow stderr output for LINK lines.
  */
 export const parseLinks = (stderr: string): readonly StowLink[] =>
-  stderr.split("\n").flatMap((line) =>
+  stderr.split('\n').flatMap((line) =>
     decodeLinkLine(line).pipe(
       Option.map(([, target, , source]) => new StowLink({ target, source })),
       Option.toArray,
     ),
   );
 
-const conflictActions = ["backup", "delete"] satisfies readonly [
-  "backup",
-  "delete",
-];
+const conflictActions = ['backup', 'delete'] satisfies readonly ['backup', 'delete'];
 
 /**
  * Track what happened to each conflict.
  */
-export class ConflictResolution extends Schema.Class<ConflictResolution>(
-  "ConflictResolution",
-)({
+export class ConflictResolution extends Schema.Class<ConflictResolution>('ConflictResolution')({
   target: Schema.String,
   action: Schema.Literals(conflictActions),
   backupPath: Schema.OptionFromNullOr(Schema.String),
@@ -122,7 +106,7 @@ export const ResolveResult = Data.taggedEnum<ResolveResult>();
  * Represents the result of a stow dry-run.
  * Contains conflicts and links that would be created.
  */
-export class StowResult extends Schema.Class<StowResult>("StowResult")({
+export class StowResult extends Schema.Class<StowResult>('StowResult')({
   conflicts: Schema.Array(StowConflict),
   links: Schema.Array(StowLink),
 }) {}
@@ -130,14 +114,14 @@ export class StowResult extends Schema.Class<StowResult>("StowResult")({
 /**
  * Error for stow execution failures.
  */
-export class StowError extends Data.TaggedError("StowError")<{
+export class StowError extends Data.TaggedError('StowError')<{
   readonly message: string;
 }> {}
 
 /**
  * Source file/dir doesn't exist at ~/path
  */
-export class SourceNotFound extends Data.TaggedError("SourceNotFound")<{
+export class SourceNotFound extends Data.TaggedError('SourceNotFound')<{
   readonly path: string;
 }> {
   override get message() {
@@ -148,7 +132,7 @@ export class SourceNotFound extends Data.TaggedError("SourceNotFound")<{
 /**
  * Target already exists in home/ (already managed)
  */
-export class AlreadyManaged extends Data.TaggedError("AlreadyManaged")<{
+export class AlreadyManaged extends Data.TaggedError('AlreadyManaged')<{
   readonly path: string;
 }> {
   override get message() {
@@ -159,7 +143,7 @@ export class AlreadyManaged extends Data.TaggedError("AlreadyManaged")<{
 /**
  * Source is already a symlink (likely already managed)
  */
-export class AlreadySymlink extends Data.TaggedError("AlreadySymlink")<{
+export class AlreadySymlink extends Data.TaggedError('AlreadySymlink')<{
   readonly path: string;
 }> {
   override get message() {
@@ -170,7 +154,7 @@ export class AlreadySymlink extends Data.TaggedError("AlreadySymlink")<{
 /**
  * Path is invalid (empty, absolute, contains ..)
  */
-export class InvalidPath extends Data.TaggedError("InvalidPath")<{
+export class InvalidPath extends Data.TaggedError('InvalidPath')<{
   readonly path: string;
   readonly reason: string;
 }> {
@@ -182,7 +166,7 @@ export class InvalidPath extends Data.TaggedError("InvalidPath")<{
 /**
  * Path is not managed (doesn't exist in home/)
  */
-export class NotManaged extends Data.TaggedError("NotManaged")<{
+export class NotManaged extends Data.TaggedError('NotManaged')<{
   readonly path: string;
 }> {
   override get message() {
@@ -193,7 +177,7 @@ export class NotManaged extends Data.TaggedError("NotManaged")<{
 /**
  * Source at ~/ is not a symlink
  */
-export class NotSymlink extends Data.TaggedError("NotSymlink")<{
+export class NotSymlink extends Data.TaggedError('NotSymlink')<{
   readonly path: string;
 }> {
   override get message() {
@@ -204,7 +188,7 @@ export class NotSymlink extends Data.TaggedError("NotSymlink")<{
 /**
  * Source symlink points to unexpected location
  */
-export class SymlinkMismatch extends Data.TaggedError("SymlinkMismatch")<{
+export class SymlinkMismatch extends Data.TaggedError('SymlinkMismatch')<{
   readonly path: string;
   readonly actual: string;
   readonly expected: string;
@@ -214,7 +198,7 @@ export class SymlinkMismatch extends Data.TaggedError("SymlinkMismatch")<{
   }
 }
 
-export type ConflictChoice = "backup" | "delete" | "abort";
+export type ConflictChoice = 'backup' | 'delete' | 'abort';
 
 type ManagedItem = {
   readonly path: string;
@@ -238,21 +222,13 @@ export class Stow extends ServiceMap.Service<
       path: string,
     ) => Effect.Effect<
       string,
-      | SourceNotFound
-      | AlreadySymlink
-      | AlreadyManaged
-      | InvalidPath
-      | PlatformError.PlatformError
+      SourceNotFound | AlreadySymlink | AlreadyManaged | InvalidPath | PlatformError.PlatformError
     >;
     readonly addDotfile: (
       path: string,
     ) => Effect.Effect<
       string,
-      | SourceNotFound
-      | AlreadySymlink
-      | AlreadyManaged
-      | InvalidPath
-      | PlatformError.PlatformError
+      SourceNotFound | AlreadySymlink | AlreadyManaged | InvalidPath | PlatformError.PlatformError
     >;
     readonly checkRemovable: (path: string) => Effect.Effect<
       {
@@ -260,24 +236,16 @@ export class Stow extends ServiceMap.Service<
         readonly isDirectory: boolean;
         readonly itemCount: number;
       },
-      | NotManaged
-      | NotSymlink
-      | SymlinkMismatch
-      | InvalidPath
-      | PlatformError.PlatformError
+      NotManaged | NotSymlink | SymlinkMismatch | InvalidPath | PlatformError.PlatformError
     >;
     readonly removeDotfile: (
       path: string,
     ) => Effect.Effect<
       string,
-      | NotManaged
-      | NotSymlink
-      | SymlinkMismatch
-      | InvalidPath
-      | PlatformError.PlatformError
+      NotManaged | NotSymlink | SymlinkMismatch | InvalidPath | PlatformError.PlatformError
     >;
   }
->()("@dotfiles/Stow") {
+>()('@dotfiles/Stow') {
   static readonly Live = Layer.effect(
     Stow,
     Effect.gen(function* () {
@@ -291,12 +259,12 @@ export class Stow extends ServiceMap.Service<
       ): Effect.Effect<string, PlatformError.PlatformError> =>
         stream.pipe(
           Stream.runFold(
-            () => "",
+            () => '',
             (acc, chunk) => acc + chunk,
           ),
         );
 
-      const homeRoot = path.join(dotfilesRoot, "home");
+      const homeRoot = path.join(dotfilesRoot, 'home');
 
       /** Run a stow command and capture stderr. */
       const runStow = (
@@ -310,7 +278,7 @@ export class Stow extends ServiceMap.Service<
       > =>
         Effect.scoped(
           Effect.gen(function* () {
-            const command = Process.make("stow", [...args], {
+            const command = Process.make('stow', [...args], {
               cwd: dotfilesRoot,
             });
             const handle = yield* processSpawner.spawn(command);
@@ -321,7 +289,7 @@ export class Stow extends ServiceMap.Service<
             });
           }),
         ).pipe(
-          Effect.catchTag("PlatformError", (error) =>
+          Effect.catchTag('PlatformError', (error) =>
             Effect.fail(
               new StowError({
                 message: `Failed to execute stow: ${error.message}`,
@@ -333,15 +301,8 @@ export class Stow extends ServiceMap.Service<
       /**
        * Run a dry-run of stow and return conflicts and links that would be created.
        */
-      const dryRun = Effect.fn("Stow.dryRun")(function* () {
-        const { stderr } = yield* runStow([
-          "--no-folding",
-          "-n",
-          "-v",
-          "home",
-          "-t",
-          homeDir,
-        ]);
+      const dryRun = Effect.fn('Stow.dryRun')(function* () {
+        const { stderr } = yield* runStow(['--no-folding', '-n', '-v', 'home', '-t', homeDir]);
 
         // Exit code 1 with conflicts is expected during dry-run
         // Parse conflicts and links from stderr regardless of exit code
@@ -355,14 +316,8 @@ export class Stow extends ServiceMap.Service<
        * Actually sync the dotfiles using stow.
        * Returns the links that were created.
        */
-      const sync = Effect.fn("Stow.sync")(function* () {
-        const { exitCode, stderr } = yield* runStow([
-          "--no-folding",
-          "-v",
-          "home",
-          "-t",
-          homeDir,
-        ]);
+      const sync = Effect.fn('Stow.sync')(function* () {
+        const { exitCode, stderr } = yield* runStow(['--no-folding', '-v', 'home', '-t', homeDir]);
 
         if (exitCode !== 0) {
           return yield* new StowError({
@@ -377,12 +332,12 @@ export class Stow extends ServiceMap.Service<
        * Resolve conflicts by backing up or deleting conflicting files.
        * Returns Abort or Resolved with resolution details.
        */
-      const resolveConflicts = Effect.fn("Stow.resolveConflicts")(function* (
+      const resolveConflicts = Effect.fn('Stow.resolveConflicts')(function* (
         conflicts: readonly StowConflict[],
         choice: ConflictChoice,
       ) {
-        if (choice === "abort") {
-          yield* Console.log("Aborted. No changes were made.");
+        if (choice === 'abort') {
+          yield* Console.log('Aborted. No changes were made.');
           return ResolveResult.Abort();
         }
 
@@ -391,32 +346,30 @@ export class Stow extends ServiceMap.Service<
         for (const { target } of conflicts) {
           const fullPath = path.join(homeDir, target);
 
-          if (choice === "backup") {
+          if (choice === 'backup') {
             // Keep appending .bak until we find a free name
             let backupPath = `${fullPath}.bak`;
-            let backupSuffix = ".bak";
+            let backupSuffix = '.bak';
             while (yield* fs.exists(backupPath)) {
-              backupSuffix += ".bak";
+              backupSuffix += '.bak';
               backupPath = `${fullPath}${backupSuffix}`;
             }
-            yield* Console.log(
-              `  Backing up: ${target} -> ${target}${backupSuffix}`,
-            );
+            yield* Console.log(`  Backing up: ${target} -> ${target}${backupSuffix}`);
             yield* fs.rename(fullPath, backupPath);
             resolutions.push(
               new ConflictResolution({
                 target,
-                action: "backup",
+                action: 'backup',
                 backupPath: Option.some(`${target}${backupSuffix}`),
               }),
             );
-          } else if (choice === "delete") {
+          } else if (choice === 'delete') {
             yield* Console.log(`  Deleting: ${target}`);
             yield* fs.remove(fullPath);
             resolutions.push(
               new ConflictResolution({
                 target,
-                action: "delete",
+                action: 'delete',
                 backupPath: Option.none(),
               }),
             );
@@ -432,23 +385,23 @@ export class Stow extends ServiceMap.Service<
       const validatePath = (p: string) =>
         Effect.gen(function* () {
           // Normalize: strip leading ./ or /
-          const normalized = p.replace(/^\.\//, "").replace(/^\//, "");
+          const normalized = p.replace(/^\.\//, '').replace(/^\//, '');
 
           if (normalized.length === 0) {
             return yield* new InvalidPath({
               path: p,
-              reason: "path is empty",
+              reason: 'path is empty',
             });
           }
 
           if (path.isAbsolute(p)) {
             return yield* new InvalidPath({
               path: p,
-              reason: "path must be relative to home",
+              reason: 'path must be relative to home',
             });
           }
 
-          if (normalized.includes("..")) {
+          if (normalized.includes('..')) {
             return yield* new InvalidPath({
               path: p,
               reason: "path cannot contain '..'",
@@ -456,7 +409,7 @@ export class Stow extends ServiceMap.Service<
           }
 
           const sourcePath = path.join(homeDir, normalized);
-          const targetPath = path.join(dotfilesRoot, "home", normalized);
+          const targetPath = path.join(dotfilesRoot, 'home', normalized);
 
           // Check source exists
           const sourceExists = yield* fs.exists(sourcePath);
@@ -467,7 +420,7 @@ export class Stow extends ServiceMap.Service<
           // Check source isn't already a symlink (readLink succeeds only for symlinks)
           const isSymlink = yield* fs.readLink(sourcePath).pipe(
             Effect.as(true),
-            Effect.catchTag("PlatformError", () => Effect.succeed(false)),
+            Effect.catchTag('PlatformError', () => Effect.succeed(false)),
           );
           if (isSymlink) {
             return yield* new AlreadySymlink({ path: normalized });
@@ -485,9 +438,7 @@ export class Stow extends ServiceMap.Service<
       /**
        * Check if a path can be added (dry-run validation).
        */
-      const checkAddable = Effect.fn("Stow.checkAddable")(function* (
-        p: string,
-      ) {
+      const checkAddable = Effect.fn('Stow.checkAddable')(function* (p: string) {
         const result = yield* validatePath(p);
         return result.normalized;
       });
@@ -495,7 +446,7 @@ export class Stow extends ServiceMap.Service<
       /**
        * Add a dotfile to the repo by moving it from ~/ to home/.
        */
-      const addDotfile = Effect.fn("Stow.addDotfile")(function* (p: string) {
+      const addDotfile = Effect.fn('Stow.addDotfile')(function* (p: string) {
         const { normalized, sourcePath, targetPath } = yield* validatePath(p);
 
         // Create parent directories in target
@@ -526,16 +477,14 @@ export class Stow extends ServiceMap.Service<
 
               for (const entry of entries) {
                 const fullPath = path.join(dir, entry);
-                const stat = yield* fs
-                  .stat(fullPath)
-                  .pipe(Effect.orElseSucceed(() => null));
+                const stat = yield* fs.stat(fullPath).pipe(Effect.orElseSucceed(() => null));
 
                 if (stat === null) {
                   continue;
                 }
 
                 const relativePath = fullPath.slice(homeRoot.length + 1);
-                const isDir = stat.type === "Directory";
+                const isDir = stat.type === 'Directory';
                 items.push({ path: relativePath, isDirectory: isDir });
 
                 if (isDir) {
@@ -556,7 +505,7 @@ export class Stow extends ServiceMap.Service<
         Effect.gen(function* () {
           let dir = path.dirname(targetPath);
 
-          while (dir !== homeRoot && dir.startsWith(homeRoot + "/")) {
+          while (dir !== homeRoot && dir.startsWith(homeRoot + '/')) {
             const entries = yield* fs.readDirectory(dir);
             if (entries.length > 0) {
               break;
@@ -572,23 +521,23 @@ export class Stow extends ServiceMap.Service<
        */
       const normalizePath = (p: string) =>
         Effect.gen(function* () {
-          const normalized = p.replace(/^\.\//, "").replace(/^\//, "");
+          const normalized = p.replace(/^\.\//, '').replace(/^\//, '');
 
           if (normalized.length === 0) {
             return yield* new InvalidPath({
               path: p,
-              reason: "path is empty",
+              reason: 'path is empty',
             });
           }
 
           if (path.isAbsolute(p)) {
             return yield* new InvalidPath({
               path: p,
-              reason: "path must be relative to home",
+              reason: 'path must be relative to home',
             });
           }
 
-          if (normalized.includes("..")) {
+          if (normalized.includes('..')) {
             return yield* new InvalidPath({
               path: p,
               reason: "path cannot contain '..'",
@@ -609,17 +558,14 @@ export class Stow extends ServiceMap.Service<
           // Check symlink exists at source
           const linkTarget = yield* fs
             .readLink(sourcePath)
-            .pipe(Effect.catchTag("PlatformError", () => Effect.succeed(null)));
+            .pipe(Effect.catchTag('PlatformError', () => Effect.succeed(null)));
 
           if (linkTarget === null) {
             return yield* new NotSymlink({ path: normalized });
           }
 
           // Resolve and compare - symlink should point to our target
-          const resolvedLink = path.resolve(
-            path.dirname(sourcePath),
-            linkTarget,
-          );
+          const resolvedLink = path.resolve(path.dirname(sourcePath), linkTarget);
           if (resolvedLink !== targetPath) {
             return yield* new SymlinkMismatch({
               path: normalized,
@@ -651,17 +597,14 @@ export class Stow extends ServiceMap.Service<
           // Check if source is a symlink pointing to target (tree-folded directory)
           const linkTarget = yield* fs
             .readLink(sourcePath)
-            .pipe(Effect.catchTag("PlatformError", () => Effect.succeed(null)));
+            .pipe(Effect.catchTag('PlatformError', () => Effect.succeed(null)));
 
           if (linkTarget !== null) {
-            const resolvedLink = path.resolve(
-              path.dirname(sourcePath),
-              linkTarget,
-            );
+            const resolvedLink = path.resolve(path.dirname(sourcePath), linkTarget);
             if (resolvedLink === targetPath) {
               // Source is a symlink directly to target - tree-folded case
               const stat = yield* fs.stat(targetPath);
-              const isDirectory = stat.type === "Directory";
+              const isDirectory = stat.type === 'Directory';
               const items: readonly ManagedItem[] = [];
               return {
                 normalized,
@@ -682,7 +625,7 @@ export class Stow extends ServiceMap.Service<
 
           // Source is not a symlink - check if target is a directory
           const stat = yield* fs.stat(targetPath);
-          const isDirectory = stat.type === "Directory";
+          const isDirectory = stat.type === 'Directory';
 
           if (isDirectory) {
             // Collect all items and validate each file symlink
@@ -711,9 +654,7 @@ export class Stow extends ServiceMap.Service<
       /**
        * Check if a path can be removed (dry-run validation).
        */
-      const checkRemovable = Effect.fn("Stow.checkRemovable")(function* (
-        p: string,
-      ) {
+      const checkRemovable = Effect.fn('Stow.checkRemovable')(function* (p: string) {
         const result = yield* validateRemovable(p);
         return {
           normalized: result.normalized,
@@ -725,11 +666,8 @@ export class Stow extends ServiceMap.Service<
       /**
        * Remove a dotfile from management by moving it back to ~/.
        */
-      const removeDotfile = Effect.fn("Stow.removeDotfile")(function* (
-        p: string,
-      ) {
-        const { normalized, isDirectory, isDirectorySymlink, items } =
-          yield* validateRemovable(p);
+      const removeDotfile = Effect.fn('Stow.removeDotfile')(function* (p: string) {
+        const { normalized, isDirectory, isDirectorySymlink, items } = yield* validateRemovable(p);
 
         if (isDirectorySymlink) {
           // Tree-folded: entire directory is a symlink
@@ -753,7 +691,7 @@ export class Stow extends ServiceMap.Service<
 
           // Sort by depth (deepest first) for proper removal order
           const sortByDepth = (a: ManagedItem, b: ManagedItem) =>
-            b.path.split("/").length - a.path.split("/").length;
+            b.path.split('/').length - a.path.split('/').length;
           files.sort(sortByDepth);
           dirs.sort(sortByDepth);
 
@@ -782,7 +720,7 @@ export class Stow extends ServiceMap.Service<
             // Only remove symlink if it exists (dir might already exist at ~/)
             const isSymlink = yield* fs.readLink(itemSourcePath).pipe(
               Effect.as(true),
-              Effect.catchTag("PlatformError", () => Effect.succeed(false)),
+              Effect.catchTag('PlatformError', () => Effect.succeed(false)),
             );
             if (isSymlink) {
               yield* fs.remove(itemSourcePath);
@@ -794,14 +732,14 @@ export class Stow extends ServiceMap.Service<
             // Remove the now-empty dir from repo
             yield* fs
               .remove(itemTargetPath)
-              .pipe(Effect.catchTag("PlatformError", () => Effect.void));
+              .pipe(Effect.catchTag('PlatformError', () => Effect.void));
           }
 
           // Clean up the root directory
           const rootTargetPath = path.join(homeRoot, normalized);
           yield* fs
             .remove(rootTargetPath)
-            .pipe(Effect.catchTag("PlatformError", () => Effect.void));
+            .pipe(Effect.catchTag('PlatformError', () => Effect.void));
         } else {
           // Single file
           const sourcePath = path.join(homeDir, normalized);

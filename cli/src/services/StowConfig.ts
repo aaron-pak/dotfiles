@@ -1,5 +1,5 @@
-import { Effect, Layer, Path, ServiceMap } from "effect";
-import * as os from "node:os";
+import { Effect, Layer, Path, ServiceMap } from 'effect';
+import * as os from 'node:os';
 
 /**
  * Configuration service for Stow operations.
@@ -11,7 +11,7 @@ export class StowConfig extends ServiceMap.Service<
     readonly dotfilesRoot: string;
     readonly homeDir: string;
   }
->()("@dotfiles/StowConfig") {
+>()('@dotfiles/StowConfig') {
   static readonly Live = Layer.effect(
     StowConfig,
     Effect.gen(function* () {
@@ -20,14 +20,13 @@ export class StowConfig extends ServiceMap.Service<
       // In compiled binary, import.meta.dirname is virtual (/$bunfs/root/...)
       // Use process.argv[0] which is the binary path (dotfiles/dot)
       const isCompiled =
-        import.meta.dirname?.startsWith("/$bunfs") ||
-        !import.meta.dirname?.includes("dotfiles");
+        import.meta.dirname?.startsWith('/$bunfs') || !import.meta.dirname?.includes('dotfiles');
 
-      const dirname = import.meta.dirname ?? ".";
-      const binaryPath = process.argv[0] ?? ".";
+      const dirname = import.meta.dirname ?? '.';
+      const binaryPath = process.argv[0] ?? '.';
       const dotfilesRoot = isCompiled
         ? path.resolve(path.dirname(binaryPath))
-        : path.resolve(dirname, "..", "..", "..");
+        : path.resolve(dirname, '..', '..', '..');
 
       return StowConfig.of({
         dotfilesRoot,

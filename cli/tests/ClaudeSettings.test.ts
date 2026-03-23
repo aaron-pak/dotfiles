@@ -1,13 +1,13 @@
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
-import { parse } from "smol-toml";
-import { AiLocalStateLive } from "../src/services/AiLocalState.js";
-import { AiStateLive } from "../src/services/AiState.js";
+import { describe, expect, it } from '@effect/vitest';
+import { Effect, Layer } from 'effect';
+import { parse } from 'smol-toml';
+import { AiLocalStateLive } from '../src/services/AiLocalState.js';
+import { AiStateLive } from '../src/services/AiState.js';
 import {
   ClaudeSettings,
   ClaudeSettingsError,
   ClaudeSettingsLive,
-} from "../src/services/ClaudeSettings.js";
+} from '../src/services/ClaudeSettings.js';
 import {
   defaultAiLocalStateToml,
   defaultAiStateToml,
@@ -18,7 +18,7 @@ import {
   stringifyJsonObject,
   testDotfilesRoot,
   testHomeDir,
-} from "./testSupport.js";
+} from './testSupport.js';
 
 const aiStatePath = `${testDotfilesRoot}/ai/state.toml`;
 const aiLocalPath = `${testHomeDir}/.config/dot/ai-local.toml`;
@@ -31,24 +31,21 @@ const makeTestLayer = (files: FsFiles) => {
     Layer.provideMerge(baseLayer),
   );
 
-  return ClaudeSettingsLive.pipe(
-    Layer.provideMerge(stateLayers),
-    Layer.provideMerge(baseLayer),
-  );
+  return ClaudeSettingsLive.pipe(Layer.provideMerge(stateLayers), Layer.provideMerge(baseLayer));
 };
 
-describe("ClaudeSettings service", () => {
-  describe("pull", () => {
-    it.effect("merges every key from the shared JSON file", () => {
+describe('ClaudeSettings service', () => {
+  describe('pull', () => {
+    it.effect('merges every key from the shared JSON file', () => {
       const files: FsFiles = {
         [aiStatePath]: defaultAiStateToml,
         [sharedPath]: stringifyJsonObject({
-          permissions: { allow: ["Bash(ls)"] },
+          permissions: { allow: ['Bash(ls)'] },
           hooks: { Notification: [] },
-          statusLine: { type: "command", command: "echo hi" },
+          statusLine: { type: 'command', command: 'echo hi' },
         }),
         [localPath]: stringifyJsonObject({
-          enabledPlugins: { "context7@claude-plugins-official": true },
+          enabledPlugins: { 'context7@claude-plugins-official': true },
         }),
       };
 
@@ -56,33 +53,25 @@ describe("ClaudeSettings service", () => {
         const settings = yield* ClaudeSettings;
         const result = yield* settings.pull();
 
-        expect(result.applicableKeys).toEqual([
-          "permissions",
-          "hooks",
-          "statusLine",
-        ]);
-        expect(result.changedKeys).toEqual([
-          "permissions",
-          "hooks",
-          "statusLine",
-        ]);
+        expect(result.applicableKeys).toEqual(['permissions', 'hooks', 'statusLine']);
+        expect(result.changedKeys).toEqual(['permissions', 'hooks', 'statusLine']);
         expect(result.skippedKeys).toEqual([]);
         expect(result.totalKeys).toBe(4);
 
         const written = parseJsonObject(readFile(files, localPath));
-        expect(written.permissions).toEqual({ allow: ["Bash(ls)"] });
+        expect(written.permissions).toEqual({ allow: ['Bash(ls)'] });
         expect(written.hooks).toEqual({ Notification: [] });
         expect(written.statusLine).toEqual({
-          type: "command",
-          command: "echo hi",
+          type: 'command',
+          command: 'echo hi',
         });
         expect(written.enabledPlugins).toEqual({
-          "context7@claude-plugins-official": true,
+          'context7@claude-plugins-official': true,
         });
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
 
-    it.effect("skips ignored shared keys and preserves the local value", () => {
+    it.effect('skips ignored shared keys and preserves the local value', () => {
       const files: FsFiles = {
         [aiStatePath]: defaultAiStateToml,
         [aiLocalPath]: `
@@ -93,12 +82,12 @@ ignored_shared_sections = ["statusLine"]
 ignored_shared_sections = []
 `.trimStart(),
         [sharedPath]: stringifyJsonObject({
-          permissions: { allow: ["Bash(ls)"] },
-          statusLine: { type: "command", command: "echo shared" },
+          permissions: { allow: ['Bash(ls)'] },
+          statusLine: { type: 'command', command: 'echo shared' },
         }),
         [localPath]: stringifyJsonObject({
-          statusLine: { type: "command", command: "echo local" },
-          enabledPlugins: { "context7@claude-plugins-official": true },
+          statusLine: { type: 'command', command: 'echo local' },
+          enabledPlugins: { 'context7@claude-plugins-official': true },
         }),
       };
 
@@ -106,78 +95,75 @@ ignored_shared_sections = []
         const settings = yield* ClaudeSettings;
         const result = yield* settings.pull();
 
-        expect(result.applicableKeys).toEqual(["permissions"]);
-        expect(result.changedKeys).toEqual(["permissions"]);
-        expect(result.skippedKeys).toEqual(["statusLine"]);
+        expect(result.applicableKeys).toEqual(['permissions']);
+        expect(result.changedKeys).toEqual(['permissions']);
+        expect(result.skippedKeys).toEqual(['statusLine']);
 
         const written = parseJsonObject(readFile(files, localPath));
-        expect(written.permissions).toEqual({ allow: ["Bash(ls)"] });
+        expect(written.permissions).toEqual({ allow: ['Bash(ls)'] });
         expect(written.statusLine).toEqual({
-          type: "command",
-          command: "echo local",
+          type: 'command',
+          command: 'echo local',
         });
         expect(written.enabledPlugins).toEqual({
-          "context7@claude-plugins-official": true,
+          'context7@claude-plugins-official': true,
         });
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
 
-    it.effect(
-      "does not rewrite the local file when shared values already match",
-      () => {
-        const initialLocal = stringifyJsonObject({
-          permissions: { allow: ["Bash(ls)"] },
-          enabledPlugins: { "context7@claude-plugins-official": true },
-        });
-        const files: FsFiles = {
-          [aiStatePath]: defaultAiStateToml,
-          [sharedPath]: stringifyJsonObject({
-            permissions: { allow: ["Bash(ls)"] },
-          }),
-          [localPath]: initialLocal,
-        };
+    it.effect('does not rewrite the local file when shared values already match', () => {
+      const initialLocal = stringifyJsonObject({
+        permissions: { allow: ['Bash(ls)'] },
+        enabledPlugins: { 'context7@claude-plugins-official': true },
+      });
+      const files: FsFiles = {
+        [aiStatePath]: defaultAiStateToml,
+        [sharedPath]: stringifyJsonObject({
+          permissions: { allow: ['Bash(ls)'] },
+        }),
+        [localPath]: initialLocal,
+      };
 
-        return Effect.gen(function* () {
-          const settings = yield* ClaudeSettings;
-          const result = yield* settings.pull();
+      return Effect.gen(function* () {
+        const settings = yield* ClaudeSettings;
+        const result = yield* settings.pull();
 
-          expect(result.applicableKeys).toEqual(["permissions"]);
-          expect(result.changedKeys).toEqual([]);
-          expect(result.skippedKeys).toEqual([]);
-          expect(readFile(files, localPath)).toBe(initialLocal);
-        }).pipe(Effect.provide(makeTestLayer(files)));
-      },
-    );
+        expect(result.applicableKeys).toEqual(['permissions']);
+        expect(result.changedKeys).toEqual([]);
+        expect(result.skippedKeys).toEqual([]);
+        expect(readFile(files, localPath)).toBe(initialLocal);
+      }).pipe(Effect.provide(makeTestLayer(files)));
+    });
   });
 
-  describe("adopt", () => {
-    it.effect("copies a local key into the shared JSON file", () => {
+  describe('adopt', () => {
+    it.effect('copies a local key into the shared JSON file', () => {
       const files: FsFiles = {
         [aiStatePath]: defaultAiStateToml,
         [sharedPath]: stringifyJsonObject({
           permissions: { allow: [] },
         }),
         [localPath]: stringifyJsonObject({
-          statusLine: { type: "command", command: "echo local" },
+          statusLine: { type: 'command', command: 'echo local' },
         }),
       };
 
       return Effect.gen(function* () {
         const settings = yield* ClaudeSettings;
-        const result = yield* settings.adopt("statusLine");
+        const result = yield* settings.adopt('statusLine');
 
-        expect(result.key).toBe("statusLine");
+        expect(result.key).toBe('statusLine');
 
         const shared = parseJsonObject(readFile(files, sharedPath));
         expect(shared.permissions).toEqual({ allow: [] });
         expect(shared.statusLine).toEqual({
-          type: "command",
-          command: "echo local",
+          type: 'command',
+          command: 'echo local',
         });
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
 
-    it.effect("fails when the local key is missing", () => {
+    it.effect('fails when the local key is missing', () => {
       const files: FsFiles = {
         [aiStatePath]: defaultAiStateToml,
         [sharedPath]: stringifyJsonObject({}),
@@ -186,51 +172,51 @@ ignored_shared_sections = []
 
       return Effect.gen(function* () {
         const settings = yield* ClaudeSettings;
-        const error = yield* settings.adopt("statusLine").pipe(Effect.flip);
+        const error = yield* settings.adopt('statusLine').pipe(Effect.flip);
 
         expect(error).toBeInstanceOf(ClaudeSettingsError);
-        if (error._tag === "ClaudeSettingsError") {
+        if (error._tag === 'ClaudeSettingsError') {
           expect(error.details).toContain('Section "statusLine" not found');
         }
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
   });
 
-  describe("ignore", () => {
-    it.effect("ignore and unignore update future sync policy only", () => {
+  describe('ignore', () => {
+    it.effect('ignore and unignore update future sync policy only', () => {
       const files: FsFiles = {
         [aiStatePath]: defaultAiStateToml,
         [aiLocalPath]: defaultAiLocalStateToml,
         [sharedPath]: stringifyJsonObject({
-          permissions: { allow: ["Bash(ls)"] },
-          statusLine: { type: "command", command: "echo shared" },
+          permissions: { allow: ['Bash(ls)'] },
+          statusLine: { type: 'command', command: 'echo shared' },
         }),
         [localPath]: stringifyJsonObject({
-          statusLine: { type: "command", command: "echo local" },
+          statusLine: { type: 'command', command: 'echo local' },
         }),
       };
 
       return Effect.gen(function* () {
         const settings = yield* ClaudeSettings;
 
-        yield* settings.ignore("statusLine");
+        yield* settings.ignore('statusLine');
 
         let localState = parse(readFile(files, aiLocalPath));
         expect(localState).toEqual({
           tools: {
-            claude: { ignored_shared_sections: ["statusLine"] },
+            claude: { ignored_shared_sections: ['statusLine'] },
             codex: { ignored_shared_sections: [] },
           },
         });
         expect(parseJsonObject(readFile(files, sharedPath))).toEqual({
-          permissions: { allow: ["Bash(ls)"] },
-          statusLine: { type: "command", command: "echo shared" },
+          permissions: { allow: ['Bash(ls)'] },
+          statusLine: { type: 'command', command: 'echo shared' },
         });
         expect(parseJsonObject(readFile(files, localPath))).toEqual({
-          statusLine: { type: "command", command: "echo local" },
+          statusLine: { type: 'command', command: 'echo local' },
         });
 
-        yield* settings.unignore("statusLine");
+        yield* settings.unignore('statusLine');
 
         localState = parse(readFile(files, aiLocalPath));
         expect(localState).toEqual({
@@ -242,105 +228,92 @@ ignored_shared_sections = []
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
 
-    it.effect("rejects ignore for a key that is not currently shared", () => {
+    it.effect('rejects ignore for a key that is not currently shared', () => {
       const files: FsFiles = {
         [aiStatePath]: defaultAiStateToml,
         [aiLocalPath]: defaultAiLocalStateToml,
         [sharedPath]: stringifyJsonObject({
-          permissions: { allow: ["Bash(ls)"] },
+          permissions: { allow: ['Bash(ls)'] },
         }),
       };
 
       return Effect.gen(function* () {
         const settings = yield* ClaudeSettings;
-        const error = yield* settings.ignore("statusLine").pipe(Effect.flip);
+        const error = yield* settings.ignore('statusLine').pipe(Effect.flip);
 
         expect(error).toBeInstanceOf(ClaudeSettingsError);
-        if (error._tag === "ClaudeSettingsError") {
-          expect(error.details).toContain("not currently shared");
+        if (error._tag === 'ClaudeSettingsError') {
+          expect(error.details).toContain('not currently shared');
         }
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
 
-    it.effect(
-      "rejects ignore when this machine already keeps its own value",
-      () => {
-        const files: FsFiles = {
-          [aiStatePath]: defaultAiStateToml,
-          [aiLocalPath]: `
+    it.effect('rejects ignore when this machine already keeps its own value', () => {
+      const files: FsFiles = {
+        [aiStatePath]: defaultAiStateToml,
+        [aiLocalPath]: `
 [tools.claude]
 ignored_shared_sections = ["statusLine"]
 
 [tools.codex]
 ignored_shared_sections = []
 `.trimStart(),
-          [sharedPath]: stringifyJsonObject({
-            statusLine: { type: "command", command: "echo shared" },
-          }),
-        };
+        [sharedPath]: stringifyJsonObject({
+          statusLine: { type: 'command', command: 'echo shared' },
+        }),
+      };
 
-        return Effect.gen(function* () {
-          const settings = yield* ClaudeSettings;
-          const error = yield* settings.ignore("statusLine").pipe(Effect.flip);
+      return Effect.gen(function* () {
+        const settings = yield* ClaudeSettings;
+        const error = yield* settings.ignore('statusLine').pipe(Effect.flip);
 
-          expect(error).toBeInstanceOf(ClaudeSettingsError);
-          if (error._tag === "ClaudeSettingsError") {
-            expect(error.details).toContain("already keeping its own value");
-          }
-        }).pipe(Effect.provide(makeTestLayer(files)));
-      },
-    );
+        expect(error).toBeInstanceOf(ClaudeSettingsError);
+        if (error._tag === 'ClaudeSettingsError') {
+          expect(error.details).toContain('already keeping its own value');
+        }
+      }).pipe(Effect.provide(makeTestLayer(files)));
+    });
 
-    it.effect(
-      "rejects unignore when this machine is already using the shared value",
-      () => {
-        const files: FsFiles = {
-          [aiStatePath]: defaultAiStateToml,
-          [aiLocalPath]: defaultAiLocalStateToml,
-        };
+    it.effect('rejects unignore when this machine is already using the shared value', () => {
+      const files: FsFiles = {
+        [aiStatePath]: defaultAiStateToml,
+        [aiLocalPath]: defaultAiLocalStateToml,
+      };
 
-        return Effect.gen(function* () {
-          const settings = yield* ClaudeSettings;
-          const error = yield* settings
-            .unignore("statusLine")
-            .pipe(Effect.flip);
+      return Effect.gen(function* () {
+        const settings = yield* ClaudeSettings;
+        const error = yield* settings.unignore('statusLine').pipe(Effect.flip);
 
-          expect(error).toBeInstanceOf(ClaudeSettingsError);
-          if (error._tag === "ClaudeSettingsError") {
-            expect(error.details).toContain(
-              'not keeping its own value for "statusLine"',
-            );
-          }
-        }).pipe(Effect.provide(makeTestLayer(files)));
-      },
-    );
+        expect(error).toBeInstanceOf(ClaudeSettingsError);
+        if (error._tag === 'ClaudeSettingsError') {
+          expect(error.details).toContain('not keeping its own value for "statusLine"');
+        }
+      }).pipe(Effect.provide(makeTestLayer(files)));
+    });
   });
 
-  describe("stop managing", () => {
-    it.effect(
-      "keeps a local key when it is no longer present in the shared file",
-      () => {
-        const files: FsFiles = {
-          [aiStatePath]: defaultAiStateToml,
-          [sharedPath]: stringifyJsonObject({
-            permissions: { allow: ["Bash(ls)"] },
-          }),
-          [localPath]: stringifyJsonObject({
-            permissions: { allow: ["Bash(old)"] },
-            statusLine: { type: "command", command: "echo local" },
-          }),
-        };
+  describe('stop managing', () => {
+    it.effect('keeps a local key when it is no longer present in the shared file', () => {
+      const files: FsFiles = {
+        [aiStatePath]: defaultAiStateToml,
+        [sharedPath]: stringifyJsonObject({
+          permissions: { allow: ['Bash(ls)'] },
+        }),
+        [localPath]: stringifyJsonObject({
+          permissions: { allow: ['Bash(old)'] },
+          statusLine: { type: 'command', command: 'echo local' },
+        }),
+      };
 
-        return Effect.gen(function* () {
-          const settings = yield* ClaudeSettings;
-          yield* settings.pull();
+      return Effect.gen(function* () {
+        const settings = yield* ClaudeSettings;
+        yield* settings.pull();
 
-          expect(parseJsonObject(readFile(files, localPath))).toEqual({
-            permissions: { allow: ["Bash(ls)"] },
-            statusLine: { type: "command", command: "echo local" },
-          });
-        }).pipe(Effect.provide(makeTestLayer(files)));
-      },
-    );
+        expect(parseJsonObject(readFile(files, localPath))).toEqual({
+          permissions: { allow: ['Bash(ls)'] },
+          statusLine: { type: 'command', command: 'echo local' },
+        });
+      }).pipe(Effect.provide(makeTestLayer(files)));
+    });
   });
 });

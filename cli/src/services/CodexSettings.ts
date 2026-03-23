@@ -1,15 +1,16 @@
-import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from "effect";
-import { parse, stringify } from "smol-toml";
-import { AiLocalState } from "./AiLocalState.js";
-import { AiState } from "./AiState.js";
+import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from 'effect';
+import { parse, stringify } from 'smol-toml';
+import { AiLocalState } from './AiLocalState.js';
+import { AiState } from './AiState.js';
 import {
   buildManagedSettingsPreview,
   changedManagedKeys,
   mergeManagedSettings,
-} from "./ManagedSettings.js";
-import { StowConfig } from "./StowConfig.js";
+} from './ManagedSettings.js';
+import { errorMessage } from './errorMessage.js';
+import { StowConfig } from './StowConfig.js';
 
-export class CodexSettingsError extends Data.TaggedError("CodexSettingsError")<{
+export class CodexSettingsError extends Data.TaggedError('CodexSettingsError')<{
   readonly details: string;
 }> {
   override get message() {
@@ -20,9 +21,9 @@ export class CodexSettingsError extends Data.TaggedError("CodexSettingsError")<{
 type SettingsObject = Record<string, unknown>;
 
 const isRecord = (value: unknown): value is SettingsObject =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const neverSharedSections = ["projects"];
+const neverSharedSections = ['projects'];
 
 const readTomlObject = (
   content: string,
@@ -64,17 +65,11 @@ export class CodexSettings extends ServiceMap.Service<
       },
       CodexSettingsError
     >;
-    readonly adopt: (
-      key: string,
-    ) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
-    readonly ignore: (
-      key: string,
-    ) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
-    readonly unignore: (
-      key: string,
-    ) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
+    readonly adopt: (key: string) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
+    readonly ignore: (key: string) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
+    readonly unignore: (key: string) => Effect.Effect<{ readonly key: string }, CodexSettingsError>;
   }
->()("@dotfiles/CodexSettings") {
+>()('@dotfiles/CodexSettings') {
   static readonly Live = Layer.effect(
     CodexSettings,
     Effect.gen(function* () {
@@ -84,19 +79,19 @@ export class CodexSettings extends ServiceMap.Service<
       const aiState = yield* AiState;
       const aiLocalState = yield* AiLocalState;
 
-      const localPath = path.join(homeDir, ".codex", "config.toml");
+      const localPath = path.join(homeDir, '.codex', 'config.toml');
 
       const readTomlFile = (filePath: string) =>
         Effect.gen(function* () {
           const content = yield* fs.readFileString(filePath).pipe(
             Effect.catchIf(
-              (error) => error.reason._tag === "NotFound",
-              () => Effect.succeed(""),
+              (error) => error.reason._tag === 'NotFound',
+              () => Effect.succeed(''),
             ),
             Effect.mapError(
               (error) =>
                 new CodexSettingsError({
-                  details: `Failed to read ${filePath}: ${error}`,
+                  details: `Failed to read ${filePath}: ${errorMessage(error)}`,
                 }),
             ),
           );
@@ -113,46 +108,38 @@ export class CodexSettings extends ServiceMap.Service<
           Effect.mapError(
             (error) =>
               new CodexSettingsError({
-                details: `Failed to write ${filePath}: ${error}`,
+                details: `Failed to write ${filePath}: ${errorMessage(error)}`,
               }),
           ),
         );
 
-      const getSharedPath = Effect.fn("CodexSettings.getSharedPath")(
-        function* () {
-          const tool = yield* aiState.getTool("codex").pipe(
-            Effect.mapError(
-              (error) =>
-                new CodexSettingsError({
-                  details: error.message,
-                }),
-            ),
-          );
-          return path.join(dotfilesRoot, tool.settings.shared_settings_file);
-        },
-      );
-
-      const previewPull = Effect.fn("CodexSettings.previewPull")(function* () {
-        const sharedPath = yield* getSharedPath();
-        const shared = yield* readTomlFile(sharedPath);
-        const ignoredSections = yield* aiLocalState
-          .getIgnoredSections("codex")
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new CodexSettingsError({
-                  details: error.message,
-                }),
-            ),
-          );
-        return buildManagedSettingsPreview(
-          shared,
-          ignoredSections,
-          neverSharedSections,
+      const getSharedPath = Effect.fn('CodexSettings.getSharedPath')(function* () {
+        const tool = yield* aiState.getTool('codex').pipe(
+          Effect.mapError(
+            (error) =>
+              new CodexSettingsError({
+                details: error.message,
+              }),
+          ),
         );
+        return path.join(dotfilesRoot, tool.settings.shared_settings_file);
       });
 
-      const pull = Effect.fn("CodexSettings.pull")(function* () {
+      const previewPull = Effect.fn('CodexSettings.previewPull')(function* () {
+        const sharedPath = yield* getSharedPath();
+        const shared = yield* readTomlFile(sharedPath);
+        const ignoredSections = yield* aiLocalState.getIgnoredSections('codex').pipe(
+          Effect.mapError(
+            (error) =>
+              new CodexSettingsError({
+                details: error.message,
+              }),
+          ),
+        );
+        return buildManagedSettingsPreview(shared, ignoredSections, neverSharedSections);
+      });
+
+      const pull = Effect.fn('CodexSettings.pull')(function* () {
         const preview = yield* previewPull();
         const local = yield* readTomlFile(localPath);
         const changedKeys = changedManagedKeys(local, preview.applicableShared);
@@ -170,7 +157,7 @@ export class CodexSettings extends ServiceMap.Service<
         };
       });
 
-      const adopt = Effect.fn("CodexSettings.adopt")(function* (key: string) {
+      const adopt = Effect.fn('CodexSettings.adopt')(function* (key: string) {
         if (neverSharedSections.includes(key)) {
           return yield* new CodexSettingsError({
             details: `Section "${key}" is machine-local and cannot be adopted`,
@@ -197,9 +184,9 @@ export class CodexSettings extends ServiceMap.Service<
         return { key };
       });
 
-      const validateIgnoreTarget = Effect.fn(
-        "CodexSettings.validateIgnoreTarget",
-      )(function* (key: string) {
+      const validateIgnoreTarget = Effect.fn('CodexSettings.validateIgnoreTarget')(function* (
+        key: string,
+      ) {
         if (neverSharedSections.includes(key)) {
           return yield* new CodexSettingsError({
             details: `Section "${key}" is machine-local and is never shared`,
@@ -221,10 +208,10 @@ export class CodexSettings extends ServiceMap.Service<
         }
       });
 
-      const ignore = Effect.fn("CodexSettings.ignore")(function* (key: string) {
+      const ignore = Effect.fn('CodexSettings.ignore')(function* (key: string) {
         yield* validateIgnoreTarget(key);
 
-        return yield* aiLocalState.ignore("codex", key).pipe(
+        return yield* aiLocalState.ignore('codex', key).pipe(
           Effect.mapError(
             (error) =>
               new CodexSettingsError({
@@ -234,26 +221,22 @@ export class CodexSettings extends ServiceMap.Service<
         );
       });
 
-      const unignore = Effect.fn("CodexSettings.unignore")(function* (
-        key: string,
-      ) {
-        const ignoredSections = yield* aiLocalState
-          .getIgnoredSections("codex")
-          .pipe(
-            Effect.mapError(
-              (error) =>
-                new CodexSettingsError({
-                  details: error.message,
-                }),
-            ),
-          );
+      const unignore = Effect.fn('CodexSettings.unignore')(function* (key: string) {
+        const ignoredSections = yield* aiLocalState.getIgnoredSections('codex').pipe(
+          Effect.mapError(
+            (error) =>
+              new CodexSettingsError({
+                details: error.message,
+              }),
+          ),
+        );
         if (!ignoredSections.includes(key)) {
           return yield* new CodexSettingsError({
             details: `This machine is not keeping its own value for "${key}"`,
           });
         }
 
-        return yield* aiLocalState.unignore("codex", key).pipe(
+        return yield* aiLocalState.unignore('codex', key).pipe(
           Effect.mapError(
             (error) =>
               new CodexSettingsError({
