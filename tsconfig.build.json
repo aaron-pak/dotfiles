@@ -30,8 +30,8 @@
     "skipLibCheck": true,
 
     // Output
-    "outDir": "cli/dist",
-    "rootDir": "cli/src",
+    "outDir": "dist",
+    "rootDir": "src",
 
     // Effect Language Service
     "plugins": [
@@ -40,6 +40,6 @@
       }
     ]
   },
-  "include": ["cli/src/**/*"],
-  "exclude": ["node_modules", "cli/dist"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

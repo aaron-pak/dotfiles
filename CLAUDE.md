@@ -4,7 +4,7 @@ Dotfiles managed with GNU Stow. `home/` mirrors `~` and gets symlinked.
 
 ## CLI
 
-Effect-based dotfiles manager. Source in `cli/src/`, tests in `cli/tests/`, config at repo root.
+Effect-based dotfiles manager. Source in `src/`, tests in `tests/`, config at repo root.
 
 **Always use `dot` (or `bun run dev`) for all dotfile operations — never run `stow` directly.** The CLI sets the correct target (`~/`) and handles conflicts, backups, and edge cases that raw stow commands won't.
 
@@ -40,7 +40,7 @@ Warnings are not acceptable. Before finishing work, `bun run typecheck` and `bun
 ### Source Structure
 
 ```
-cli/src/
+src/
 ├── main.ts           # CLI entry, layer composition
 ├── commands/         # add, remove, sync, init, ai
 └── services/
@@ -51,7 +51,7 @@ cli/src/
     ├── AiLocalState.ts  # machine-local ignored shared sections
     ├── ClaudeSettings.ts # pull, adopt, ignore, unignore
     └── CodexSettings.ts  # pull, adopt, ignore, unignore
-cli/tests/
+tests/
 ```
 
 ## Configs

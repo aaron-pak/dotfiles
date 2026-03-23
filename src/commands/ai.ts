@@ -1,17 +1,10 @@
 import { Console, Effect, Option } from 'effect';
 import { Argument, Command, Flag, Prompt } from 'effect/unstable/cli';
-import {
-  AiSkills,
-  AiSkillsError,
-  type UnmanageDisposition,
-} from '../services/AiSkills.js';
+import { AiSkills, AiSkillsError, type UnmanageDisposition } from '../services/AiSkills.js';
 import { type ManagedTool, type SkillTarget } from '../services/AiState.js';
 import { ClaudeSettings } from '../services/ClaudeSettings.js';
 import { CodexSettings } from '../services/CodexSettings.js';
-import {
-  printManagedSettingsApply,
-  printManagedSettingsPreview,
-} from './managedSettingsOutput.js';
+import { printManagedSettingsApply, printManagedSettingsPreview } from './managedSettingsOutput.js';
 import { runChecklistPrompt } from './interactiveChecklist.js';
 
 const dry = Flag.boolean('dry').pipe(
@@ -53,12 +46,9 @@ const allSkillTargets: readonly SkillTarget[] = ['claude', 'codex', 'agents'];
 const isSkillTarget = (value: string): value is SkillTarget =>
   value === 'claude' || value === 'codex' || value === 'agents';
 
-const normalizeTargets = (
-  targets: readonly SkillTarget[],
-): readonly SkillTarget[] =>
+const normalizeTargets = (targets: readonly SkillTarget[]): readonly SkillTarget[] =>
   [...new Set(targets)].sort(
-    (left, right) =>
-      allSkillTargets.indexOf(left) - allSkillTargets.indexOf(right),
+    (left, right) => allSkillTargets.indexOf(left) - allSkillTargets.indexOf(right),
   );
 
 const parseTargets = (value: string) => {
@@ -202,21 +192,15 @@ const skillTargetLabels: Record<SkillTarget, string> = {
 };
 
 const formatSkillTargets = (targets: readonly SkillTarget[]) =>
-  targets.length === 0
-    ? 'none'
-    : targets.map((target) => skillTargetLabels[target]).join(', ');
+  targets.length === 0 ? 'none' : targets.map((target) => skillTargetLabels[target]).join(', ');
 
 const formatSkillTargetSummary = (targets: readonly SkillTarget[]) =>
   targets.length === 0
     ? 'Nowhere'
     : `(${targets.map((target) => skillTargetLabels[target]).join(', ')})`;
 
-const sameTargets = (
-  left: readonly SkillTarget[],
-  right: readonly SkillTarget[],
-) =>
-  left.length === right.length &&
-  left.every((target, index) => target === right[index]);
+const sameTargets = (left: readonly SkillTarget[], right: readonly SkillTarget[]) =>
+  left.length === right.length && left.every((target, index) => target === right[index]);
 
 const deriveInitialTargets = (entries: readonly ManagedSkillEntry[]) => {
   const firstEntry = entries[0];
@@ -224,9 +208,7 @@ const deriveInitialTargets = (entries: readonly ManagedSkillEntry[]) => {
     return [];
   }
 
-  return entries.every((entry) =>
-    sameTargets(entry.targets, firstEntry.targets),
-  )
+  return entries.every((entry) => sameTargets(entry.targets, firstEntry.targets))
     ? firstEntry.targets
     : [];
 };
@@ -313,13 +295,9 @@ const selectManagedSkills = (
         detail: formatSkillTargetSummary(entry.targets),
         selected: selectedNames.includes(entry.name),
       })),
-      footer: [
-        'space toggle  enter edit targets  u unmanage  esc exit',
-        'j/k or arrows move',
-      ],
+      footer: ['space toggle  enter edit targets  u unmanage  esc exit', 'j/k or arrows move'],
       selectHoveredWhenEmpty: true,
-      emptySelectionError:
-        'Select a skill with space, or press enter/u on the hovered skill.',
+      emptySelectionError: 'Select a skill with space, or press enter/u on the hovered skill.',
       extraActions: [
         {
           key: 'u',
@@ -362,8 +340,7 @@ const selectSkillTargetsEditor = (
       })),
       footer: ['space toggle  enter confirm  esc cancel', 'j/k or arrows move'],
       min: 1,
-      emptySelectionError:
-        'Select at least one target, or go back and press u to unmanage.',
+      emptySelectionError: 'Select at least one target, or go back and press u to unmanage.',
     });
 
     if (result._tag === 'cancel') {
@@ -386,14 +363,12 @@ const selectUnmanageDisposition = (names: readonly string[]) =>
         {
           title: 'Keep local copies',
           value: 'keep-local-copies',
-          detail:
-            'Remove repo management and leave real local folders on this machine',
+          detail: 'Remove repo management and leave real local folders on this machine',
         },
         {
           title: 'Delete local copies',
           value: 'delete-local-copies',
-          detail:
-            'Remove repo management and delete the managed skill folders on this machine',
+          detail: 'Remove repo management and delete the managed skill folders on this machine',
         },
       ],
       footer: ['enter select  esc cancel', 'j/k or arrows move'],
@@ -478,9 +453,7 @@ export const runSkillsManagerWithHooks = <E, R>({
         return;
       }
 
-      const availableNames = new Set(
-        entries.map((entry: ManagedSkillEntry) => entry.name),
-      );
+      const availableNames = new Set(entries.map((entry: ManagedSkillEntry) => entry.name));
       selectedNames = selectedNames.filter((name) => availableNames.has(name));
 
       const selection = yield* selectSkills(entries, selectedNames);
@@ -491,20 +464,13 @@ export const runSkillsManagerWithHooks = <E, R>({
       selectedNames = selection.names;
 
       if (selection._tag === 'unmanage') {
-        const unmanageResult = yield* selectUnmanageDisposition(
-          selection.names,
-        );
+        const unmanageResult = yield* selectUnmanageDisposition(selection.names);
         if (unmanageResult._tag === 'cancel') {
           continue;
         }
 
-        const result = yield* skills.unmanageMany(
-          selection.names,
-          unmanageResult.disposition,
-        );
-        yield* Console.log(
-          `Unmanaged ${result.names.length} skill(s): ${result.names.join(', ')}`,
-        );
+        const result = yield* skills.unmanageMany(selection.names, unmanageResult.disposition);
+        yield* Console.log(`Unmanaged ${result.names.length} skill(s): ${result.names.join(', ')}`);
         yield* Console.log(
           result.disposition === 'keep-local-copies'
             ? 'This machine kept local copies for any managed links it was using.'
@@ -526,16 +492,9 @@ export const runSkillsManagerWithHooks = <E, R>({
         continue;
       }
 
-      const result = yield* skills.updateTargetsMany(
-        selection.names,
-        editorResult.targets,
-      );
-      yield* Console.log(
-        `Updated ${result.names.length} skill(s): ${result.names.join(', ')}`,
-      );
-      yield* Console.log(
-        `Current targets: ${formatSkillTargets(result.targets)}`,
-      );
+      const result = yield* skills.updateTargetsMany(selection.names, editorResult.targets);
+      yield* Console.log(`Updated ${result.names.length} skill(s): ${result.names.join(', ')}`);
+      yield* Console.log(`Current targets: ${formatSkillTargets(result.targets)}`);
     }
   });
 
@@ -547,10 +506,7 @@ export const runSkillsManager = Effect.fn('ai.runSkillsManager')(function* () {
   });
 });
 
-export const runAiHubWithHooks = <E, R>({
-  selectAssetKind,
-  runSkillsManager,
-}: AiHubHooks<E, R>) =>
+export const runAiHubWithHooks = <E, R>({ selectAssetKind, runSkillsManager }: AiHubHooks<E, R>) =>
   Effect.gen(function* () {
     while (true) {
       const selected = yield* selectAssetKind();
@@ -582,11 +538,8 @@ const runSettingsPull = Effect.fn('ai.runSettingsPull')(function* (
   tool: ManagedTool | 'all',
   dryRun: boolean,
 ) {
-  const pullTool = Effect.fn('ai.pullTool')(function* (
-    selectedTool: ManagedTool,
-  ) {
-    const label =
-      selectedTool === 'claude' ? 'Claude settings' : 'Codex settings';
+  const pullTool = Effect.fn('ai.pullTool')(function* (selectedTool: ManagedTool) {
+    const label = selectedTool === 'claude' ? 'Claude settings' : 'Codex settings';
     const service = yield* getSettingsService(selectedTool);
 
     if (dryRun) {
@@ -635,9 +588,7 @@ const adoptSetting = Command.make(
         `Adopted local ${selectedTool} setting into the shared defaults: ${result.key}`,
       );
     }),
-).pipe(
-  Command.withDescription('Make one local setting become the shared default'),
-);
+).pipe(Command.withDescription('Make one local setting become the shared default'));
 
 const ignoreSetting = Command.make(
   'ignore',
@@ -655,11 +606,7 @@ const ignoreSetting = Command.make(
         `This machine will keep its own ${selectedTool} value for "${result.key}" on the next pull or sync.`,
       );
     }),
-).pipe(
-  Command.withDescription(
-    "Keep this machine's current value for one shared setting",
-  ),
-);
+).pipe(Command.withDescription("Keep this machine's current value for one shared setting"));
 
 const unignoreSetting = Command.make(
   'unignore',
@@ -677,9 +624,7 @@ const unignoreSetting = Command.make(
         `This machine will start applying the shared ${selectedTool} value for "${result.key}" on the next pull or sync.`,
       );
     }),
-).pipe(
-  Command.withDescription('Resume using the shared value for one setting'),
-);
+).pipe(Command.withDescription('Resume using the shared value for one setting'));
 
 const settings = Command.make('settings', {}, () =>
   Console.log('Manage AI settings\n\nUse --help for available subcommands.'),
@@ -778,10 +723,7 @@ const adoptSkill = Command.make(
         onNone: () => selectSkillSource(),
         onSome: (value) =>
           Effect.succeed(
-            value === 'claude' ||
-              value === 'codex' ||
-              value === 'agents' ||
-              value === 'path'
+            value === 'claude' || value === 'codex' || value === 'agents' || value === 'path'
               ? value
               : 'path',
           ),
@@ -796,10 +738,7 @@ const adoptSkill = Command.make(
                 }),
               ),
             onSome: (value) =>
-              value === 'claude' ||
-              value === 'codex' ||
-              value === 'agents' ||
-              value === 'path'
+              value === 'claude' || value === 'codex' || value === 'agents' || value === 'path'
                 ? Prompt.run(
                     Prompt.text({
                       message: 'Enter the skill directory path to adopt',
@@ -813,19 +752,14 @@ const adoptSkill = Command.make(
               onSome: Effect.succeed,
             });
             const skills = yield* AiSkills;
-            return yield* skills.sourcePathForSurface(
-              sourceChoice,
-              selectedName,
-            );
+            return yield* skills.sourcePathForSurface(sourceChoice, selectedName);
           });
 
       const skillName = yield* Option.match(name, {
         onNone: () =>
           Effect.gen(function* () {
             if (sourceChoice === 'path') {
-              const pathParts = sourcePath
-                .split('/')
-                .filter((part: string) => part.length > 0);
+              const pathParts = sourcePath.split('/').filter((part: string) => part.length > 0);
               const inferred = pathParts[pathParts.length - 1];
               if (inferred === undefined) {
                 return yield* new AiSkillsError({
@@ -835,9 +769,7 @@ const adoptSkill = Command.make(
               return inferred;
             }
 
-            const pathParts = sourcePath
-              .split('/')
-              .filter((part: string) => part.length > 0);
+            const pathParts = sourcePath.split('/').filter((part: string) => part.length > 0);
             const inferred = pathParts[pathParts.length - 1];
             if (inferred === undefined) {
               return yield* new AiSkillsError({
@@ -865,35 +797,24 @@ const adoptSkill = Command.make(
         `Adopted managed skill "${result.name}" with targets: ${result.targets.join(', ')}`,
       );
     }),
-).pipe(
-  Command.withDescription('Adopt one local skill into managed AI storage'),
-);
+).pipe(Command.withDescription('Adopt one local skill into managed AI storage'));
 
 const unmanageSkillName = Argument.string('name').pipe(
   Argument.withDescription('Managed skill name'),
 );
 
-const unmanageSkill = Command.make(
-  'unmanage',
-  { name: unmanageSkillName },
-  ({ name }) =>
-    Effect.gen(function* () {
-      const skills = yield* AiSkills;
-      const result = yield* skills.unmanage(name);
+const unmanageSkill = Command.make('unmanage', { name: unmanageSkillName }, ({ name }) =>
+  Effect.gen(function* () {
+    const skills = yield* AiSkills;
+    const result = yield* skills.unmanage(name);
 
-      yield* Console.log(`Unmanaged skill "${result.name}".`);
-      yield* Console.log(
-        'This machine kept local copies for any managed links it was using.',
-      );
-      yield* Console.log(
-        'Other machines are not guaranteed to keep a working copy after they pull this repo change in v1.',
-      );
-    }),
-).pipe(
-  Command.withDescription(
-    'Stop managing one skill and keep local copies on this machine',
-  ),
-);
+    yield* Console.log(`Unmanaged skill "${result.name}".`);
+    yield* Console.log('This machine kept local copies for any managed links it was using.');
+    yield* Console.log(
+      'Other machines are not guaranteed to keep a working copy after they pull this repo change in v1.',
+    );
+  }),
+).pipe(Command.withDescription('Stop managing one skill and keep local copies on this machine'));
 
 const skills = Command.make('skills', {}, () => runSkillsManager()).pipe(
   Command.withDescription('Manage whole-skill sharing and projection'),

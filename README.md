@@ -141,15 +141,15 @@ dot ai skills unmanage my-skill
 
 ## What's Included
 
-| Config           | Path                    | Notes                                                         |
-| ---------------- | ----------------------- | ------------------------------------------------------------- |
-| Neovim           | `home/.config/nvim/`    | LazyVim with VSCode-Neovim support                            |
-| Claude Code      | `home/.claude/`         | Canonical global instructions and statusline                  |
-| Codex            | `home/.codex/`          | Repo only keeps `AGENTS.md`; runtime files always stay local  |
-| Managed AI skills | `ai/skills/`           | Canonical repo copy for whole-skill sharing                   |
-| Ghostty          | `home/.config/ghostty/` | Terminal config                                               |
-| Karabiner        | `home/.config/karabiner/` | Main `karabiner.json` only; backups stay local             |
-| Ripgrep          | `home/.config/ripgrep/` | Search config                                                 |
+| Config            | Path                      | Notes                                                        |
+| ----------------- | ------------------------- | ------------------------------------------------------------ |
+| Neovim            | `home/.config/nvim/`      | LazyVim with VSCode-Neovim support                           |
+| Claude Code       | `home/.claude/`           | Canonical global instructions and statusline                 |
+| Codex             | `home/.codex/`            | Repo only keeps `AGENTS.md`; runtime files always stay local |
+| Managed AI skills | `ai/skills/`              | Canonical repo copy for whole-skill sharing                  |
+| Ghostty           | `home/.config/ghostty/`   | Terminal config                                              |
+| Karabiner         | `home/.config/karabiner/` | Main `karabiner.json` only; backups stay local               |
+| Ripgrep           | `home/.config/ripgrep/`   | Search config                                                |
 
 ## Development
 
@@ -162,4 +162,4 @@ bun run test:e2e:ai  # run AI end-to-end CLI checks in isolated temp homes
 bun run typecheck    # type check
 ```
 
-Source is in `cli/src/`. See `CLAUDE.md` for architecture and patterns.
+Source is in `src/`. See `CLAUDE.md` for architecture and patterns.

@@ -4,21 +4,21 @@
   "private": true,
   "description": "CLI for managing dotfiles - syncing, checking differences, and initializing on new devices",
   "bin": {
-    "dot": "./cli/dist/main.js"
+    "dot": "./dist/main.js"
   },
   "type": "module",
   "scripts": {
-    "build": "bun build cli/src/main.ts --compile --outfile dot",
+    "build": "bun build src/main.ts --compile --outfile dot",
     "build:dev": "tsc -p tsconfig.build.json",
-    "lint": "oxlint cli/src cli/tests",
-    "lint:fix": "oxlint --fix cli/src cli/tests",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:e2e:ai": "bun run build && bash scripts/test-ai-e2e.sh",
-    "format": "oxfmt --write cli/src cli/tests package.json tsconfig.json tsconfig.build.json .oxlintrc.json .oxfmtrc.json",
-    "format:check": "oxfmt --check cli/src cli/tests package.json tsconfig.json tsconfig.build.json .oxlintrc.json .oxfmtrc.json",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
     "prepare": "effect-language-service patch",
-    "dev": "bun run cli/src/main.ts",
+    "dev": "bun run src/main.ts",
     "sync": "git pull && bun run build && ./dot sync"
   },
   "dependencies": {
