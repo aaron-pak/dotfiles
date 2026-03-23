@@ -16,7 +16,8 @@
     "format": "prettier --write 'cli/src/**/*.ts' 'cli/tests/**/*.ts'",
     "format:check": "prettier --check 'cli/src/**/*.ts' 'cli/tests/**/*.ts'",
     "prepare": "effect-language-service patch",
-    "dev": "bun run cli/src/main.ts"
+    "dev": "bun run cli/src/main.ts",
+    "sync": "git pull && bun run build && ./dot sync"
   },
   "devDependencies": {
     "@effect/language-service": "^0.80.0",
