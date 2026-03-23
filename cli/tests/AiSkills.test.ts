@@ -1,8 +1,17 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, FileSystem, Layer, Option, PlatformError } from "effect";
-import { AiSkills, AiSkillsError, AiSkillsLive } from "../src/services/AiSkills.js";
+import {
+  AiSkills,
+  AiSkillsError,
+  AiSkillsLive,
+} from "../src/services/AiSkills.js";
 import { AiStateLive } from "../src/services/AiState.js";
-import { testDotfilesRoot, testHomeDir, TestPath, TestStowConfig } from "./testSupport.js";
+import {
+  testDotfilesRoot,
+  testHomeDir,
+  TestPath,
+  TestStowConfig,
+} from "./testSupport.js";
 
 type Entry =
   | { readonly type: "Directory" }
@@ -219,184 +228,200 @@ const makeTestLayer = (entries: FsEntries) => {
 };
 
 describe("AiSkills service", () => {
-  it.effect("adopts a local Codex skill into canonical storage and projects selected targets", () => {
-    const entries: FsEntries = {
-      ["/"]: { type: "Directory" },
-      [testDotfilesRoot]: { type: "Directory" },
-      [`${testDotfilesRoot}/config`]: { type: "Directory" },
-      [aiStatePath]: { type: "File", content: emptyAiStateToml },
-      [testHomeDir]: { type: "Directory" },
-      [`${testHomeDir}/.codex`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.claude`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills/my-skill`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills/my-skill/SKILL.md`]: {
-        type: "File",
-        content: "# My Skill",
-      },
-    };
+  it.effect(
+    "adopts a local Codex skill into canonical storage and projects selected targets",
+    () => {
+      const entries: FsEntries = {
+        ["/"]: { type: "Directory" },
+        [testDotfilesRoot]: { type: "Directory" },
+        [`${testDotfilesRoot}/config`]: { type: "Directory" },
+        [aiStatePath]: { type: "File", content: emptyAiStateToml },
+        [testHomeDir]: { type: "Directory" },
+        [`${testHomeDir}/.codex`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.claude`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills/my-skill`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills/my-skill/SKILL.md`]: {
+          type: "File",
+          content: "# My Skill",
+        },
+      };
 
-    return Effect.gen(function* () {
-      const skills = yield* AiSkills;
-      const result = yield* skills.adopt({
-        name: "my-skill",
-        sourcePath: `${testHomeDir}/.codex/skills/my-skill`,
-        targets: ["claude", "codex"],
-      });
-
-      expect(result.canonicalDir).toBe("ai/skills/my-skill");
-      expect(entries[`${testDotfilesRoot}/ai/skills/my-skill/SKILL.md`]).toEqual({
-        type: "File",
-        content: "# My Skill",
-      });
-      expect(entries[`${testHomeDir}/.codex/skills/my-skill`]).toEqual({
-        type: "SymbolicLink",
-        target: "../../../dotfiles/ai/skills/my-skill",
-      });
-      expect(entries[`${testHomeDir}/.claude/skills/my-skill`]).toEqual({
-        type: "SymbolicLink",
-        target: "../../../dotfiles/ai/skills/my-skill",
-      });
-      const stateEntry = entries[aiStatePath];
-      expect(stateEntry?.type).toBe("File");
-      if (stateEntry !== undefined && stateEntry.type === "File") {
-        expect(stateEntry.content).toContain("[skills.my-skill]");
-      }
-    }).pipe(Effect.provide(makeTestLayer(entries)));
-  });
-
-  it.effect("rejects adopt when a target path already exists as a real local directory", () => {
-    const entries: FsEntries = {
-      ["/"]: { type: "Directory" },
-      [testDotfilesRoot]: { type: "Directory" },
-      [`${testDotfilesRoot}/config`]: { type: "Directory" },
-      [aiStatePath]: { type: "File", content: emptyAiStateToml },
-      [testHomeDir]: { type: "Directory" },
-      [`${testHomeDir}/.codex`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.claude`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills/my-skill`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills/my-skill/SKILL.md`]: {
-        type: "File",
-        content: "# My Skill",
-      },
-      [`${testHomeDir}/.claude/skills/my-skill`]: { type: "Directory" },
-    };
-
-    return Effect.gen(function* () {
-      const skills = yield* AiSkills;
-      const error = yield* skills
-        .adopt({
+      return Effect.gen(function* () {
+        const skills = yield* AiSkills;
+        const result = yield* skills.adopt({
           name: "my-skill",
           sourcePath: `${testHomeDir}/.codex/skills/my-skill`,
           targets: ["claude", "codex"],
-        })
-        .pipe(Effect.flip);
+        });
 
-      expect(error).toBeInstanceOf(AiSkillsError);
-      if (error._tag === "AiSkillsError") {
-        expect(error.details).toContain("already exists as a local directory");
-      }
-    }).pipe(Effect.provide(makeTestLayer(entries)));
-  });
+        expect(result.canonicalDir).toBe("ai/skills/my-skill");
+        expect(
+          entries[`${testDotfilesRoot}/ai/skills/my-skill/SKILL.md`],
+        ).toEqual({
+          type: "File",
+          content: "# My Skill",
+        });
+        expect(entries[`${testHomeDir}/.codex/skills/my-skill`]).toEqual({
+          type: "SymbolicLink",
+          target: "../../../dotfiles/ai/skills/my-skill",
+        });
+        expect(entries[`${testHomeDir}/.claude/skills/my-skill`]).toEqual({
+          type: "SymbolicLink",
+          target: "../../../dotfiles/ai/skills/my-skill",
+        });
+        const stateEntry = entries[aiStatePath];
+        expect(stateEntry?.type).toBe("File");
+        if (stateEntry !== undefined && stateEntry.type === "File") {
+          expect(stateEntry.content).toContain("[skills.my-skill]");
+        }
+      }).pipe(Effect.provide(makeTestLayer(entries)));
+    },
+  );
 
-  it.effect("sync creates missing managed skill links and reports conflicts", () => {
-    const entries: FsEntries = {
-      ["/"]: { type: "Directory" },
-      [testDotfilesRoot]: { type: "Directory" },
-      [aiStatePath]: {
-        type: "File",
-        content: `${emptyAiStateToml}
+  it.effect(
+    "rejects adopt when a target path already exists as a real local directory",
+    () => {
+      const entries: FsEntries = {
+        ["/"]: { type: "Directory" },
+        [testDotfilesRoot]: { type: "Directory" },
+        [`${testDotfilesRoot}/config`]: { type: "Directory" },
+        [aiStatePath]: { type: "File", content: emptyAiStateToml },
+        [testHomeDir]: { type: "Directory" },
+        [`${testHomeDir}/.codex`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.claude`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills/my-skill`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills/my-skill/SKILL.md`]: {
+          type: "File",
+          content: "# My Skill",
+        },
+        [`${testHomeDir}/.claude/skills/my-skill`]: { type: "Directory" },
+      };
+
+      return Effect.gen(function* () {
+        const skills = yield* AiSkills;
+        const error = yield* skills
+          .adopt({
+            name: "my-skill",
+            sourcePath: `${testHomeDir}/.codex/skills/my-skill`,
+            targets: ["claude", "codex"],
+          })
+          .pipe(Effect.flip);
+
+        expect(error).toBeInstanceOf(AiSkillsError);
+        if (error._tag === "AiSkillsError") {
+          expect(error.details).toContain(
+            "already exists as a local directory",
+          );
+        }
+      }).pipe(Effect.provide(makeTestLayer(entries)));
+    },
+  );
+
+  it.effect(
+    "sync creates missing managed skill links and reports conflicts",
+    () => {
+      const entries: FsEntries = {
+        ["/"]: { type: "Directory" },
+        [testDotfilesRoot]: { type: "Directory" },
+        [aiStatePath]: {
+          type: "File",
+          content: `${emptyAiStateToml}
 
 [skills.batch]
 canonical_dir = "ai/skills/batch"
 targets = ["claude", "codex", "agents"]
 `,
-      },
-      [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
-      [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
-      [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
-        type: "File",
-        content: "# Batch",
-      },
-      [testHomeDir]: { type: "Directory" },
-      [`${testHomeDir}/.claude`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.codex`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills/batch`]: { type: "Directory" },
-    };
+        },
+        [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
+        [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
+        [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
+          type: "File",
+          content: "# Batch",
+        },
+        [testHomeDir]: { type: "Directory" },
+        [`${testHomeDir}/.claude`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.codex`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills/batch`]: { type: "Directory" },
+      };
 
-    return Effect.gen(function* () {
-      const skills = yield* AiSkills;
-      const preview = yield* skills.previewSync();
+      return Effect.gen(function* () {
+        const skills = yield* AiSkills;
+        const preview = yield* skills.previewSync();
 
-      expect(preview.toCreate).toEqual([
-        "~/.claude/skills/batch",
-        "~/.agents/skills/batch",
-      ]);
-      expect(preview.toRemove).toEqual([]);
-      expect(preview.conflicts).toEqual([
-        "~/.codex/skills/batch already exists as a local directory",
-      ]);
+        expect(preview.toCreate).toEqual([
+          "~/.claude/skills/batch",
+          "~/.agents/skills/batch",
+        ]);
+        expect(preview.toRemove).toEqual([]);
+        expect(preview.conflicts).toEqual([
+          "~/.codex/skills/batch already exists as a local directory",
+        ]);
 
-      const error = yield* skills.sync().pipe(Effect.flip);
-      expect(error).toBeInstanceOf(AiSkillsError);
-    }).pipe(Effect.provide(makeTestLayer(entries)));
-  });
+        const error = yield* skills.sync().pipe(Effect.flip);
+        expect(error).toBeInstanceOf(AiSkillsError);
+      }).pipe(Effect.provide(makeTestLayer(entries)));
+    },
+  );
 
-  it.effect("updateTargets removes a deselected managed target immediately", () => {
-    const entries: FsEntries = {
-      ["/"]: { type: "Directory" },
-      [testDotfilesRoot]: { type: "Directory" },
-      [aiStatePath]: {
-        type: "File",
-        content: `${emptyAiStateToml}
+  it.effect(
+    "updateTargets removes a deselected managed target immediately",
+    () => {
+      const entries: FsEntries = {
+        ["/"]: { type: "Directory" },
+        [testDotfilesRoot]: { type: "Directory" },
+        [aiStatePath]: {
+          type: "File",
+          content: `${emptyAiStateToml}
 
 [skills.batch]
 canonical_dir = "ai/skills/batch"
 targets = ["claude", "codex"]
 `,
-      },
-      [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
-      [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
-      [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
-        type: "File",
-        content: "# Batch",
-      },
-      [testHomeDir]: { type: "Directory" },
-      [`${testHomeDir}/.claude`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills/batch`]: {
-        type: "SymbolicLink",
-        target: "../../../dotfiles/ai/skills/batch",
-      },
-      [`${testHomeDir}/.codex`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.codex/skills/batch`]: {
-        type: "SymbolicLink",
-        target: "../../../dotfiles/ai/skills/batch",
-      },
-    };
+        },
+        [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
+        [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
+        [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
+          type: "File",
+          content: "# Batch",
+        },
+        [testHomeDir]: { type: "Directory" },
+        [`${testHomeDir}/.claude`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills/batch`]: {
+          type: "SymbolicLink",
+          target: "../../../dotfiles/ai/skills/batch",
+        },
+        [`${testHomeDir}/.codex`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.codex/skills/batch`]: {
+          type: "SymbolicLink",
+          target: "../../../dotfiles/ai/skills/batch",
+        },
+      };
 
-    return Effect.gen(function* () {
-      const skills = yield* AiSkills;
-      const result = yield* skills.updateTargets("batch", ["codex"]);
+      return Effect.gen(function* () {
+        const skills = yield* AiSkills;
+        const result = yield* skills.updateTargets("batch", ["codex"]);
 
-      expect(result.targets).toEqual(["codex"]);
-      expect(entries[`${testHomeDir}/.claude/skills/batch`]).toBeUndefined();
-      expect(entries[`${testHomeDir}/.codex/skills/batch`]).toEqual({
-        type: "SymbolicLink",
-        target: "../../../dotfiles/ai/skills/batch",
-      });
-      const stateEntry = entries[aiStatePath];
-      if (stateEntry !== undefined && stateEntry.type === "File") {
-        expect(stateEntry.content).toContain('targets = [ "codex" ]');
-      }
-    }).pipe(Effect.provide(makeTestLayer(entries)));
-  });
+        expect(result.targets).toEqual(["codex"]);
+        expect(entries[`${testHomeDir}/.claude/skills/batch`]).toBeUndefined();
+        expect(entries[`${testHomeDir}/.codex/skills/batch`]).toEqual({
+          type: "SymbolicLink",
+          target: "../../../dotfiles/ai/skills/batch",
+        });
+        const stateEntry = entries[aiStatePath];
+        if (stateEntry !== undefined && stateEntry.type === "File") {
+          expect(stateEntry.content).toContain('targets = [ "codex" ]');
+        }
+      }).pipe(Effect.provide(makeTestLayer(entries)));
+    },
+  );
 
   it.effect("sync removes stale managed links for deselected targets", () => {
     const entries: FsEntries = {
@@ -450,93 +475,101 @@ targets = ["codex"]
     }).pipe(Effect.provide(makeTestLayer(entries)));
   });
 
-  it.effect("unmanage keeps local copies on this machine and removes repo management", () => {
-    const entries: FsEntries = {
-      ["/"]: { type: "Directory" },
-      [testDotfilesRoot]: { type: "Directory" },
-      [`${testDotfilesRoot}/config`]: { type: "Directory" },
-      [aiStatePath]: {
-        type: "File",
-        content: `${emptyAiStateToml}
+  it.effect(
+    "unmanage keeps local copies on this machine and removes repo management",
+    () => {
+      const entries: FsEntries = {
+        ["/"]: { type: "Directory" },
+        [testDotfilesRoot]: { type: "Directory" },
+        [`${testDotfilesRoot}/config`]: { type: "Directory" },
+        [aiStatePath]: {
+          type: "File",
+          content: `${emptyAiStateToml}
 
 [skills.batch]
 canonical_dir = "ai/skills/batch"
 targets = ["claude"]
 `,
-      },
-      [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
-      [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
-      [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
-        type: "File",
-        content: "# Batch",
-      },
-      [testHomeDir]: { type: "Directory" },
-      [`${testHomeDir}/.claude`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills/batch`]: {
-        type: "SymbolicLink",
-        target: "../../../dotfiles/ai/skills/batch",
-      },
-    };
+        },
+        [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
+        [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
+        [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
+          type: "File",
+          content: "# Batch",
+        },
+        [testHomeDir]: { type: "Directory" },
+        [`${testHomeDir}/.claude`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills/batch`]: {
+          type: "SymbolicLink",
+          target: "../../../dotfiles/ai/skills/batch",
+        },
+      };
 
-    return Effect.gen(function* () {
-      const skills = yield* AiSkills;
-      yield* skills.unmanage("batch");
+      return Effect.gen(function* () {
+        const skills = yield* AiSkills;
+        yield* skills.unmanage("batch");
 
-      expect(entries[`${testHomeDir}/.claude/skills/batch`]).toEqual({
-        type: "Directory",
-      });
-      expect(entries[`${testHomeDir}/.claude/skills/batch/SKILL.md`]).toEqual({
-        type: "File",
-        content: "# Batch",
-      });
-      expect(entries[`${testDotfilesRoot}/ai/skills/batch`]).toBeUndefined();
-      const stateEntry = entries[aiStatePath];
-      if (stateEntry !== undefined && stateEntry.type === "File") {
-        expect(stateEntry.content).not.toContain("[skills.batch]");
-      }
-    }).pipe(Effect.provide(makeTestLayer(entries)));
-  });
+        expect(entries[`${testHomeDir}/.claude/skills/batch`]).toEqual({
+          type: "Directory",
+        });
+        expect(entries[`${testHomeDir}/.claude/skills/batch/SKILL.md`]).toEqual(
+          {
+            type: "File",
+            content: "# Batch",
+          },
+        );
+        expect(entries[`${testDotfilesRoot}/ai/skills/batch`]).toBeUndefined();
+        const stateEntry = entries[aiStatePath];
+        if (stateEntry !== undefined && stateEntry.type === "File") {
+          expect(stateEntry.content).not.toContain("[skills.batch]");
+        }
+      }).pipe(Effect.provide(makeTestLayer(entries)));
+    },
+  );
 
-  it.effect("unmanage can delete local copies on this machine and remove repo management", () => {
-    const entries: FsEntries = {
-      ["/"]: { type: "Directory" },
-      [testDotfilesRoot]: { type: "Directory" },
-      [`${testDotfilesRoot}/config`]: { type: "Directory" },
-      [aiStatePath]: {
-        type: "File",
-        content: `${emptyAiStateToml}
+  it.effect(
+    "unmanage can delete local copies on this machine and remove repo management",
+    () => {
+      const entries: FsEntries = {
+        ["/"]: { type: "Directory" },
+        [testDotfilesRoot]: { type: "Directory" },
+        [`${testDotfilesRoot}/config`]: { type: "Directory" },
+        [aiStatePath]: {
+          type: "File",
+          content: `${emptyAiStateToml}
 
 [skills.batch]
 canonical_dir = "ai/skills/batch"
 targets = ["claude"]
 `,
-      },
-      [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
-      [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
-      [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
-        type: "File",
-        content: "# Batch",
-      },
-      [testHomeDir]: { type: "Directory" },
-      [`${testHomeDir}/.claude`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
-      [`${testHomeDir}/.claude/skills/batch`]: {
-        type: "SymbolicLink",
-        target: "../../../dotfiles/ai/skills/batch",
-      },
-    };
+        },
+        [`${testDotfilesRoot}/ai/skills`]: { type: "Directory" },
+        [`${testDotfilesRoot}/ai/skills/batch`]: { type: "Directory" },
+        [`${testDotfilesRoot}/ai/skills/batch/SKILL.md`]: {
+          type: "File",
+          content: "# Batch",
+        },
+        [testHomeDir]: { type: "Directory" },
+        [`${testHomeDir}/.claude`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills`]: { type: "Directory" },
+        [`${testHomeDir}/.claude/skills/batch`]: {
+          type: "SymbolicLink",
+          target: "../../../dotfiles/ai/skills/batch",
+        },
+      };
 
-    return Effect.gen(function* () {
-      const skills = yield* AiSkills;
-      yield* skills.unmanage("batch", "delete-local-copies");
+      return Effect.gen(function* () {
+        const skills = yield* AiSkills;
+        yield* skills.unmanage("batch", "delete-local-copies");
 
-      expect(entries[`${testHomeDir}/.claude/skills/batch`]).toBeUndefined();
-      expect(entries[`${testDotfilesRoot}/ai/skills/batch`]).toBeUndefined();
-      const stateEntry = entries[aiStatePath];
-      if (stateEntry !== undefined && stateEntry.type === "File") {
-        expect(stateEntry.content).not.toContain("[skills.batch]");
-      }
-    }).pipe(Effect.provide(makeTestLayer(entries)));
-  });
+        expect(entries[`${testHomeDir}/.claude/skills/batch`]).toBeUndefined();
+        expect(entries[`${testDotfilesRoot}/ai/skills/batch`]).toBeUndefined();
+        const stateEntry = entries[aiStatePath];
+        if (stateEntry !== undefined && stateEntry.type === "File") {
+          expect(stateEntry.content).not.toContain("[skills.batch]");
+        }
+      }).pipe(Effect.provide(makeTestLayer(entries)));
+    },
+  );
 });

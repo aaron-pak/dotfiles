@@ -37,10 +37,12 @@ const makeTestLayer = (files: FsFiles) => {
 
 describe("CodexSettings service", () => {
   describe("pull", () => {
-    it.effect("merges every shared section and preserves local projects", () => {
-      const files: FsFiles = {
-        [aiStatePath]: defaultAiStateToml,
-        [sharedPath]: `
+    it.effect(
+      "merges every shared section and preserves local projects",
+      () => {
+        const files: FsFiles = {
+          [aiStatePath]: defaultAiStateToml,
+          [sharedPath]: `
 model = "gpt-5.4"
 
 [features]
@@ -49,33 +51,38 @@ multi_agent = true
 [notice]
 hide_rate_limit_model_nudge = true
 `.trimStart(),
-        [localPath]: `
+          [localPath]: `
 model = "gpt-4.1"
 
 [projects."/tmp/example"]
 trust_level = "trusted"
 `.trimStart(),
-      };
+        };
 
-      return Effect.gen(function* () {
-        const settings = yield* CodexSettings;
-        const result = yield* settings.pull();
+        return Effect.gen(function* () {
+          const settings = yield* CodexSettings;
+          const result = yield* settings.pull();
 
-        expect(result.applicableKeys).toEqual(["model", "features", "notice"]);
-        expect(result.changedKeys).toEqual(["model", "features", "notice"]);
-        expect(result.skippedKeys).toEqual([]);
+          expect(result.applicableKeys).toEqual([
+            "model",
+            "features",
+            "notice",
+          ]);
+          expect(result.changedKeys).toEqual(["model", "features", "notice"]);
+          expect(result.skippedKeys).toEqual([]);
 
-        const written = parse(readFile(files, localPath));
-        expect(written.model).toBe("gpt-5.4");
-        expect(written.features).toEqual({ multi_agent: true });
-        expect(written.notice).toEqual({
-          hide_rate_limit_model_nudge: true,
-        });
-        expect(written.projects).toEqual({
-          "/tmp/example": { trust_level: "trusted" },
-        });
-      }).pipe(Effect.provide(makeTestLayer(files)));
-    });
+          const written = parse(readFile(files, localPath));
+          expect(written.model).toBe("gpt-5.4");
+          expect(written.features).toEqual({ multi_agent: true });
+          expect(written.notice).toEqual({
+            hide_rate_limit_model_nudge: true,
+          });
+          expect(written.projects).toEqual({
+            "/tmp/example": { trust_level: "trusted" },
+          });
+        }).pipe(Effect.provide(makeTestLayer(files)));
+      },
+    );
 
     it.effect("skips ignored sections and preserves the local value", () => {
       const files: FsFiles = {
@@ -148,28 +155,31 @@ trust_level = "trusted"
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
 
-    it.effect("does not rewrite the local file when shared values already match", () => {
-      const initialLocal = `
+    it.effect(
+      "does not rewrite the local file when shared values already match",
+      () => {
+        const initialLocal = `
 model = "gpt-5.4"
 `.trimStart();
-      const files: FsFiles = {
-        [aiStatePath]: defaultAiStateToml,
-        [sharedPath]: `
+        const files: FsFiles = {
+          [aiStatePath]: defaultAiStateToml,
+          [sharedPath]: `
 model = "gpt-5.4"
 `.trimStart(),
-        [localPath]: initialLocal,
-      };
+          [localPath]: initialLocal,
+        };
 
-      return Effect.gen(function* () {
-        const settings = yield* CodexSettings;
-        const result = yield* settings.pull();
+        return Effect.gen(function* () {
+          const settings = yield* CodexSettings;
+          const result = yield* settings.pull();
 
-        expect(result.applicableKeys).toEqual(["model"]);
-        expect(result.changedKeys).toEqual([]);
-        expect(result.skippedKeys).toEqual([]);
-        expect(readFile(files, localPath)).toBe(initialLocal);
-      }).pipe(Effect.provide(makeTestLayer(files)));
-    });
+          expect(result.applicableKeys).toEqual(["model"]);
+          expect(result.changedKeys).toEqual([]);
+          expect(result.skippedKeys).toEqual([]);
+          expect(readFile(files, localPath)).toBe(initialLocal);
+        }).pipe(Effect.provide(makeTestLayer(files)));
+      },
+    );
   });
 
   describe("adopt", () => {
@@ -301,75 +311,86 @@ multi_agent = true
       }).pipe(Effect.provide(makeTestLayer(files)));
     });
 
-    it.effect("rejects ignore when this machine already keeps its own value", () => {
-      const files: FsFiles = {
-        [aiStatePath]: defaultAiStateToml,
-        [aiLocalPath]: `
+    it.effect(
+      "rejects ignore when this machine already keeps its own value",
+      () => {
+        const files: FsFiles = {
+          [aiStatePath]: defaultAiStateToml,
+          [aiLocalPath]: `
 [tools.claude]
 ignored_shared_sections = []
 
 [tools.codex]
 ignored_shared_sections = ["notice"]
 `.trimStart(),
-        [sharedPath]: `
+          [sharedPath]: `
 [notice]
 hide_rate_limit_model_nudge = true
 `.trimStart(),
-      };
+        };
 
-      return Effect.gen(function* () {
-        const settings = yield* CodexSettings;
-        const error = yield* settings.ignore("notice").pipe(Effect.flip);
+        return Effect.gen(function* () {
+          const settings = yield* CodexSettings;
+          const error = yield* settings.ignore("notice").pipe(Effect.flip);
 
-        expect(error).toBeInstanceOf(CodexSettingsError);
-        if (error._tag === "CodexSettingsError") {
-          expect(error.details).toContain("already keeping its own value");
-        }
-      }).pipe(Effect.provide(makeTestLayer(files)));
-    });
+          expect(error).toBeInstanceOf(CodexSettingsError);
+          if (error._tag === "CodexSettingsError") {
+            expect(error.details).toContain("already keeping its own value");
+          }
+        }).pipe(Effect.provide(makeTestLayer(files)));
+      },
+    );
 
-    it.effect("rejects unignore when this machine is already using the shared value", () => {
-      const files: FsFiles = {
-        [aiStatePath]: defaultAiStateToml,
-        [aiLocalPath]: defaultAiLocalStateToml,
-      };
+    it.effect(
+      "rejects unignore when this machine is already using the shared value",
+      () => {
+        const files: FsFiles = {
+          [aiStatePath]: defaultAiStateToml,
+          [aiLocalPath]: defaultAiLocalStateToml,
+        };
 
-      return Effect.gen(function* () {
-        const settings = yield* CodexSettings;
-        const error = yield* settings.unignore("notice").pipe(Effect.flip);
+        return Effect.gen(function* () {
+          const settings = yield* CodexSettings;
+          const error = yield* settings.unignore("notice").pipe(Effect.flip);
 
-        expect(error).toBeInstanceOf(CodexSettingsError);
-        if (error._tag === "CodexSettingsError") {
-          expect(error.details).toContain('not keeping its own value for "notice"');
-        }
-      }).pipe(Effect.provide(makeTestLayer(files)));
-    });
+          expect(error).toBeInstanceOf(CodexSettingsError);
+          if (error._tag === "CodexSettingsError") {
+            expect(error.details).toContain(
+              'not keeping its own value for "notice"',
+            );
+          }
+        }).pipe(Effect.provide(makeTestLayer(files)));
+      },
+    );
   });
 
   describe("stop managing", () => {
-    it.effect("keeps a local section when it is no longer present in the shared file", () => {
-      const files: FsFiles = {
-        [aiStatePath]: defaultAiStateToml,
-        [sharedPath]: `
+    it.effect(
+      "keeps a local section when it is no longer present in the shared file",
+      () => {
+        const files: FsFiles = {
+          [aiStatePath]: defaultAiStateToml,
+          [sharedPath]: `
 model = "gpt-5.4"
 `.trimStart(),
-        [localPath]: `
+          [localPath]: `
 model = "gpt-4.1"
 
 [notice]
 hide_rate_limit_model_nudge = false
 `.trimStart(),
-      };
+        };
 
-      return Effect.gen(function* () {
-        const settings = yield* CodexSettings;
-        yield* settings.pull();
+        return Effect.gen(function* () {
+          const settings = yield* CodexSettings;
+          yield* settings.pull();
 
-        expect(parse(readFile(files, localPath))).toEqual({
-          model: "gpt-5.4",
-          notice: { hide_rate_limit_model_nudge: false },
-        });
-      }).pipe(Effect.provide(makeTestLayer(files)));
-    });
+          expect(parse(readFile(files, localPath))).toEqual({
+            model: "gpt-5.4",
+            notice: { hide_rate_limit_model_nudge: false },
+          });
+        }).pipe(Effect.provide(makeTestLayer(files)));
+      },
+    );
   });
 });

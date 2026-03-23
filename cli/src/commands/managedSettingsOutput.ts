@@ -57,13 +57,13 @@ export const printManagedSettingsApply = (
     }
 
     if (summary.skippedKeys.length > 0) {
-      yield* Console.log(
-        `This machine kept its own value for these ${label}:`,
-      );
+      yield* Console.log(`This machine kept its own value for these ${label}:`);
       for (const key of summary.skippedKeys) {
         yield* Console.log(`  ${key}`);
       }
     }
 
-    yield* Console.log(`\n${summary.totalKeys} total setting(s) in the local file.`);
+    yield* Console.log(
+      `\n${summary.totalKeys} total setting(s) in the local file.`,
+    );
   });

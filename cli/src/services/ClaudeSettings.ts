@@ -269,7 +269,7 @@ export class ClaudeSettings extends ServiceMap.Service<
                 new ClaudeSettingsError({
                   details: error.message,
                 }),
-          ),
+            ),
           );
         if (!ignoredSections.includes(key)) {
           return yield* new ClaudeSettingsError({

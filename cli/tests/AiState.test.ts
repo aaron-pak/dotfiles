@@ -73,7 +73,9 @@ describe("AiState service", () => {
 
       expect(error).toBeInstanceOf(AiStateError);
       if (error._tag === "AiStateError") {
-        expect(error.details).toContain("shared_settings_file must be a string");
+        expect(error.details).toContain(
+          "shared_settings_file must be a string",
+        );
       }
     }).pipe(Effect.provide(makeTestLayer(files)));
   });

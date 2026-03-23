@@ -1,12 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 import assert from "node:assert";
-import {
-  Effect,
-  FileSystem,
-  Layer,
-  Option,
-  PlatformError,
-} from "effect";
+import { Effect, FileSystem, Layer, Option, PlatformError } from "effect";
 import { ChildProcessSpawner } from "effect/unstable/process";
 import {
   AlreadyManaged,
@@ -108,9 +102,7 @@ const mockFileSystem = (state: FsState) =>
 
 const makeTestLayer = (exitCode: number, stderr: string, fsState: FsState) =>
   Stow.Live.pipe(
-    Layer.provideMerge(
-      makeMockChildProcessSpawner({ exitCode, stderr }),
-    ),
+    Layer.provideMerge(makeMockChildProcessSpawner({ exitCode, stderr })),
     Layer.provideMerge(mockFileSystem(fsState)),
     Layer.provideMerge(TestStowConfig),
     Layer.provideMerge(TestPath),

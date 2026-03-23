@@ -181,7 +181,12 @@ export class Homebrew extends ServiceMap.Service<
       const collectText = (
         stream: Stream.Stream<string, PlatformError.PlatformError>,
       ): Effect.Effect<string, PlatformError.PlatformError> =>
-        stream.pipe(Stream.runFold(() => "", (acc, chunk) => acc + chunk));
+        stream.pipe(
+          Stream.runFold(
+            () => "",
+            (acc, chunk) => acc + chunk,
+          ),
+        );
 
       /** Run a command and capture stdout/stderr. */
       const runCommand = (
@@ -226,10 +231,8 @@ export class Homebrew extends ServiceMap.Service<
         const command = Process.make("bash", ["-c", installScript]);
 
         const result = yield* runCommand(command).pipe(
-          Effect.catchTag(
-            "PlatformError",
-            (error) =>
-              Effect.fail(new HomebrewInstallError({ details: error.message })),
+          Effect.catchTag("PlatformError", (error) =>
+            Effect.fail(new HomebrewInstallError({ details: error.message })),
           ),
         );
 
@@ -258,10 +261,8 @@ export class Homebrew extends ServiceMap.Service<
 
         const command = Process.make("brew", args);
         const result = yield* runCommand(command).pipe(
-          Effect.catchTag(
-            "PlatformError",
-            (error) =>
-              Effect.fail(new BrewBundleError({ details: error.message })),
+          Effect.catchTag("PlatformError", (error) =>
+            Effect.fail(new BrewBundleError({ details: error.message })),
           ),
         );
 
@@ -321,10 +322,8 @@ export class Homebrew extends ServiceMap.Service<
         ]);
 
         const result = yield* runCommand(command).pipe(
-          Effect.catchTag(
-            "PlatformError",
-            (error) =>
-              Effect.fail(new BrewBundleError({ details: error.message })),
+          Effect.catchTag("PlatformError", (error) =>
+            Effect.fail(new BrewBundleError({ details: error.message })),
           ),
         );
 

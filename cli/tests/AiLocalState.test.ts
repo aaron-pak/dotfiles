@@ -1,7 +1,10 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { parse } from "smol-toml";
-import { AiLocalState, AiLocalStateLive } from "../src/services/AiLocalState.js";
+import {
+  AiLocalState,
+  AiLocalStateLive,
+} from "../src/services/AiLocalState.js";
 import {
   defaultAiLocalStateToml,
   type FsFiles,

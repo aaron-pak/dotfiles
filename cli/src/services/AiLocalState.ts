@@ -108,7 +108,9 @@ export class AiLocalState extends ServiceMap.Service<
   {
     readonly localStatePath: string;
     readonly read: () => Effect.Effect<AiLocalStateData, AiLocalStateError>;
-    readonly write: (state: AiLocalStateData) => Effect.Effect<void, AiLocalStateError>;
+    readonly write: (
+      state: AiLocalStateData,
+    ) => Effect.Effect<void, AiLocalStateError>;
     readonly getIgnoredSections: (
       tool: ManagedTool,
     ) => Effect.Effect<readonly string[], AiLocalStateError>;
@@ -207,14 +209,14 @@ export class AiLocalState extends ServiceMap.Service<
         );
       });
 
-      const getIgnoredSections = Effect.fn(
-        "AiLocalState.getIgnoredSections",
-      )(function* (tool: ManagedTool) {
-        const state = yield* read();
-        return tool === "claude"
-          ? state.tools.claude.ignored_shared_sections
-          : state.tools.codex.ignored_shared_sections;
-      });
+      const getIgnoredSections = Effect.fn("AiLocalState.getIgnoredSections")(
+        function* (tool: ManagedTool) {
+          const state = yield* read();
+          return tool === "claude"
+            ? state.tools.claude.ignored_shared_sections
+            : state.tools.codex.ignored_shared_sections;
+        },
+      );
 
       const ignore = Effect.fn("AiLocalState.ignore")(function* (
         tool: ManagedTool,

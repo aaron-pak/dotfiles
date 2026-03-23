@@ -81,66 +81,66 @@ export const selectConflictChoice = () =>
     }),
   );
 
-export const runManagedSkillsSync = Effect.fn(
-  "syncFlow.runManagedSkillsSync",
-)(function* (dry: boolean) {
-  const skills = yield* AiSkills;
+export const runManagedSkillsSync = Effect.fn("syncFlow.runManagedSkillsSync")(
+  function* (dry: boolean) {
+    const skills = yield* AiSkills;
 
-  if (dry) {
-    const preview = yield* skills.previewSync();
+    if (dry) {
+      const preview = yield* skills.previewSync();
 
-    if (preview.toCreate.length > 0) {
-      yield* Console.log("Would create these managed skill links:");
-      for (const targetPath of preview.toCreate) {
-        yield* Console.log(`  ${targetPath}`);
+      if (preview.toCreate.length > 0) {
+        yield* Console.log("Would create these managed skill links:");
+        for (const targetPath of preview.toCreate) {
+          yield* Console.log(`  ${targetPath}`);
+        }
       }
+
+      if (preview.toRemove.length > 0) {
+        yield* Console.log("\nWould remove these managed skill links:");
+        for (const targetPath of preview.toRemove) {
+          yield* Console.log(`  ${targetPath}`);
+        }
+      }
+
+      if (preview.conflicts.length > 0) {
+        yield* Console.log("\nManaged skill conflicts:");
+        for (const conflict of preview.conflicts) {
+          yield* Console.log(`  ${conflict}`);
+        }
+      }
+
+      if (
+        preview.toCreate.length === 0 &&
+        preview.toRemove.length === 0 &&
+        preview.conflicts.length === 0
+      ) {
+        yield* Console.log("Managed skills already match this machine.");
+      }
+
+      return;
     }
 
-    if (preview.toRemove.length > 0) {
-      yield* Console.log("\nWould remove these managed skill links:");
-      for (const targetPath of preview.toRemove) {
-        yield* Console.log(`  ${targetPath}`);
-      }
-    }
-
-    if (preview.conflicts.length > 0) {
-      yield* Console.log("\nManaged skill conflicts:");
-      for (const conflict of preview.conflicts) {
-        yield* Console.log(`  ${conflict}`);
-      }
-    }
-
-    if (
-      preview.toCreate.length === 0 &&
-      preview.toRemove.length === 0 &&
-      preview.conflicts.length === 0
-    ) {
+    const result = yield* skills.sync();
+    if (result.toCreate.length === 0 && result.toRemove.length === 0) {
       yield* Console.log("Managed skills already match this machine.");
+      return;
     }
 
-    return;
-  }
-
-  const result = yield* skills.sync();
-  if (result.toCreate.length === 0 && result.toRemove.length === 0) {
-    yield* Console.log("Managed skills already match this machine.");
-    return;
-  }
-
-  if (result.toCreate.length > 0) {
-    yield* Console.log("Created these managed skill links:");
-    for (const targetPath of result.toCreate) {
-      yield* Console.log(`  ${targetPath}`);
+    if (result.toCreate.length > 0) {
+      yield* Console.log("Created these managed skill links:");
+      for (const targetPath of result.toCreate) {
+        yield* Console.log(`  ${targetPath}`);
+      }
     }
-  }
 
-  if (result.toRemove.length > 0) {
-    yield* Console.log("Removed these managed skill links:");
-    for (const targetPath of result.toRemove) {
-      yield* Console.log(`  ${targetPath}`);
+    if (result.toRemove.length > 0) {
+      yield* Console.log("Removed these managed skill links:");
+      for (const targetPath of result.toRemove) {
+        yield* Console.log(`  ${targetPath}`);
+      }
     }
-  }
-});
+  },
+);
 
 export const runManagedSettingsSync = Effect.fn(
   "syncFlow.runManagedSettingsSync",

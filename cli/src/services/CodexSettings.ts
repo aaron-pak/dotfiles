@@ -1,11 +1,4 @@
-import {
-  Data,
-  Effect,
-  FileSystem,
-  Layer,
-  Path,
-  ServiceMap,
-} from "effect";
+import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from "effect";
 import { parse, stringify } from "smol-toml";
 import { AiLocalState } from "./AiLocalState.js";
 import { AiState } from "./AiState.js";
@@ -228,9 +221,7 @@ export class CodexSettings extends ServiceMap.Service<
         }
       });
 
-      const ignore = Effect.fn("CodexSettings.ignore")(function* (
-        key: string,
-      ) {
+      const ignore = Effect.fn("CodexSettings.ignore")(function* (key: string) {
         yield* validateIgnoreTarget(key);
 
         return yield* aiLocalState.ignore("codex", key).pipe(
@@ -254,7 +245,7 @@ export class CodexSettings extends ServiceMap.Service<
                 new CodexSettingsError({
                   details: error.message,
                 }),
-          ),
+            ),
           );
         if (!ignoredSections.includes(key)) {
           return yield* new CodexSettingsError({

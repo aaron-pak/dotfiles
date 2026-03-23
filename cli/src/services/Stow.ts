@@ -254,9 +254,7 @@ export class Stow extends ServiceMap.Service<
       | InvalidPath
       | PlatformError.PlatformError
     >;
-    readonly checkRemovable: (
-      path: string,
-    ) => Effect.Effect<
+    readonly checkRemovable: (path: string) => Effect.Effect<
       {
         readonly normalized: string;
         readonly isDirectory: boolean;
@@ -291,7 +289,12 @@ export class Stow extends ServiceMap.Service<
       const collectText = (
         stream: Stream.Stream<string, PlatformError.PlatformError>,
       ): Effect.Effect<string, PlatformError.PlatformError> =>
-        stream.pipe(Stream.runFold(() => "", (acc, chunk) => acc + chunk));
+        stream.pipe(
+          Stream.runFold(
+            () => "",
+            (acc, chunk) => acc + chunk,
+          ),
+        );
 
       const homeRoot = path.join(dotfilesRoot, "home");
 
@@ -307,7 +310,9 @@ export class Stow extends ServiceMap.Service<
       > =>
         Effect.scoped(
           Effect.gen(function* () {
-            const command = Process.make("stow", [...args], { cwd: dotfilesRoot });
+            const command = Process.make("stow", [...args], {
+              cwd: dotfilesRoot,
+            });
             const handle = yield* processSpawner.spawn(command);
 
             return yield* Effect.all({
@@ -316,14 +321,12 @@ export class Stow extends ServiceMap.Service<
             });
           }),
         ).pipe(
-          Effect.catchTag(
-            "PlatformError",
-            (error) =>
-              Effect.fail(
-                new StowError({
-                  message: `Failed to execute stow: ${error.message}`,
-                }),
-              ),
+          Effect.catchTag("PlatformError", (error) =>
+            Effect.fail(
+              new StowError({
+                message: `Failed to execute stow: ${error.message}`,
+              }),
+            ),
           ),
         );
 
@@ -482,7 +485,9 @@ export class Stow extends ServiceMap.Service<
       /**
        * Check if a path can be added (dry-run validation).
        */
-      const checkAddable = Effect.fn("Stow.checkAddable")(function* (p: string) {
+      const checkAddable = Effect.fn("Stow.checkAddable")(function* (
+        p: string,
+      ) {
         const result = yield* validatePath(p);
         return result.normalized;
       });
@@ -515,9 +520,9 @@ export class Stow extends ServiceMap.Service<
 
           const walk = (dir: string): Effect.Effect<void, never, never> =>
             Effect.gen(function* () {
-              const entries = yield* fs.readDirectory(dir).pipe(
-                Effect.orElseSucceed((): string[] => []),
-              );
+              const entries = yield* fs
+                .readDirectory(dir)
+                .pipe(Effect.orElseSucceed((): string[] => []));
 
               for (const entry of entries) {
                 const fullPath = path.join(dir, entry);
@@ -602,16 +607,19 @@ export class Stow extends ServiceMap.Service<
           const targetPath = path.join(homeRoot, normalized);
 
           // Check symlink exists at source
-          const linkTarget = yield* fs.readLink(sourcePath).pipe(
-            Effect.catchTag("PlatformError", () => Effect.succeed(null)),
-          );
+          const linkTarget = yield* fs
+            .readLink(sourcePath)
+            .pipe(Effect.catchTag("PlatformError", () => Effect.succeed(null)));
 
           if (linkTarget === null) {
             return yield* new NotSymlink({ path: normalized });
           }
 
           // Resolve and compare - symlink should point to our target
-          const resolvedLink = path.resolve(path.dirname(sourcePath), linkTarget);
+          const resolvedLink = path.resolve(
+            path.dirname(sourcePath),
+            linkTarget,
+          );
           if (resolvedLink !== targetPath) {
             return yield* new SymlinkMismatch({
               path: normalized,
@@ -641,9 +649,9 @@ export class Stow extends ServiceMap.Service<
           }
 
           // Check if source is a symlink pointing to target (tree-folded directory)
-          const linkTarget = yield* fs.readLink(sourcePath).pipe(
-            Effect.catchTag("PlatformError", () => Effect.succeed(null)),
-          );
+          const linkTarget = yield* fs
+            .readLink(sourcePath)
+            .pipe(Effect.catchTag("PlatformError", () => Effect.succeed(null)));
 
           if (linkTarget !== null) {
             const resolvedLink = path.resolve(
@@ -732,7 +740,9 @@ export class Stow extends ServiceMap.Service<
           yield* fs.remove(sourcePath);
 
           // Ensure parent dir exists at ~/
-          yield* fs.makeDirectory(path.dirname(sourcePath), { recursive: true });
+          yield* fs.makeDirectory(path.dirname(sourcePath), {
+            recursive: true,
+          });
 
           // Move entire directory back
           yield* fs.rename(targetPath, sourcePath);
@@ -782,16 +792,16 @@ export class Stow extends ServiceMap.Service<
             yield* fs.makeDirectory(itemSourcePath, { recursive: true });
 
             // Remove the now-empty dir from repo
-            yield* fs.remove(itemTargetPath).pipe(
-              Effect.catchTag("PlatformError", () => Effect.void),
-            );
+            yield* fs
+              .remove(itemTargetPath)
+              .pipe(Effect.catchTag("PlatformError", () => Effect.void));
           }
 
           // Clean up the root directory
           const rootTargetPath = path.join(homeRoot, normalized);
-          yield* fs.remove(rootTargetPath).pipe(
-            Effect.catchTag("PlatformError", () => Effect.void),
-          );
+          yield* fs
+            .remove(rootTargetPath)
+            .pipe(Effect.catchTag("PlatformError", () => Effect.void));
         } else {
           // Single file
           const sourcePath = path.join(homeDir, normalized);
@@ -801,7 +811,9 @@ export class Stow extends ServiceMap.Service<
           yield* fs.remove(sourcePath);
 
           // Ensure parent dir exists at ~/
-          yield* fs.makeDirectory(path.dirname(sourcePath), { recursive: true });
+          yield* fs.makeDirectory(path.dirname(sourcePath), {
+            recursive: true,
+          });
 
           // Move file back
           yield* fs.rename(targetPath, sourcePath);

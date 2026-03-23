@@ -206,21 +206,27 @@ describe("sync flow", () => {
 
     return Effect.gen(function* () {
       yield* runManagedSettingsSync(true);
-      expect(callLog.steps).toEqual(["claude.previewPull", "codex.previewPull"]);
-    }).pipe(Effect.provide(makeTestLayer(callLog)));
-  });
-
-  it.effect("dry full sync previews the stow, skills, and settings phases", () => {
-    const callLog: CallLog = { steps: [] };
-
-    return Effect.gen(function* () {
-      yield* runFullSyncWithChoice(true, () => Effect.succeed("abort"));
       expect(callLog.steps).toEqual([
-        "stow.dryRun",
-        "skills.previewSync",
         "claude.previewPull",
         "codex.previewPull",
       ]);
     }).pipe(Effect.provide(makeTestLayer(callLog)));
   });
+
+  it.effect(
+    "dry full sync previews the stow, skills, and settings phases",
+    () => {
+      const callLog: CallLog = { steps: [] };
+
+      return Effect.gen(function* () {
+        yield* runFullSyncWithChoice(true, () => Effect.succeed("abort"));
+        expect(callLog.steps).toEqual([
+          "stow.dryRun",
+          "skills.previewSync",
+          "claude.previewPull",
+          "codex.previewPull",
+        ]);
+      }).pipe(Effect.provide(makeTestLayer(callLog)));
+    },
+  );
 });

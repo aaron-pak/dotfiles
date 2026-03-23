@@ -54,8 +54,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const normalizeTargets = (
   targets: readonly SkillTarget[],
 ): readonly SkillTarget[] =>
-  [...new Set(targets)].sort((left, right) =>
-    skillTargets.indexOf(left) - skillTargets.indexOf(right),
+  [...new Set(targets)].sort(
+    (left, right) => skillTargets.indexOf(left) - skillTargets.indexOf(right),
   );
 
 const parseTargets = (
@@ -187,7 +187,10 @@ const decodeAiState = (
           });
         }
 
-        parsedSkills[skillName] = yield* parseManagedSkill(skillName, skillValue);
+        parsedSkills[skillName] = yield* parseManagedSkill(
+          skillName,
+          skillValue,
+        );
       }
 
       return parsedSkills;
@@ -250,7 +253,9 @@ export class AiState extends ServiceMap.Service<
       skillName: string,
       skill: ManagedSkillState,
     ) => Effect.Effect<void, AiStateError>;
-    readonly removeSkill: (skillName: string) => Effect.Effect<void, AiStateError>;
+    readonly removeSkill: (
+      skillName: string,
+    ) => Effect.Effect<void, AiStateError>;
   }
 >()("@dotfiles/AiState") {
   static readonly Live = Layer.effect(
@@ -295,7 +300,9 @@ export class AiState extends ServiceMap.Service<
         );
       });
 
-      const getTool = Effect.fn("AiState.getTool")(function* (tool: ManagedTool) {
+      const getTool = Effect.fn("AiState.getTool")(function* (
+        tool: ManagedTool,
+      ) {
         const state = yield* read();
         return tool === "claude" ? state.tools.claude : state.tools.codex;
       });
@@ -305,7 +312,9 @@ export class AiState extends ServiceMap.Service<
         return state.skills;
       });
 
-      const getSkill = Effect.fn("AiState.getSkill")(function* (skillName: string) {
+      const getSkill = Effect.fn("AiState.getSkill")(function* (
+        skillName: string,
+      ) {
         const skills = yield* listSkills();
         return skills[skillName];
       });

@@ -89,8 +89,10 @@ export const makeMockChildProcessHandle = ({
     isRunning: Effect.succeed(false),
     kill: () => Effect.void,
     stdin: Sink.drain,
-    stdout: stdout.length > 0 ? Stream.make(encoder.encode(stdout)) : Stream.empty,
-    stderr: stderr.length > 0 ? Stream.make(encoder.encode(stderr)) : Stream.empty,
+    stdout:
+      stdout.length > 0 ? Stream.make(encoder.encode(stdout)) : Stream.empty,
+    stderr:
+      stderr.length > 0 ? Stream.make(encoder.encode(stderr)) : Stream.empty,
     all:
       stdout.length > 0 || stderr.length > 0
         ? Stream.make(encoder.encode(stdout + stderr))

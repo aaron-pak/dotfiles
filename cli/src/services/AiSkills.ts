@@ -1,11 +1,4 @@
-import {
-  Data,
-  Effect,
-  FileSystem,
-  Layer,
-  Path,
-  ServiceMap,
-} from "effect";
+import { Data, Effect, FileSystem, Layer, Path, ServiceMap } from "effect";
 import {
   AiState,
   type ManagedSkillState,
@@ -53,8 +46,8 @@ const skillTargets: readonly SkillTarget[] = ["claude", "codex", "agents"];
 const normalizeTargets = (
   targets: readonly SkillTarget[],
 ): readonly SkillTarget[] =>
-  [...new Set(targets)].sort((left, right) =>
-    skillTargets.indexOf(left) - skillTargets.indexOf(right),
+  [...new Set(targets)].sort(
+    (left, right) => skillTargets.indexOf(left) - skillTargets.indexOf(right),
   );
 
 export class AiSkills extends ServiceMap.Service<
@@ -70,9 +63,7 @@ export class AiSkills extends ServiceMap.Service<
     ) => Effect.Effect<string, AiSkillsError>;
     readonly previewSync: () => Effect.Effect<SkillSyncPreview, AiSkillsError>;
     readonly sync: () => Effect.Effect<SkillSyncPreview, AiSkillsError>;
-    readonly adopt: (
-      input: AdoptSkillInput,
-    ) => Effect.Effect<
+    readonly adopt: (input: AdoptSkillInput) => Effect.Effect<
       {
         readonly name: string;
         readonly canonicalDir: string;
@@ -182,7 +173,10 @@ export class AiSkills extends ServiceMap.Service<
           ),
         );
 
-      const createManagedSymlink = (targetPath: string, canonicalPath: string) =>
+      const createManagedSymlink = (
+        targetPath: string,
+        canonicalPath: string,
+      ) =>
         Effect.gen(function* () {
           const targetDir = path.dirname(targetPath);
           yield* ensureDirectory(targetDir);
@@ -202,7 +196,10 @@ export class AiSkills extends ServiceMap.Service<
                 }),
             ),
           );
-          const linkPath = path.relative(resolvedTargetDir, resolvedCanonicalPath);
+          const linkPath = path.relative(
+            resolvedTargetDir,
+            resolvedCanonicalPath,
+          );
           yield* fs.symlink(linkPath, targetPath).pipe(
             Effect.mapError(
               (error) =>
@@ -225,34 +222,33 @@ export class AiSkills extends ServiceMap.Service<
           }),
         );
 
-      const isManagedSymlink = Effect.fn("AiSkills.isManagedSymlink")(function* (
-        targetPath: string,
-        canonicalPath: string,
-      ) {
-        const targetType = yield* getPathType(targetPath);
-        if (targetType !== "SymbolicLink") {
-          return false;
-        }
+      const isManagedSymlink = Effect.fn("AiSkills.isManagedSymlink")(
+        function* (targetPath: string, canonicalPath: string) {
+          const targetType = yield* getPathType(targetPath);
+          if (targetType !== "SymbolicLink") {
+            return false;
+          }
 
-        const resolvedTarget = yield* fs.realPath(targetPath).pipe(
-          Effect.mapError(
-            (error) =>
-              new AiSkillsError({
-                details: `Failed to resolve ${targetPath}: ${error}`,
-              }),
-          ),
-        );
-        const resolvedCanonical = yield* fs.realPath(canonicalPath).pipe(
-          Effect.mapError(
-            (error) =>
-              new AiSkillsError({
-                details: `Failed to resolve ${canonicalPath}: ${error}`,
-              }),
-          ),
-        );
+          const resolvedTarget = yield* fs.realPath(targetPath).pipe(
+            Effect.mapError(
+              (error) =>
+                new AiSkillsError({
+                  details: `Failed to resolve ${targetPath}: ${error}`,
+                }),
+            ),
+          );
+          const resolvedCanonical = yield* fs.realPath(canonicalPath).pipe(
+            Effect.mapError(
+              (error) =>
+                new AiSkillsError({
+                  details: `Failed to resolve ${canonicalPath}: ${error}`,
+                }),
+            ),
+          );
 
-        return resolvedTarget === resolvedCanonical;
-      });
+          return resolvedTarget === resolvedCanonical;
+        },
+      );
 
       const ensureLocalSurface = Effect.fn("AiSkills.ensureLocalSurface")(
         function* (surface: SkillSurface) {
@@ -309,39 +305,39 @@ export class AiSkills extends ServiceMap.Service<
         return entries.filter((entry) => !entry.startsWith(".")).sort();
       });
 
-      const loadManagedSkills = Effect.fn("AiSkills.loadManagedSkills")(function* (
-        names: readonly string[],
-      ) {
-        const uniqueNames = [...new Set(names)].sort((left, right) =>
-          left.localeCompare(right),
-        );
-
-        if (uniqueNames.length === 0) {
-          return yield* new AiSkillsError({
-            details: "Select at least one managed skill",
-          });
-        }
-
-        const managedSkills: Array<ManagedNamedSkill> = [];
-        for (const name of uniqueNames) {
-          const skill = yield* aiState.getSkill(name).pipe(
-            Effect.mapError(
-              (error) =>
-                new AiSkillsError({
-                  details: error.message,
-                }),
-            ),
+      const loadManagedSkills = Effect.fn("AiSkills.loadManagedSkills")(
+        function* (names: readonly string[]) {
+          const uniqueNames = [...new Set(names)].sort((left, right) =>
+            left.localeCompare(right),
           );
-          if (skill === undefined) {
+
+          if (uniqueNames.length === 0) {
             return yield* new AiSkillsError({
-              details: `Managed skill "${name}" not found`,
+              details: "Select at least one managed skill",
             });
           }
-          managedSkills.push({ name, skill });
-        }
 
-        return managedSkills;
-      });
+          const managedSkills: Array<ManagedNamedSkill> = [];
+          for (const name of uniqueNames) {
+            const skill = yield* aiState.getSkill(name).pipe(
+              Effect.mapError(
+                (error) =>
+                  new AiSkillsError({
+                    details: error.message,
+                  }),
+              ),
+            );
+            if (skill === undefined) {
+              return yield* new AiSkillsError({
+                details: `Managed skill "${name}" not found`,
+              });
+            }
+            managedSkills.push({ name, skill });
+          }
+
+          return managedSkills;
+        },
+      );
 
       const previewSync = Effect.fn("AiSkills.previewSync")(function* () {
         const skills = yield* aiState.listSkills().pipe(
@@ -365,9 +361,10 @@ export class AiSkills extends ServiceMap.Service<
             }
 
             const targetPath = targetPathFor(skillName, target);
-            const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
-              Effect.catch(() => Effect.succeed(false)),
-            );
+            const managed = yield* isManagedSymlink(
+              targetPath,
+              canonicalPath,
+            ).pipe(Effect.catch(() => Effect.succeed(false)));
             if (managed) {
               toRemove.push(displayPath(targetPath));
             }
@@ -436,9 +433,10 @@ export class AiSkills extends ServiceMap.Service<
             }
 
             const targetPath = targetPathFor(skillName, target);
-            const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
-              Effect.catch(() => Effect.succeed(false)),
-            );
+            const managed = yield* isManagedSymlink(
+              targetPath,
+              canonicalPath,
+            ).pipe(Effect.catch(() => Effect.succeed(false)));
             if (managed) {
               toRemove.push(displayPath(targetPath));
             }
@@ -454,7 +452,10 @@ export class AiSkills extends ServiceMap.Service<
             }
 
             if (targetType === "SymbolicLink") {
-              const managed = yield* isManagedSymlink(targetPath, canonicalPath);
+              const managed = yield* isManagedSymlink(
+                targetPath,
+                canonicalPath,
+              );
               if (managed) {
                 unchanged.push(displayPath(targetPath));
               } else {
@@ -485,9 +486,10 @@ export class AiSkills extends ServiceMap.Service<
             }
 
             const targetPath = targetPathFor(skillName, target);
-            const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
-              Effect.catch(() => Effect.succeed(false)),
-            );
+            const managed = yield* isManagedSymlink(
+              targetPath,
+              canonicalPath,
+            ).pipe(Effect.catch(() => Effect.succeed(false)));
             if (managed) {
               yield* removePath(targetPath);
             }
@@ -503,7 +505,10 @@ export class AiSkills extends ServiceMap.Service<
             }
 
             if (targetType === "SymbolicLink") {
-              const managed = yield* isManagedSymlink(targetPath, canonicalPath);
+              const managed = yield* isManagedSymlink(
+                targetPath,
+                canonicalPath,
+              );
               if (managed) {
                 continue;
               }
@@ -618,7 +623,12 @@ export class AiSkills extends ServiceMap.Service<
         }
 
         const normalizedTargets = normalizeTargets(targets);
-        yield* validateAdoptTargets(name, canonicalPath, normalizedTargets, sourcePath);
+        yield* validateAdoptTargets(
+          name,
+          canonicalPath,
+          normalizedTargets,
+          sourcePath,
+        );
         yield* ensureDirectory(path.dirname(canonicalPath));
         yield* copyPath(sourcePath, canonicalPath);
         yield* aiState
@@ -680,9 +690,10 @@ export class AiSkills extends ServiceMap.Service<
               continue;
             }
 
-            const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
-              Effect.catch(() => Effect.succeed(false)),
-            );
+            const managed = yield* isManagedSymlink(
+              targetPath,
+              canonicalPath,
+            ).pipe(Effect.catch(() => Effect.succeed(false)));
             if (managed) {
               continue;
             }
@@ -702,9 +713,10 @@ export class AiSkills extends ServiceMap.Service<
               continue;
             }
 
-            const managed = yield* isManagedSymlink(targetPath, canonicalPath).pipe(
-              Effect.catch(() => Effect.succeed(false)),
-            );
+            const managed = yield* isManagedSymlink(
+              targetPath,
+              canonicalPath,
+            ).pipe(Effect.catch(() => Effect.succeed(false)));
             if (managed) {
               continue;
             }
@@ -726,70 +738,69 @@ export class AiSkills extends ServiceMap.Service<
         },
       );
 
-      const updateTargetsMany = Effect.fn("AiSkills.updateTargetsMany")(function* (
-        names: readonly string[],
-        targets: readonly SkillTarget[],
-      ) {
-        const managedSkills = yield* loadManagedSkills(names);
-        const normalizedTargets = normalizeTargets(targets);
-        const validated: Array<
-          ManagedNamedSkill & {
-            readonly canonicalPath: string;
-            readonly normalizedTargets: readonly SkillTarget[];
-            readonly toEnable: readonly SkillTarget[];
-            readonly toDisable: readonly SkillTarget[];
-          }
-        > = [];
+      const updateTargetsMany = Effect.fn("AiSkills.updateTargetsMany")(
+        function* (names: readonly string[], targets: readonly SkillTarget[]) {
+          const managedSkills = yield* loadManagedSkills(names);
+          const normalizedTargets = normalizeTargets(targets);
+          const validated: Array<
+            ManagedNamedSkill & {
+              readonly canonicalPath: string;
+              readonly normalizedTargets: readonly SkillTarget[];
+              readonly toEnable: readonly SkillTarget[];
+              readonly toDisable: readonly SkillTarget[];
+            }
+          > = [];
 
-        for (const managedSkill of managedSkills) {
-          const result = yield* validateTargetsUpdate(
-            managedSkill.name,
-            managedSkill.skill,
-            normalizedTargets,
-          );
-          validated.push({
-            ...managedSkill,
-            ...result,
-          });
-        }
-
-        for (const entry of validated) {
-          yield* aiState
-            .upsertSkill(entry.name, {
-              canonical_dir: entry.skill.canonical_dir,
-              targets: entry.normalizedTargets,
-            })
-            .pipe(
-              Effect.mapError(
-                (error) =>
-                  new AiSkillsError({
-                    details: error.message,
-                  }),
-              ),
+          for (const managedSkill of managedSkills) {
+            const result = yield* validateTargetsUpdate(
+              managedSkill.name,
+              managedSkill.skill,
+              normalizedTargets,
             );
-        }
-
-        for (const entry of validated) {
-          for (const target of entry.toDisable) {
-            yield* removePath(targetPathFor(entry.name, target));
+            validated.push({
+              ...managedSkill,
+              ...result,
+            });
           }
-        }
 
-        for (const entry of validated) {
-          for (const target of entry.toEnable) {
-            yield* ensureLocalSurface(target);
-            yield* createManagedSymlink(
-              targetPathFor(entry.name, target),
-              entry.canonicalPath,
-            );
+          for (const entry of validated) {
+            yield* aiState
+              .upsertSkill(entry.name, {
+                canonical_dir: entry.skill.canonical_dir,
+                targets: entry.normalizedTargets,
+              })
+              .pipe(
+                Effect.mapError(
+                  (error) =>
+                    new AiSkillsError({
+                      details: error.message,
+                    }),
+                ),
+              );
           }
-        }
 
-        return {
-          names: managedSkills.map((managedSkill) => managedSkill.name),
-          targets: normalizedTargets,
-        };
-      });
+          for (const entry of validated) {
+            for (const target of entry.toDisable) {
+              yield* removePath(targetPathFor(entry.name, target));
+            }
+          }
+
+          for (const entry of validated) {
+            for (const target of entry.toEnable) {
+              yield* ensureLocalSurface(target);
+              yield* createManagedSymlink(
+                targetPathFor(entry.name, target),
+                entry.canonicalPath,
+              );
+            }
+          }
+
+          return {
+            names: managedSkills.map((managedSkill) => managedSkill.name),
+            targets: normalizedTargets,
+          };
+        },
+      );
 
       const updateTargets = Effect.fn("AiSkills.updateTargets")(function* (
         name: string,

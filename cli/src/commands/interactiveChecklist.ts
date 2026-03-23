@@ -124,19 +124,13 @@ const PromptAction = Data.taggedEnum<Prompt.ActionDefinition>();
 const beep = <State, Output>(): Prompt.Action<State, Output> =>
   PromptAction.Beep();
 
-const nextFrame = <State, Output>(
-  state: State,
-): Prompt.Action<State, Output> => PromptAction.NextFrame({ state });
+const nextFrame = <State, Output>(state: State): Prompt.Action<State, Output> =>
+  PromptAction.NextFrame({ state });
 
-const submit = <State, Output>(
-  value: Output,
-): Prompt.Action<State, Output> => PromptAction.Submit({ value });
+const submit = <State, Output>(value: Output): Prompt.Action<State, Output> =>
+  PromptAction.Submit({ value });
 
-const getVisibleWindow = (
-  index: number,
-  total: number,
-  maxPerPage: number,
-) => {
+const getVisibleWindow = (index: number, total: number, maxPerPage: number) => {
   if (total <= maxPerPage) {
     return {
       start: 0,
@@ -207,7 +201,8 @@ const eraseRenderedText = (text: string, columns: number) => {
 
   for (const line of lines) {
     const visibleLength = line.replace(/\u001B\[[0-9;]*m/g, "").length;
-    rows += 1 + Math.floor(Math.max(visibleLength - 1, 0) / Math.max(columns, 1));
+    rows +=
+      1 + Math.floor(Math.max(visibleLength - 1, 0) / Math.max(columns, 1));
   }
 
   if (rows <= 0) {
@@ -270,139 +265,144 @@ const renderChecklistFrame = <Value, Extra extends string>(
   Effect.gen(function* () {
     const terminal = yield* Terminal.Terminal;
     const columns = yield* terminal.columns;
-      const maxPerPage = options.maxPerPage ?? maxPerPageDefault;
-      const visibleWindow = getVisibleWindow(
-        state.index,
-        options.choices.length,
-        maxPerPage,
+    const maxPerPage = options.maxPerPage ?? maxPerPageDefault;
+    const visibleWindow = getVisibleWindow(
+      state.index,
+      options.choices.length,
+      maxPerPage,
+    );
+    const visibleChoices = options.choices.slice(
+      visibleWindow.start,
+      visibleWindow.end,
+    );
+    const selectedTitles = selectedTitlesForAction(state, options);
+    const selectionMode = options.selectionMode ?? "multiple";
+    const showSelectionSummary =
+      options.showSelectionSummary ?? selectionMode !== "single";
+
+    const lines = options.message
+      .split(/\r?\n/)
+      .map((line, index) =>
+        index === 0
+          ? wrapColor(
+              padLine(`${promptSymbol} ${line}`),
+              `${color.bold}${color.white}`,
+            )
+          : wrapColor(padLine(line), color.secondary),
       );
-      const visibleChoices = options.choices.slice(
-        visibleWindow.start,
-        visibleWindow.end,
-      );
-      const selectedTitles = selectedTitlesForAction(state, options);
-      const selectionMode = options.selectionMode ?? "multiple";
-      const showSelectionSummary =
-        options.showSelectionSummary ?? selectionMode !== "single";
 
-      const lines = options.message
-        .split(/\r?\n/)
-        .map((line, index) =>
-          index === 0
-            ? wrapColor(padLine(`${promptSymbol} ${line}`), `${color.bold}${color.white}`)
-            : wrapColor(padLine(line), color.secondary),
-        );
+    lines.push("");
 
-      lines.push("");
+    for (const [relativeIndex, choice] of visibleChoices.entries()) {
+      const absoluteIndex = visibleWindow.start + relativeIndex;
+      const highlighted = absoluteIndex === state.index;
+      const prefix = highlighted ? pointer : pointerMuted;
+      const title = choice.title;
+      const detail = choice.detail ?? "";
+      const width = contentWidth(columns);
+      const marker =
+        selectionMode === "single"
+          ? `${highlighted ? wrapColor(prefix, color.cyan) : prefix}`
+          : `${highlighted ? wrapColor(prefix, color.cyan) : prefix} ${
+              state.selectedIndices.has(absoluteIndex)
+                ? wrapColor(bubbleOn, color.green)
+                : wrapColor(bubbleOff, color.muted)
+            }`;
+      const markerPlain =
+        selectionMode === "single"
+          ? `${prefix}`
+          : `${prefix} ${
+              state.selectedIndices.has(absoluteIndex) ? bubbleOn : bubbleOff
+            }`;
 
-      for (const [relativeIndex, choice] of visibleChoices.entries()) {
-        const absoluteIndex = visibleWindow.start + relativeIndex;
-        const highlighted = absoluteIndex === state.index;
-        const prefix = highlighted ? pointer : pointerMuted;
-        const title = choice.title;
-        const detail = choice.detail ?? "";
-        const width = contentWidth(columns);
-        const marker =
-          selectionMode === "single"
-            ? `${highlighted ? wrapColor(prefix, color.cyan) : prefix}`
-            : `${highlighted ? wrapColor(prefix, color.cyan) : prefix} ${
-                state.selectedIndices.has(absoluteIndex)
-                  ? wrapColor(bubbleOn, color.green)
-                  : wrapColor(bubbleOff, color.muted)
-              }`;
-        const markerPlain =
-          selectionMode === "single"
-            ? `${prefix}`
-            : `${prefix} ${
-                state.selectedIndices.has(absoluteIndex) ? bubbleOn : bubbleOff
-              }`;
-
-        if (detail.length === 0) {
-          lines.push(padLine(`${marker} ${wrapColor(title, color.white)}`));
-          continue;
-        }
-
-        const inlinePlain = `${markerPlain} ${title} ${detail}`;
-        if (visibleLength(inlinePlain) <= width) {
-          lines.push(
-            padLine(
-              `${marker} ${wrapColor(title, color.white)} ${wrapColor(detail, color.muted)}`,
-            ),
-          );
-          continue;
-        }
-
+      if (detail.length === 0) {
         lines.push(padLine(`${marker} ${wrapColor(title, color.white)}`));
-        const detailIndent = `${leftPad}${" ".repeat(markerPlain.length + 1)}`;
-        const detailWidth = Math.max(
-          width - (detailIndent.length - leftPad.length),
-          minContentWidth,
-        );
-        for (const detailLine of wrapPlainText(detail, detailWidth)) {
-          lines.push(`${detailIndent}${wrapColor(detailLine, color.muted)}`);
-        }
+        continue;
       }
 
-      lines.push("");
-      const hiddenAbove = visibleWindow.start;
-      const hiddenBelow = options.choices.length - visibleWindow.end;
-      const overflowParts: string[] = [];
-      if (hiddenAbove > 0) {
-        overflowParts.push(`↑ ${hiddenAbove} more`);
-      }
-      if (hiddenBelow > 0) {
-        overflowParts.push(`↓ ${hiddenBelow} more`);
-      }
-      lines.push(
-        wrapColor(
-          padLine(overflowParts.length === 0 ? " " : overflowParts.join("   ")),
-          color.muted,
-        ),
-      );
-      if (showSelectionSummary) {
-        lines.push("");
-        const summaryPrefix = "Selected:";
-        const summaryValue =
-          selectedTitles.length === 0 ? "none" : selectedTitles.join(", ");
-        const summaryIndent = `${leftPad}${" ".repeat(summaryPrefix.length + 1)}`;
-        const summaryLines = wrapPlainText(
-          summaryValue,
-          Math.max(
-            contentWidth(columns) - summaryPrefix.length - 1,
-            minContentWidth,
-          ),
-        );
-        const firstSummary = summaryLines[0] ?? "";
+      const inlinePlain = `${markerPlain} ${title} ${detail}`;
+      if (visibleLength(inlinePlain) <= width) {
         lines.push(
           padLine(
-            `${wrapColor(summaryPrefix, color.green)} ${
-              selectedTitles.length === 0
-                ? wrapColor(firstSummary, color.secondary)
-                : wrapColor(firstSummary, color.white)
-            }`,
+            `${marker} ${wrapColor(title, color.white)} ${wrapColor(detail, color.muted)}`,
           ),
         );
-        for (const summaryLine of summaryLines.slice(1)) {
-          lines.push(
-            `${summaryIndent}${
-              selectedTitles.length === 0
-                ? wrapColor(summaryLine, color.secondary)
-                : wrapColor(summaryLine, color.white)
-            }`,
-          );
-        }
+        continue;
       }
+
+      lines.push(padLine(`${marker} ${wrapColor(title, color.white)}`));
+      const detailIndent = `${leftPad}${" ".repeat(markerPlain.length + 1)}`;
+      const detailWidth = Math.max(
+        width - (detailIndent.length - leftPad.length),
+        minContentWidth,
+      );
+      for (const detailLine of wrapPlainText(detail, detailWidth)) {
+        lines.push(`${detailIndent}${wrapColor(detailLine, color.muted)}`);
+      }
+    }
+
+    lines.push("");
+    const hiddenAbove = visibleWindow.start;
+    const hiddenBelow = options.choices.length - visibleWindow.end;
+    const overflowParts: string[] = [];
+    if (hiddenAbove > 0) {
+      overflowParts.push(`↑ ${hiddenAbove} more`);
+    }
+    if (hiddenBelow > 0) {
+      overflowParts.push(`↓ ${hiddenBelow} more`);
+    }
+    lines.push(
+      wrapColor(
+        padLine(overflowParts.length === 0 ? " " : overflowParts.join("   ")),
+        color.muted,
+      ),
+    );
+    if (showSelectionSummary) {
       lines.push("");
-      lines.push(...options.footer.map((line) => wrapColor(padLine(line), color.muted)));
-
-      if (state.error !== undefined) {
-        lines.push("");
-        lines.push(wrapColor(padLine(state.error), color.red));
+      const summaryPrefix = "Selected:";
+      const summaryValue =
+        selectedTitles.length === 0 ? "none" : selectedTitles.join(", ");
+      const summaryIndent = `${leftPad}${" ".repeat(summaryPrefix.length + 1)}`;
+      const summaryLines = wrapPlainText(
+        summaryValue,
+        Math.max(
+          contentWidth(columns) - summaryPrefix.length - 1,
+          minContentWidth,
+        ),
+      );
+      const firstSummary = summaryLines[0] ?? "";
+      lines.push(
+        padLine(
+          `${wrapColor(summaryPrefix, color.green)} ${
+            selectedTitles.length === 0
+              ? wrapColor(firstSummary, color.secondary)
+              : wrapColor(firstSummary, color.white)
+          }`,
+        ),
+      );
+      for (const summaryLine of summaryLines.slice(1)) {
+        lines.push(
+          `${summaryIndent}${
+            selectedTitles.length === 0
+              ? wrapColor(summaryLine, color.secondary)
+              : wrapColor(summaryLine, color.white)
+          }`,
+        );
       }
+    }
+    lines.push("");
+    lines.push(
+      ...options.footer.map((line) => wrapColor(padLine(line), color.muted)),
+    );
 
-      const rendered = `${lines.join("\n")}\n`;
-      return columns >= 0 ? rendered : rendered;
-    });
+    if (state.error !== undefined) {
+      lines.push("");
+      lines.push(wrapColor(padLine(state.error), color.red));
+    }
+
+    const rendered = `${lines.join("\n")}\n`;
+    return columns >= 0 ? rendered : rendered;
+  });
 
 const renderChecklistSubmission = <Value, Extra extends string>(
   result: ChecklistPromptResult<Value, Extra>,
@@ -411,33 +411,37 @@ const renderChecklistSubmission = <Value, Extra extends string>(
   Effect.gen(function* () {
     const terminal = yield* Terminal.Terminal;
     const columns = yield* terminal.columns;
-      const symbol =
-        result._tag === "cancel" ? cancelSymbol : confirmSymbol;
-      const label =
-        result._tag === "cancel"
-          ? "Cancelled"
-          : result._tag === "extra"
-            ? result.action
-            : compactValues(
-                  result.values.map((value) =>
-                    options.choices.find((choice) => choice.value === value)?.title,
-                  ),
-                ).join(", ");
-      const lines = options.message
-        .split(/\r?\n/)
-        .map((line, index) =>
-          index === 0
-            ? wrapColor(padLine(`${symbol} ${line}`), `${color.bold}${color.white}`)
-            : wrapColor(padLine(line), color.secondary),
-        );
+    const symbol = result._tag === "cancel" ? cancelSymbol : confirmSymbol;
+    const label =
+      result._tag === "cancel"
+        ? "Cancelled"
+        : result._tag === "extra"
+          ? result.action
+          : compactValues(
+              result.values.map(
+                (value) =>
+                  options.choices.find((choice) => choice.value === value)
+                    ?.title,
+              ),
+            ).join(", ");
+    const lines = options.message
+      .split(/\r?\n/)
+      .map((line, index) =>
+        index === 0
+          ? wrapColor(
+              padLine(`${symbol} ${line}`),
+              `${color.bold}${color.white}`,
+            )
+          : wrapColor(padLine(line), color.secondary),
+      );
 
-      const wrappedLabel = wrapPlainText(label, contentWidth(columns));
-      for (const labelLine of wrappedLabel) {
-        lines.push(wrapColor(padLine(labelLine), color.white));
-      }
+    const wrappedLabel = wrapPlainText(label, contentWidth(columns));
+    for (const labelLine of wrappedLabel) {
+      lines.push(wrapColor(padLine(labelLine), color.white));
+    }
 
-      return `${lines.join("\n")}\n`;
-    });
+    return `${lines.join("\n")}\n`;
+  });
 
 const clearChecklistFrame = <Value, Extra extends string>(
   state: PromptState,
@@ -554,11 +558,13 @@ const runChecklistPrompt = <Value, Extra extends string>(
                 const values = selectedValuesForAction(state, options);
                 if (values.length === 0) {
                   return Effect.succeed(
-                    nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>({
-                      index: state.index,
-                      selectedIndices: state.selectedIndices,
-                      error: selectionError(options),
-                    }),
+                    nextFrame<PromptState, ChecklistPromptResult<Value, Extra>>(
+                      {
+                        index: state.index,
+                        selectedIndices: state.selectedIndices,
+                        error: selectionError(options),
+                      },
+                    ),
                   );
                 }
 
