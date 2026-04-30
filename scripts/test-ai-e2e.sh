@@ -125,7 +125,7 @@ for (const [key, value] of Object.entries(data)) {
   console.log(`${key} = ${value}`);
   process.exit(0);
 }
-throw new Error("no shared Codex settings found");
+console.log("");
 ' "$temp_repo/ai/codex-settings-shared.toml"
 )"
 
@@ -165,7 +165,11 @@ printf 'Running sync on machine A...\n'
 sync_a_output="$(cd "$temp_repo" && run_dot "$home_a" sync)"
 require_contains "$sync_a_output" "Created these managed skill links:"
 require_contains "$sync_a_output" "Applied these shared Claude settings:"
-require_contains "$sync_a_output" "Applied these shared Codex settings:"
+if [[ -n "$shared_codex_probe" ]]; then
+  require_contains "$sync_a_output" "Applied these shared Codex settings:"
+else
+  require_contains "$sync_a_output" "No shared Codex settings are currently managed."
+fi
 require_directory "$home_a/.claude"
 require_directory "$home_a/.codex"
 require_directory "$home_a/.local/bin"
@@ -177,11 +181,18 @@ require_symlink "$home_a/.local/bin/tmux-sessionizer"
 require_file_contains "$home_a/.claude/settings.json" '"localOnly": true'
 require_file_contains "$home_a/.claude/settings.json" "$shared_claude_probe"
 require_file_contains "$home_a/.codex/config.toml" 'projects."/tmp/example"'
-require_file_contains "$home_a/.codex/config.toml" "$shared_codex_probe"
+if [[ -n "$shared_codex_probe" ]]; then
+  require_file_contains "$home_a/.codex/config.toml" "$shared_codex_probe"
+fi
 
 printf 'Running sync on machine B...\n'
 sync_b_output="$(cd "$temp_repo" && run_dot "$home_b" sync)"
 require_contains "$sync_b_output" "Created these managed skill links:"
+if [[ -n "$shared_codex_probe" ]]; then
+  require_contains "$sync_b_output" "Applied these shared Codex settings:"
+else
+  require_contains "$sync_b_output" "No shared Codex settings are currently managed."
+fi
 require_directory "$home_b/.claude"
 require_directory "$home_b/.codex"
 require_directory "$home_b/.local/bin"
@@ -191,7 +202,9 @@ fi
 require_symlink "$home_b/.codex/skills/$shared_codex_skill"
 require_symlink "$home_b/.local/bin/tmux-sessionizer"
 require_file_contains "$home_b/.claude/settings.json" "$shared_claude_probe"
-require_file_contains "$home_b/.codex/config.toml" "$shared_codex_probe"
+if [[ -n "$shared_codex_probe" ]]; then
+  require_file_contains "$home_b/.codex/config.toml" "$shared_codex_probe"
+fi
 
 printf 'Adopting a dummy local Codex skill...\n'
 mkdir -p "$home_a/.codex/skills/$dummy_skill_name"

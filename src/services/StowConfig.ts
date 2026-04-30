@@ -17,8 +17,8 @@ export class StowConfig extends ServiceMap.Service<
     Effect.gen(function* () {
       const path = yield* Path.Path;
 
-      // In compiled binary, import.meta.dirname is virtual (/$bunfs/root/...)
-      // Use process.argv[0] which is the binary path (dotfiles/dot)
+      // In compiled Bun binaries, import.meta.dirname is virtual (/$bunfs/root/...).
+      // In source and dist runs this module lives under repo/src/services or repo/dist/services.
       const isCompiled =
         import.meta.dirname?.startsWith('/$bunfs') || !import.meta.dirname?.includes('dotfiles');
 
@@ -26,7 +26,7 @@ export class StowConfig extends ServiceMap.Service<
       const binaryPath = process.argv[0] ?? '.';
       const dotfilesRoot = isCompiled
         ? path.resolve(path.dirname(binaryPath))
-        : path.resolve(dirname, '..', '..', '..');
+        : path.resolve(dirname, '..', '..');
 
       return StowConfig.of({
         dotfilesRoot,

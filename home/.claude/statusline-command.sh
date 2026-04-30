@@ -59,7 +59,8 @@ case "$effort" in
     low)  effort_icon="○"; effort_color="\033[34m" ;;
     medium|auto) effort_icon="◑"; effort_color="\033[33m" ;;
     high) effort_icon="●"; effort_color="\033[32m" ;;
-    max)  effort_icon="◉"; effort_color="\033[35m" ;;
+    max)  effort_icon="✦"; effort_color="\033[35m" ;;
+    xhigh) effort_icon="◉"; effort_color="\033[95m" ;;
     *)    effort_icon="○"; effort_color="\033[2m" ;;
 esac
 
