@@ -4,7 +4,7 @@
   "private": true,
   "description": "CLI for managing dotfiles - syncing, checking differences, and initializing on new devices",
   "bin": {
-    "dot": "./dist/main.js"
+    "dot": "./dot"
   },
   "type": "module",
   "scripts": {
