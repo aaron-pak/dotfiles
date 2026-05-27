@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompting Instructions Inline Review</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --ink: #17202c;
+      --muted: #607080;
+      --line: #d8dee7;
+      --current: #9d3434;
+      --current-bg: #fff4f2;
+      --proposed: #276a56;
+      --proposed-bg: #eff9f4;
+      --diff-add: #dff1e9;
+      --diff-add-line: #76b196;
+      --diff-change: #fff3cf;
+      --diff-change-line: #d3aa43;
+      --comment: #ffe680;
+      --comment-line: #c59516;
+      --focus: #254f7a;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    header {
+      padding: 24px clamp(16px, 4vw, 42px);
+      background: #17202c;
+      color: #f8fafc;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(25px, 4vw, 38px);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    header p {
+      max-width: 920px;
+      margin: 0;
+      color: #cbd5e1;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 18px clamp(12px, 3vw, 28px) 48px;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin: -18px calc(clamp(12px, 3vw, 28px) * -1) 18px;
+      padding: 12px clamp(12px, 3vw, 28px);
+      border-bottom: 1px solid var(--line);
+      background: rgba(245, 246, 248, 0.96);
+      backdrop-filter: blur(10px);
+    }
+
+    .toolbar strong {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 12px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--focus);
+      color: var(--focus);
+    }
+
+    button.primary {
+      border-color: var(--focus);
+      background: var(--focus);
+      color: #fff;
+    }
+
+    button.danger {
+      color: #923333;
+    }
+
+    .guide {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 16px;
+      padding: 15px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .guide h2 {
+      margin: 0 0 6px;
+      font-size: 19px;
+      letter-spacing: 0;
+    }
+
+    .guide p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: end;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .swatch {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      margin-right: 5px;
+      border-radius: 3px;
+      vertical-align: -2px;
+    }
+
+    .swatch.add {
+      background: var(--diff-add);
+      border: 1px solid var(--diff-add-line);
+    }
+
+    .swatch.change {
+      background: var(--diff-change);
+      border: 1px solid var(--diff-change-line);
+    }
+
+    .swatch.comment {
+      background: var(--comment);
+      border: 1px solid var(--comment-line);
+    }
+
+    .change-card {
+      margin-bottom: 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .change-title {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #eef2f6;
+    }
+
+    .change-title h2 {
+      margin: 0;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    .mini-summary {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .version {
+      padding: 15px;
+      min-height: 150px;
+    }
+
+    .version + .version {
+      border-left: 1px solid var(--line);
+    }
+
+    .version h3 {
+      margin: 0 0 9px;
+      font-size: 13px;
+      line-height: 1;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .version.current {
+      background: var(--current-bg);
+    }
+
+    .version.current h3 {
+      color: var(--current);
+    }
+
+    .version.proposed {
+      background: var(--proposed-bg);
+    }
+
+    .version.proposed h3 {
+      color: var(--proposed);
+    }
+
+    .annotatable {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.64;
+      user-select: text;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .diff-add {
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      border-radius: 4px;
+      padding: 1px 3px;
+      background: var(--diff-add);
+      box-shadow: inset 0 -2px 0 var(--diff-add-line);
+    }
+
+    .diff-change {
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      border-radius: 4px;
+      padding: 1px 3px;
+      background: var(--diff-change);
+      box-shadow: inset 0 -2px 0 var(--diff-change-line);
+    }
+
+    mark.comment-highlight {
+      border-radius: 4px;
+      padding: 1px 3px;
+      background: var(--comment);
+      box-shadow: inset 0 -2px 0 var(--comment-line);
+      cursor: pointer;
+    }
+
+    .inline-note {
+      display: inline-flex;
+      align-items: center;
+      min-width: 18px;
+      height: 18px;
+      margin-left: 3px;
+      border-radius: 999px;
+      padding: 0 6px;
+      background: var(--comment-line);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      vertical-align: 2px;
+      cursor: pointer;
+    }
+
+    .final {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+
+    .final h2 {
+      margin: 0 0 10px;
+      font-size: 19px;
+      letter-spacing: 0;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      border-radius: 8px;
+      padding: 14px;
+      background: #101820;
+      color: #edf2f7;
+      font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .selection-toolbar,
+    .comment-popover {
+      position: fixed;
+      z-index: 30;
+      display: none;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 16px 42px rgba(15, 23, 42, 0.22);
+    }
+
+    .selection-toolbar {
+      padding: 6px;
+    }
+
+    .comment-popover {
+      width: min(340px, calc(100vw - 24px));
+      padding: 12px;
+    }
+
+    .comment-popover label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .comment-popover textarea,
+    .export-box {
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffdf1;
+      color: var(--ink);
+      font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .comment-popover textarea:focus,
+    .export-box:focus {
+      outline: 3px solid rgba(37, 79, 122, 0.18);
+      border-color: var(--focus);
+    }
+
+    .popover-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .popover-actions .right {
+      display: flex;
+      gap: 8px;
+    }
+
+    dialog {
+      width: min(820px, calc(100vw - 24px));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+    }
+
+    dialog::backdrop {
+      background: rgba(15, 23, 42, 0.48);
+    }
+
+    .dialog-inner {
+      padding: 18px;
+    }
+
+    .dialog-inner h2 {
+      margin: 0 0 12px;
+      font-size: 20px;
+    }
+
+    .export-box {
+      min-height: 360px;
+      background: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 820px) {
+      .guide {
+        grid-template-columns: 1fr;
+      }
+
+      .legend {
+        justify-content: start;
+      }
+
+      .compare {
+        grid-template-columns: 1fr;
+      }
+
+      .version + .version {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Prompting and Agent Instructions Inline Review</h1>
+    <p>
+      Select text inside the current or proposed wording, then add a comment. Your comments appear as
+      inline highlights on the exact words you selected.
+    </p>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <strong>Highlight text to comment inline. Notes save in this browser.</strong>
+      <div class="actions">
+        <button type="button" class="primary" id="exportNotes">Export Notes</button>
+        <button type="button" id="copyProposal">Copy Proposal</button>
+        <button type="button" class="danger" id="resetReview">Reset Review</button>
+      </div>
+    </div>
+
+    <section class="guide">
+      <div>
+        <h2>How To Use This</h2>
+        <p>
+          This is a real inline annotation surface, not a comment table. Select any phrase in the
+          text below. Click "Add Comment". The selected phrase will turn yellow and carry your comment.
+          Click a yellow highlight later to edit or delete it.
+        </p>
+      </div>
+      <div class="legend" aria-label="Legend">
+        <span><span class="swatch change"></span>Changed wording</span>
+        <span><span class="swatch add"></span>New idea</span>
+        <span><span class="swatch comment"></span>Your comment</span>
+      </div>
+    </section>
+
+    <div id="reviewContent">
+      <section class="change-card">
+        <div class="change-title">
+          <h2>1. Fewer Instructions And Intentionality</h2>
+          <span class="mini-summary">Keeps your original shape, only softens the absolute harm claim.</span>
+        </div>
+        <div class="compare">
+          <article class="version current">
+            <h3>Current</h3>
+            <p class="annotatable" data-label="Current paragraph 1">It is observed that models tend to do way too much when asked to write agent instructions or prompts. The more instructions we add, the harder it is to tune to get the result we want. Removing or abstaining from writing certain parts of instructions is just as much a lever as writing instructions. Be very intentional with each instruction you add because adding unnecessary, incorrect, or misinterpretable instructions are more harmful than nothing at all.</p>
+          </article>
+          <article class="version proposed">
+            <h3>Proposed</h3>
+            <p class="annotatable" data-label="Proposed paragraph 1">It is observed that models tend to do way too much when asked to write agent instructions or prompts. The more instructions we add, the harder it is to tune to get the result we want. Removing or abstaining from writing certain parts of instructions is just as much a lever as writing instructions. Be very intentional with each instruction you add because adding unnecessary, incorrect, or misinterpretable instructions <span class="diff-change">can be</span> more harmful than nothing at all.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="change-card">
+        <div class="change-title">
+          <h2>2. Intention, Philosophy, And Over-Prescription</h2>
+          <span class="mini-summary">Keeps the current philosophy sentence, then adds the new idea without a checklist.</span>
+        </div>
+        <div class="compare">
+          <article class="version current">
+            <h3>Current</h3>
+            <p class="annotatable" data-label="Current paragraph 2">Prefer concise, efficient instructions when asked to write persistent prompts or agent instructions. Favor outcome based persistent prompts and instructions with verifiability. Convey intention and/or philosophy.</p>
+          </article>
+          <article class="version proposed">
+            <h3>Proposed</h3>
+            <p class="annotatable" data-label="Proposed paragraph 2">Prefer concise, efficient instructions when asked to write persistent prompts or agent instructions. Favor outcome based persistent prompts and instructions with verifiability. Convey intention and/or philosophy. <span class="diff-add">Be careful not to over-prescribe implementation details or turn assumptions about how work should be done into persistent instructions.</span></p>
+          </article>
+        </div>
+      </section>
+
+      <section class="change-card">
+        <div class="change-title">
+          <h2>3. Persistent Prompt Definition</h2>
+          <span class="mini-summary">Keeps your definition, only adds plans and specs to the examples.</span>
+        </div>
+        <div class="compare">
+          <article class="version current">
+            <h3>Current</h3>
+            <p class="annotatable" data-label="Current paragraph 3">By persistent prompts or instructions, I generally refer to instructions that are persisted, saved, potentially iterated on such as CLAUDE.md, AGENTS.md, skills, etc. This does not necessarily apply to things like subagents that you spin up since these are not prompts that are persisted.</p>
+          </article>
+          <article class="version proposed">
+            <h3>Proposed</h3>
+            <p class="annotatable" data-label="Proposed paragraph 3">By persistent prompts or instructions, I generally refer to instructions that are persisted, saved, potentially iterated on such as <code>CLAUDE.md</code>, <code>AGENTS.md</code>, skills, <span class="diff-add">plans, specs</span>, etc. This does not necessarily apply to things like subagents that you spin up since these are not prompts that are persisted.</p>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <section class="final">
+      <h2>Copyable Proposed Section</h2>
+      <pre id="proposal">## Prompting and Agent Instructions
+
+It is observed that models tend to do way too much when asked to write agent instructions or prompts. The more instructions we add, the harder it is to tune to get the result we want. Removing or abstaining from writing certain parts of instructions is just as much a lever as writing instructions. Be very intentional with each instruction you add because adding unnecessary, incorrect, or misinterpretable instructions can be more harmful than nothing at all.
+
+Prefer concise, efficient instructions when asked to write persistent prompts or agent instructions. Favor outcome based persistent prompts and instructions with verifiability. Convey intention and/or philosophy. Be careful not to over-prescribe implementation details or turn assumptions about how work should be done into persistent instructions.
+
+By persistent prompts or instructions, I generally refer to instructions that are persisted, saved, potentially iterated on such as `CLAUDE.md`, `AGENTS.md`, skills, plans, specs, etc. This does not necessarily apply to things like subagents that you spin up since these are not prompts that are persisted.</pre>
+    </section>
+  </main>
+
+  <div class="selection-toolbar" id="selectionToolbar">
+    <button type="button" class="primary" id="addComment">Add Comment</button>
+  </div>
+
+  <div class="comment-popover" id="commentPopover" role="dialog" aria-modal="false" aria-label="Comment editor">
+    <label for="commentText" id="commentLabel">Comment</label>
+    <textarea id="commentText" placeholder="Write your note for this exact selection..."></textarea>
+    <div class="popover-actions">
+      <button type="button" class="danger" id="deleteComment">Delete</button>
+      <div class="right">
+        <button type="button" id="cancelComment">Cancel</button>
+        <button type="button" class="primary" id="saveComment">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="exportDialog">
+    <div class="dialog-inner">
+      <h2>Annotation Export</h2>
+      <textarea id="exportText" class="export-box" readonly></textarea>
+      <div class="dialog-actions">
+        <button type="button" id="copyExport">Copy Export</button>
+        <button type="button" id="closeExport">Close</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const htmlKey = "prompting-inline-review-html-v2";
+    const commentsKey = "prompting-inline-review-comments-v2";
+    const reviewContent = document.getElementById("reviewContent");
+    const selectionToolbar = document.getElementById("selectionToolbar");
+    const commentPopover = document.getElementById("commentPopover");
+    const commentText = document.getElementById("commentText");
+    const deleteComment = document.getElementById("deleteComment");
+    let savedRange = null;
+    let editingId = null;
+
+    function getComments() {
+      return JSON.parse(localStorage.getItem(commentsKey) || "{}");
+    }
+
+    function saveComments(comments) {
+      localStorage.setItem(commentsKey, JSON.stringify(comments));
+    }
+
+    function saveHtml() {
+      localStorage.setItem(htmlKey, reviewContent.innerHTML);
+    }
+
+    function loadState() {
+      const storedHtml = localStorage.getItem(htmlKey);
+      if (storedHtml) {
+        reviewContent.innerHTML = storedHtml;
+      }
+    }
+
+    function parentElement(node) {
+      return node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    }
+
+    function annotatableFor(node) {
+      const element = parentElement(node);
+      return element ? element.closest(".annotatable") : null;
+    }
+
+    function hideToolbar() {
+      selectionToolbar.style.display = "none";
+    }
+
+    function hidePopover() {
+      commentPopover.style.display = "none";
+      editingId = null;
+      savedRange = null;
+      commentText.value = "";
+    }
+
+    function placeElement(element, rect) {
+      const margin = 8;
+      const top = Math.max(margin, rect.bottom + margin);
+      const left = Math.min(
+        window.innerWidth - element.offsetWidth - margin,
+        Math.max(margin, rect.left)
+      );
+      element.style.top = `${top}px`;
+      element.style.left = `${left}px`;
+    }
+
+    function updateSelectionToolbar() {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        hideToolbar();
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      const startBlock = annotatableFor(range.startContainer);
+      const endBlock = annotatableFor(range.endContainer);
+
+      if (!startBlock || startBlock !== endBlock || !selection.toString().trim()) {
+        hideToolbar();
+        return;
+      }
+
+      savedRange = range.cloneRange();
+      selectionToolbar.style.display = "block";
+      placeElement(selectionToolbar, range.getBoundingClientRect());
+    }
+
+    function openPopoverForNewComment() {
+      if (!savedRange) return;
+      hideToolbar();
+      editingId = null;
+      deleteComment.style.visibility = "hidden";
+      commentText.value = "";
+      commentPopover.style.display = "block";
+      placeElement(commentPopover, savedRange.getBoundingClientRect());
+      commentText.focus();
+    }
+
+    function openPopoverForExisting(mark) {
+      const id = mark.dataset.commentId;
+      const comments = getComments();
+      editingId = id;
+      savedRange = null;
+      deleteComment.style.visibility = "visible";
+      commentText.value = comments[id]?.comment || "";
+      commentPopover.style.display = "block";
+      placeElement(commentPopover, mark.getBoundingClientRect());
+      commentText.focus();
+    }
+
+    function addInlineNote(mark, number) {
+      const note = document.createElement("sup");
+      note.className = "inline-note";
+      note.dataset.commentId = mark.dataset.commentId;
+      note.textContent = String(number);
+      note.title = "Click highlighted text to edit this comment";
+      mark.after(note);
+    }
+
+    function refreshInlineNoteNumbers() {
+      document.querySelectorAll(".inline-note").forEach((note) => note.remove());
+      const marks = Array.from(document.querySelectorAll("mark.comment-highlight"));
+      marks.forEach((mark, index) => {
+        addInlineNote(mark, index + 1);
+      });
+      saveHtml();
+    }
+
+    function createComment() {
+      if (!savedRange) return;
+      const comment = commentText.value.trim();
+      if (!comment) return;
+
+      const block = annotatableFor(savedRange.startContainer);
+      const id = `c-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const selectedText = savedRange.toString();
+      const mark = document.createElement("mark");
+      mark.className = "comment-highlight";
+      mark.dataset.commentId = id;
+      mark.title = comment;
+
+      const fragment = savedRange.extractContents();
+      mark.append(fragment);
+      savedRange.insertNode(mark);
+
+      const comments = getComments();
+      comments[id] = {
+        comment,
+        quote: selectedText,
+        label: block?.dataset.label || "Selected text"
+      };
+      saveComments(comments);
+      refreshInlineNoteNumbers();
+      window.getSelection()?.removeAllRanges();
+      hidePopover();
+    }
+
+    function saveExistingComment() {
+      if (!editingId) return;
+      const comments = getComments();
+      const comment = commentText.value.trim();
+      if (!comment) return;
+      comments[editingId] = {
+        ...comments[editingId],
+        comment
+      };
+      saveComments(comments);
+      const mark = document.querySelector(`mark.comment-highlight[data-comment-id="${editingId}"]`);
+      if (mark) mark.title = comment;
+      hidePopover();
+    }
+
+    function unwrapMark(mark) {
+      const parent = mark.parentNode;
+      while (mark.firstChild) {
+        parent.insertBefore(mark.firstChild, mark);
+      }
+      parent.removeChild(mark);
+      parent.normalize();
+    }
+
+    function deleteExistingComment() {
+      if (!editingId) return;
+      const comments = getComments();
+      delete comments[editingId];
+      saveComments(comments);
+      document.querySelectorAll(`.inline-note[data-comment-id="${editingId}"]`).forEach((note) => note.remove());
+      const mark = document.querySelector(`mark.comment-highlight[data-comment-id="${editingId}"]`);
+      if (mark) unwrapMark(mark);
+      refreshInlineNoteNumbers();
+      hidePopover();
+    }
+
+    function buildExport() {
+      const comments = getComments();
+      const marks = Array.from(document.querySelectorAll("mark.comment-highlight"));
+      const lines = ["# Prompting and Agent Instructions Inline Comments", ""];
+
+      if (marks.length === 0) {
+        lines.push("No comments yet.");
+        return lines.join("\n");
+      }
+
+      marks.forEach((mark, index) => {
+        const id = mark.dataset.commentId;
+        const item = comments[id];
+        if (!item) return;
+        lines.push(`## Comment ${index + 1}: ${item.label}`);
+        lines.push(`Selected text: ${JSON.stringify(item.quote)}`);
+        lines.push("");
+        lines.push(item.comment);
+        lines.push("");
+      });
+
+      return lines.join("\n");
+    }
+
+    document.addEventListener("selectionchange", () => {
+      setTimeout(updateSelectionToolbar, 0);
+    });
+
+    document.addEventListener("mousedown", (event) => {
+      if (!commentPopover.contains(event.target) && !selectionToolbar.contains(event.target)) {
+        hidePopover();
+      }
+    });
+
+    reviewContent.addEventListener("click", (event) => {
+      const mark = event.target.closest("mark.comment-highlight");
+      const note = event.target.closest(".inline-note");
+      const id = mark?.dataset.commentId || note?.dataset.commentId;
+      if (!id) return;
+      const targetMark = document.querySelector(`mark.comment-highlight[data-comment-id="${id}"]`);
+      if (targetMark) {
+        openPopoverForExisting(targetMark);
+      }
+    });
+
+    document.getElementById("addComment").addEventListener("click", openPopoverForNewComment);
+    document.getElementById("saveComment").addEventListener("click", () => {
+      if (editingId) {
+        saveExistingComment();
+      } else {
+        createComment();
+      }
+    });
+    document.getElementById("cancelComment").addEventListener("click", hidePopover);
+    document.getElementById("deleteComment").addEventListener("click", deleteExistingComment);
+
+    document.getElementById("exportNotes").addEventListener("click", () => {
+      document.getElementById("exportText").value = buildExport();
+      document.getElementById("exportDialog").showModal();
+    });
+
+    document.getElementById("copyExport").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(document.getElementById("exportText").value);
+    });
+
+    document.getElementById("copyProposal").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(document.getElementById("proposal").innerText);
+    });
+
+    document.getElementById("closeExport").addEventListener("click", () => {
+      document.getElementById("exportDialog").close();
+    });
+
+    document.getElementById("resetReview").addEventListener("click", () => {
+      if (!confirm("Clear all inline comments and reset this review page?")) return;
+      localStorage.removeItem(htmlKey);
+      localStorage.removeItem(commentsKey);
+      window.location.reload();
+    });
+
+    loadState();
+    refreshInlineNoteNumbers();
+  </script>
+</body>
+</html>
