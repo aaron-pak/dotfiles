@@ -41,6 +41,22 @@ require_file_contains() {
     fail "expected $path_value to contain: $needle"
 }
 
+require_codex_project_trust() {
+  local path_value="$1"
+  local project_path="$2"
+  local expected_trust="$3"
+  bun -e '
+const [configPath, projectPath, expectedTrust] = process.argv.slice(1);
+const data = Bun.TOML.parse(await Bun.file(configPath).text());
+const actualTrust = data.projects?.[projectPath]?.trust_level;
+if (actualTrust !== expectedTrust) {
+  console.error(`expected ${configPath} projects.${projectPath}.trust_level to be ${expectedTrust}, got ${actualTrust}`);
+  process.exit(1);
+}
+' "$path_value" "$project_path" "$expected_trust" ||
+    fail "expected $path_value to preserve project trust for $project_path"
+}
+
 command -v stow >/dev/null 2>&1 || fail "stow is required on PATH"
 command -v rsync >/dev/null 2>&1 || fail "rsync is required on PATH"
 command -v python3 >/dev/null 2>&1 || fail "python3 is required on PATH"
@@ -180,7 +196,7 @@ require_symlink "$home_a/.codex/skills/$shared_codex_skill"
 require_symlink "$home_a/.local/bin/tmux-sessionizer"
 require_file_contains "$home_a/.claude/settings.json" '"localOnly": true'
 require_file_contains "$home_a/.claude/settings.json" "$shared_claude_probe"
-require_file_contains "$home_a/.codex/config.toml" 'projects."/tmp/example"'
+require_codex_project_trust "$home_a/.codex/config.toml" "/tmp/example" "trusted"
 if [[ -n "$shared_codex_probe" ]]; then
   require_file_contains "$home_a/.codex/config.toml" "$shared_codex_probe"
 fi
@@ -337,6 +353,10 @@ printf 'Checking no-op sync after convergence...\n'
 sync_b_final_output="$(cd "$temp_repo" && run_dot "$home_b" sync)"
 require_contains "$sync_b_final_output" "Managed skills already match this machine."
 require_contains "$sync_b_final_output" "Shared Claude settings already match this machine. Nothing changed."
-require_contains "$sync_b_final_output" "Shared Codex settings already match this machine. Nothing changed."
+if [[ -n "$shared_codex_probe" ]]; then
+  require_contains "$sync_b_final_output" "Shared Codex settings already match this machine. Nothing changed."
+else
+  require_contains "$sync_b_final_output" "No shared Codex settings are currently managed."
+fi
 
 printf 'AI E2E passed in %s\n' "$tmp_root"
