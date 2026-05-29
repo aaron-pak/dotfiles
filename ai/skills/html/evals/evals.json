@@ -1,0 +1,44 @@
+[
+  {
+    "id": "prose-anchor",
+    "name": "Inline comment anchors to selected prose",
+    "status": "active",
+    "smoke": true,
+    "kind": "markdown plan",
+    "subject": "subjects/review-plan.md",
+    "selection": "any report table as a CSV file",
+    "crossSelection": null,
+    "checks": ["select", "anchor", "edit", "delete", "export"],
+    "driver": "standard.js",
+    "added": "2026-05-29",
+    "notes": "Baseline prose case. The original complaint: comments landed on whole sections and couldn't be reopened to edit. This guards selection-anchored commenting + full edit/delete + export round-trip."
+  },
+  {
+    "id": "diff-line",
+    "name": "Comment on a diff (line-level is acceptable)",
+    "status": "active",
+    "smoke": false,
+    "kind": "unified diff",
+    "subject": "subjects/review-diff.patch",
+    "selection": "expiresIn",
+    "crossSelection": null,
+    "checks": ["select", "edit", "delete", "export"],
+    "driver": "standard.js",
+    "added": "2026-05-29",
+    "notes": "Decision 2026-05-29: per-line commenting on a literal diff is fine, so this intentionally does NOT require span-level `anchor`. It only guards that commenting + edit/delete/export still work on a diff."
+  },
+  {
+    "id": "cross-boundary",
+    "name": "Highlight survives a selection crossing inline formatting",
+    "status": "active",
+    "smoke": false,
+    "kind": "markdown spec with inline code/bold/links",
+    "subject": "subjects/formatting-spec.md",
+    "selection": "sliding 60-second window",
+    "crossSelection": { "start": "defaults to", "end": "6000" },
+    "checks": ["select", "anchor", "crossAnchor", "edit", "delete", "export"],
+    "driver": "standard.js",
+    "added": "2026-05-29",
+    "notes": "The cross-boundary failure mode: selecting from plain text INTO inline `code`/bold/link. Naive highlighting (range.surroundContents) throws here and silently drops the highlight. SKILL.md commit 450c992 added a hint to steer the model to a robust per-text-node highlighter; `crossAnchor` is the regression guard for it."
+  }
+]
