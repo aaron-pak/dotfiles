@@ -9,7 +9,7 @@ Create a single, self-contained HTML file for the requested subject, optimized f
 
 Use SVG, visualizations, and interactive elements at your discretion, wherever they genuinely make the content clearer.
 
-When the content is something I'll give feedback on — a plan, spec, diff, document, instructions — make it reviewable: let me highlight or select any specific part and attach a comment to it in place. Capture any other input that fits the content too — toggles, choices, adjustable values. Give me one control to copy everything I've entered back out as text I can paste to you.
+When the content is something I'll give feedback on — a plan, spec, diff, document, instructions — make it reviewable: let me highlight any text and leave an inline comment on it, which I can edit or delete. Selections that span formatting or multiple elements are the easy thing to get wrong here. Capture any other input that fits the content too — toggles, choices, adjustable values. Give me one control to copy everything I've entered back out as text I can paste to you.
 
 Keep everything in one file with no external dependencies so it's easy to open and share, then open it in my default browser.
 
