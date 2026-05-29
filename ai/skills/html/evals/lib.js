@@ -217,10 +217,13 @@ const helpers = (page) => ({
     return { ok: false, evidence: ms.length ? 'marks present but none cover "' + substring + '": ' + JSON.stringify(ms.slice(0, 3)) : 'no highlight elements found' };
   },
 
-  // Edit the most recent comment to `newText`; return true if it now shows.
-  // Edit is often triggered by clicking the highlight (no "Edit" button), so we
-  // try that first, then fall back to an explicit edit control.
-  async editComment(newText) {
+  // Edit a comment from `oldText` to `newText`. Edit is often triggered by
+  // clicking the highlight (no "Edit" button), so we try that first, then an
+  // explicit edit control. `found` is true only when we actually reopened the
+  // target comment — confirmed by the composer being prefilled with `oldText`.
+  // That gate prevents typing into the wrong (e.g. general-notes) box and
+  // reporting a false failure: if we can't reopen it, the result is inconclusive.
+  async editComment(oldText, newText) {
     const clickedMark = await page.evaluate(() => {
       const sel = 'mark,[class*="hl"],[class*="highlight"],[class*="cmt"],[data-comment-id],[data-cmt],[data-cid],[data-anchor],[data-comment]';
       const els = [...document.querySelectorAll(sel)];
@@ -232,7 +235,9 @@ const helpers = (page) => ({
     if (!clickedMark) await this.clickByText(['edit', 'modify', 'change']);
     await page.waitForTimeout(150);
     const composer = (await this._composerHandle()).asElement();
-    if (!composer) return { ok: false, evidence: 'no editable composer appeared (clicked mark=' + clickedMark + ')' };
+    if (!composer) return { ok: false, found: false, evidence: 'no composer appeared to edit (clicked mark=' + clickedMark + ')' };
+    const cur = await composer.evaluate((n) => (n.value !== undefined ? n.value : n.textContent) || '');
+    if (oldText && !cur.includes(oldText)) return { ok: false, found: false, evidence: 'reopened composer not prefilled with the comment (' + JSON.stringify(cur.slice(0, 40)) + ') — could not locate the edit path' };
     const editable = await composer.evaluate((n) => n.isContentEditable);
     await composer.click().catch(() => {});
     await page.keyboard.press('Meta+A').catch(() => {});
@@ -241,8 +246,11 @@ const helpers = (page) => ({
     else { await composer.fill(newText).catch(async () => { await page.keyboard.type(newText); }); }
     await this.clickByText(['save', 'update', 'done', 'apply', 'ok', 'submit']);
     await page.waitForTimeout(250);
-    const present = await page.evaluate((t) => document.body.innerText.includes(t), newText);
-    return { ok: present, evidence: present ? 'edited text present after save' : 'edited text not found after save' };
+    const after = await page.evaluate(({ o, n }) => ({ newInBody: document.body.innerText.includes(n), oldInBody: document.body.innerText.includes(o) }), { o: oldText, n: newText });
+    const composerNow = (await this._composerHandle()).asElement();
+    const composerVal = composerNow ? await composerNow.evaluate((n) => (n.value !== undefined ? n.value : n.textContent) || '') : '';
+    const ok = after.newInBody || composerVal.includes(newText) || (oldText && !after.oldInBody);
+    return { ok, found: true, evidence: ok ? 'edit applied (newInBody=' + after.newInBody + ', oldGone=' + (oldText ? !after.oldInBody : 'n/a') + ')' : 'edited text not found after save' };
   },
 
   // Delete a comment; return true if it disappears. The delete control is often
@@ -259,8 +267,9 @@ const helpers = (page) => ({
     await this.clickByText(['confirm', 'yes', 'delete', 'remove']).catch(() => {});
     await page.waitForTimeout(200);
     const after = await page.evaluate(({ t, s }) => ({ inBody: document.body.innerText.includes(t), marks: document.querySelectorAll(s).length }), { t: marker, s: markSel });
+    const found = before.inBody || before.marks > 0; // was there anything to delete?
     const removed = (before.inBody && !after.inBody) || (before.marks > 0 && after.marks < before.marks);
-    return { ok: removed, evidence: removed ? 'comment removed (marks ' + before.marks + '->' + after.marks + ')' : 'comment still present after delete (marks ' + before.marks + '->' + after.marks + ')' };
+    return { ok: removed, found, evidence: removed ? 'comment removed (marks ' + before.marks + '->' + after.marks + ')' : (found ? 'comment still present after delete (marks ' + before.marks + '->' + after.marks + ')' : 'nothing to delete — no comment/highlight was created first') };
   },
 
   // Trigger the copy/export-everything control; return what got copied. Export

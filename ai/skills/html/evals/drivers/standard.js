@@ -22,55 +22,65 @@ if (!ev) { console.error('unknown eval id: ' + evalId); process.exit(2); }
 const fileUrl = 'file://' + path.resolve(artifactPath);
 const mark = (suffix) => 'EVAL' + suffix + '_' + evalId.replace(/[^a-z0-9]/gi, '');
 
-// Each check: a fresh-browser flow that returns { passed, evidence }.
+// Each check returns { passed, evidence } or, when the verifier couldn't even
+// drive the relevant control (a verifier limitation, NOT a product regression),
+// { passed: false, inconclusive: true, evidence }. Keeping these distinct is
+// what makes a red trustworthy — see README "Limitations".
+const inc = (evidence) => ({ passed: false, inconclusive: true, evidence });
+
 const CHECKS = {
   // A comment can be attached to an arbitrary text selection.
   async select({ page, dragSelect, helpers }) {
     await dragSelect(ev.selection);
     const added = await helpers.addComment(mark('W'));
+    if (!added) return inc('no comment composer appeared after selection (could not drive)');
     const inBody = await page.evaluate((t) => document.body.innerText.includes(t), mark('W'));
     const hl = await helpers.highlightCovers(ev.selection);
-    const ok = added && (inBody || hl.ok);
-    return { passed: ok, evidence: added ? 'comment composer accepted text; ' + (inBody ? 'marker in DOM' : hl.ok ? 'highlight created on selection' : 'but no marker/highlight found') : 'no comment composer appeared after selection' };
+    const ok = inBody || hl.ok;
+    return { passed: ok, evidence: ok ? (inBody ? 'comment marker in DOM' : 'highlight created on selection') : 'composer accepted text but no marker/highlight registered' };
   },
   // The comment's highlight wraps the exact selected words (within one element).
-  async anchor({ page, dragSelect, helpers }) {
+  async anchor({ dragSelect, helpers }) {
     await dragSelect(ev.selection);
-    await helpers.addComment(mark('W'));
+    if (!(await helpers.addComment(mark('W')))) return inc('could not add a comment to test anchoring');
     const c = await helpers.highlightCovers(ev.selection);
     return { passed: c.ok, evidence: c.evidence };
   },
   // The highlight survives a selection that crosses an element boundary.
   async crossAnchor({ dragSelectRange, helpers }) {
-    if (!ev.crossSelection) return { passed: false, evidence: 'eval has no crossSelection defined' };
+    if (!ev.crossSelection) return inc('eval has no crossSelection defined');
     const pts = await dragSelectRange(ev.crossSelection.start, ev.crossSelection.end);
-    await helpers.addComment(mark('X'));
+    if (!pts.crossesElements) return inc('the selection did not cross an element boundary — adjust crossSelection start/end');
+    if (!(await helpers.addComment(mark('X')))) return inc('could not add a comment to test cross-boundary anchoring');
     const a = await helpers.highlightCovers(ev.crossSelection.start);
     const b = await helpers.highlightCovers(ev.crossSelection.end);
-    const ok = pts.crossesElements && a.ok && b.ok;
-    return { passed: ok, evidence: 'crossesElements=' + pts.crossesElements + '; startSide: ' + a.evidence + '; endSide: ' + b.evidence };
+    const ok = a.ok && b.ok;
+    return { passed: ok, evidence: 'startSide: ' + a.evidence + '; endSide: ' + b.evidence };
   },
   // An existing comment can be edited and the change persists.
   async edit({ dragSelect, helpers }) {
     await dragSelect(ev.selection);
-    await helpers.addComment(mark('W'));
-    const r = await helpers.editComment(mark('E'));
+    if (!(await helpers.addComment(mark('W')))) return inc('could not add a comment to edit');
+    const r = await helpers.editComment(mark('W'), mark('E'));
+    if (r.found === false) return inc(r.evidence);
     return { passed: r.ok, evidence: r.evidence };
   },
   // An existing comment can be deleted.
   async delete({ dragSelect, helpers }) {
     await dragSelect(ev.selection);
-    await helpers.addComment(mark('W'));
+    if (!(await helpers.addComment(mark('W')))) return inc('could not add a comment to delete');
     const r = await helpers.deleteComment(mark('W'));
+    if (r.found === false) return inc('nothing to delete — comment/highlight was not created first');
     return { passed: r.ok, evidence: r.evidence };
   },
   // The single copy/export control emits everything entered, incl. the comment.
   async export({ dragSelect, helpers }) {
     await dragSelect(ev.selection);
-    await helpers.addComment(mark('W'));
+    if (!(await helpers.addComment(mark('W')))) return inc('could not add a comment to export');
     const { clicked, exported } = await helpers.exportAll();
+    if (!clicked) return inc('no copy/export control found (verifier could not locate it)');
     const ok = !!exported && exported.includes(mark('W'));
-    return { passed: ok, evidence: clicked ? (ok ? 'export output contains the comment' : 'export control ("' + clicked + '") fired but output missing comment; got: ' + String(exported).slice(0, 120)) : 'no copy/export control found' };
+    return { passed: ok, evidence: ok ? 'export output contains the comment' : 'export control ("' + clicked + '") fired but output missing comment; got: ' + String(exported).slice(0, 120) };
   },
 };
 

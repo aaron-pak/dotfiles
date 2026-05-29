@@ -96,18 +96,28 @@ selection crossing inline formatting — needs `crossSelection`), `edit`, `delet
 for a case — e.g. `diff-line` omits `anchor` on purpose (line-level commenting on
 a diff is acceptable).
 
-## Limitations (read before trusting a red)
+## Reading the output (✓ / ✗ / ?)
+
+Each check reports one of three outcomes, so a red is trustworthy:
+
+- **✓ pass** — the verifier drove the control and the behavior worked.
+- **✗ fail** — the verifier drove the control and the behavior genuinely failed.
+  Treat this as a real regression.
+- **? inconclusive** — the verifier couldn't *locate/drive* that control on this
+  artifact (a verifier limitation, not a product bug). Confirm it agent-side.
+
+Checks are written to return `?` rather than `✗` when they can't find the
+control — so the generic runner never disguises "I couldn't test this" as a
+failure. (Current known `?`: `edit` on line-level diff UIs, where there's no
+highlight to reopen and no edit button to find.)
+
+## Other limitations
 
 - **Heuristic discovery.** The generic verifier guesses each artifact's controls.
-  It's solid on the standard popover UI but **under-reports** when a control is
-  hidden behind an unusual interaction or when the artifact renders only a quote
-  (not the comment text) in the page body. Known current misses: `edit` on
-  line-level diff UIs and on quote-only sidebars. Confirm any surprising red with
-  the agent-driven mode before treating it as a regression.
+  It's solid on the standard popover UI; on unusual UIs you'll see more `?` —
+  that's the cue to use the agent-driven mode.
 - **Small N is noisy.** Generation is stochastic; read pass *rates*, and
   generate enough artifacts (≥3–5) before concluding a rate changed.
-- **No false-green bias.** Checks are written to fail when unsure rather than
-  pass — a green is trustworthy; a red may just need the agent-driven mode.
 
 ## Layout
 

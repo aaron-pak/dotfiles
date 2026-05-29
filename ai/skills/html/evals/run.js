@@ -85,7 +85,7 @@ async function pool(tasks, limit) {
 
   const runs = await pool(jobs.map(({ ev, a }) => () => runDriver(ev, a)), 8);
 
-  // tally per eval per check
+  // tally per eval per check: pass / fail / inconclusive
   const tally = {};
   runs.forEach((r, k) => {
     const ev = jobs[k].ev;
@@ -95,15 +95,25 @@ async function pool(tasks, limit) {
     if (!r.result) { t.errors.push(r.artifact + ': ' + (r.err || 'no JSON output')); return; }
     if (r.result.error) t.errors.push(r.artifact + ': ' + r.result.error);
     for (const key of ev.checks) {
-      t.checks[key] = t.checks[key] || { pass: 0 };
-      if (r.result[key] && r.result[key].passed) t.checks[key].pass += 1;
+      t.checks[key] = t.checks[key] || { pass: 0, fail: 0, inc: 0 };
+      const c = r.result[key];
+      if (c && c.passed) t.checks[key].pass += 1;
+      else if (c && c.inconclusive) t.checks[key].inc += 1;
+      else t.checks[key].fail += 1;
     }
   });
 
-  console.log('\n=== /html skill eval results ===');
+  console.log('\n=== /html skill eval results ===   (✓ pass · ✗ fail · ? inconclusive = verifier could not drive; confirm agent-side)');
   for (const id of Object.keys(tally)) {
     const t = tally[id];
-    const cells = Object.keys(t.checks).map((k) => k + ' ' + t.checks[k].pass + '/' + t.total);
+    const cells = Object.keys(t.checks).map((k) => {
+      const c = t.checks[k];
+      const parts = [];
+      if (c.pass) parts.push('✓' + c.pass);
+      if (c.fail) parts.push('✗' + c.fail);
+      if (c.inc) parts.push('?' + c.inc);
+      return k + ' ' + (parts.join(' ') || '–');
+    });
     console.log('\n' + id + ' — ' + t.name);
     console.log('  ' + (cells.join('   ') || '(no checks)'));
     if (t.errors.length) t.errors.forEach((e) => console.log('  ! ' + e));
