@@ -1,0 +1,14 @@
+{
+  "name": "dynamic-workflows-skill-evals",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "validate": "node run.js --validate",
+    "prompts": "node run.js --prompts",
+    "fixtures": "node run.js --fixtures",
+    "smoke": "node run.js --smoke --fixtures",
+    "runtime": "node run.js --runtime",
+    "verify": "node run.js"
+  }
+}

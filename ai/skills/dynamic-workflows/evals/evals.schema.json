@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "name", "status", "kind", "prompt", "checks", "added"],
+    "properties": {
+      "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+      "name": { "type": "string" },
+      "status": { "enum": ["active", "retired"] },
+      "kind": { "type": "string" },
+      "added": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+      "smoke": { "type": "boolean" },
+      "prompt": { "type": "string" },
+      "notes": { "type": "string" },
+      "checks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["id", "type"],
+          "properties": {
+            "id": { "type": "string" },
+            "type": { "enum": ["must", "mustNot", "ordered", "countAtLeast"] },
+            "text": { "type": "string" },
+            "pattern": { "type": "string" },
+            "flags": { "type": "string" },
+            "terms": { "type": "array", "items": { "type": "string" } },
+            "min": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}
+

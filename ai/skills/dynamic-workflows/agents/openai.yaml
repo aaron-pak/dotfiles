@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dynamic Workflows"
+  short_description: "Run Codex subagent workflows at scale"
+  default_prompt: "Use $dynamic-workflows to plan and run a multi-agent workflow for this large task."

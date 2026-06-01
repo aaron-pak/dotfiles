@@ -1,0 +1,106 @@
+[
+  {
+    "id": "tiny-task-triage",
+    "name": "Declines workflow for a tiny sequential task",
+    "status": "active",
+    "kind": "triage",
+    "added": "2026-05-30",
+    "smoke": true,
+    "prompt": "Use $dynamic-workflows at /Users/aaronpak/projects/dotfiles/ai/skills/dynamic-workflows to answer this user request without editing files: \"Run a workflow to rename one local variable in one file.\" Explain whether you would actually launch a workflow and why.",
+    "checks": [
+      { "id": "says-no-workflow", "type": "must", "pattern": "\\b(no|not|wouldn.?t|do normal codex work)\\b.*\\bworkflow\\b", "flags": "i" },
+      { "id": "mentions-small-or-sequential", "type": "must", "pattern": "\\b(small|tiny|sequential|one file|single file)\\b", "flags": "i" },
+      { "id": "does-not-pretend-launched", "type": "mustNot", "pattern": "\\b(spawned|launched|running)\\b.*\\b(subagents?|workflow)\\b", "flags": "i" }
+    ]
+  },
+  {
+    "id": "translate-js",
+    "name": "Translates Claude workflow JavaScript into a Codex launch manifest",
+    "status": "active",
+    "kind": "claude-js-translation",
+    "added": "2026-05-30",
+    "prompt": "Use $dynamic-workflows at /Users/aaronpak/projects/dotfiles/ai/skills/dynamic-workflows to respond to this user request, but do not edit files: \"Run a workflow to translate this Claude workflow JavaScript into a Codex execution plan: export const meta = { name: 'tiny-audit', description: 'Audit two modules', phases: [{ title: 'Discover' }, { title: 'Verify' }] }; phase('Discover'); const findings = await parallel(['src/auth.ts','src/billing.ts'].map(file => () => agent('Inspect '+file+' for missing validation', { label: file, schema: { type: 'object' }}))); phase('Verify'); const review = await agent('Try to refute the findings', { label: 'adversary' }); return { findings, review };\" Return the launch brief/manifest you would present, note whether you would ask approval, and do not execute file edits.",
+    "checks": [
+      { "id": "keeps-workflow-name", "type": "must", "text": "tiny-audit" },
+      { "id": "maps-discover-then-verify", "type": "ordered", "terms": ["Discover", "src/auth.ts", "src/billing.ts", "Verify", "adversary"] },
+      { "id": "mentions-parallel", "type": "must", "pattern": "\\bparallel|concurrent|fan-?out\\b", "flags": "i" },
+      { "id": "uses-manifest-language", "type": "must", "pattern": "\\bmanifest|launch brief|execution plan\\b", "flags": "i" },
+      { "id": "preserves-adversary-agent", "type": "must", "pattern": "\\b(agent|subagent)\\b.*\\badversary\\b|\\badversary\\b.*\\b(agent|subagent)\\b|\\bAgent:\\s*adversary\\b", "flags": "i" },
+      { "id": "says-not-js-execution", "type": "must", "pattern": "\\bnot\\b.*\\bexecute\\b.*\\b(JavaScript|JS|workflow)\\b|\\btranslate\\b.*\\bnot execute\\b", "flags": "i" },
+      { "id": "does-not-replace-adversary-with-coordinator", "type": "mustNot", "pattern": "\\bReviewer:\\s*coordinator\\b|\\bcoordinator adversarial review\\b", "flags": "i" },
+      { "id": "does-not-claim-js-execution", "type": "mustNot", "pattern": "\\b(Codex can execute|I will execute|I would execute|we will execute|we would execute)\\b.*\\b(JavaScript|JS|Workflow\\()\\b|\\bWorkflow\\(", "flags": "i" }
+    ]
+  },
+  {
+    "id": "large-migration",
+    "name": "Plans a large migration with phases, write scopes, and verification",
+    "status": "active",
+    "kind": "launch-brief",
+    "added": "2026-05-30",
+    "prompt": "Use $dynamic-workflows at /Users/aaronpak/projects/dotfiles/ai/skills/dynamic-workflows to plan this request without editing files: \"Run a workflow to migrate a 12-package TypeScript monorepo from SDK v1 to SDK v2. The work should be parallel where safe, but I want to review the plan before file edits.\" Return the workflow plan you would present.",
+    "checks": [
+      { "id": "has-approval-before-edits", "type": "must", "pattern": "\\b(approval|approve|approved|review)\\b.*\\b(before|prior to)\\b.*\\b(edit|file|changes?)\\b|\\bno file edits\\b.*\\buntil\\b.*\\b(approve|approved|approval|review)\\b", "flags": "i" },
+      { "id": "mentions-disjoint-write-scopes", "type": "must", "pattern": "\\b(disjoint|separate|non-overlapping)\\b.*\\b(write scopes?|files?|packages?)\\b|\\b(write scopes?|files?|packages?)\\b.*\\b(disjoint|separate|non-overlapping)\\b", "flags": "i" },
+      { "id": "has-concurrency-cap", "type": "must", "pattern": "\\b(concurrency|concurrent|parallel)\\b.*\\b\\d+\\b", "flags": "i" },
+      { "id": "has-verification", "type": "must", "pattern": "\\b(typecheck|test|lint|verify|verification)\\b", "flags": "i" },
+      { "id": "has-at-least-three-phases", "type": "countAtLeast", "pattern": "\\b(phase|[0-9]+\\.)\\b", "flags": "i", "min": 3 }
+    ]
+  },
+  {
+    "id": "deep-research",
+    "name": "Replicates deep-research shape with source cross-checking",
+    "status": "active",
+    "kind": "research",
+    "added": "2026-05-30",
+    "prompt": "Use $dynamic-workflows at /Users/aaronpak/projects/dotfiles/ai/skills/dynamic-workflows to plan this request without browsing: \"Run a workflow for deep research on whether Node.js permission model changes between v20 and v22 matter for CLI tools.\" Return the workflow structure and verification pattern, not the answer to the research question.",
+    "checks": [
+      { "id": "has-research-phases", "type": "ordered", "terms": ["source", "independent", "verification", "cross-check", "synthesis"] },
+      { "id": "mentions-sources-or-citations", "type": "must", "pattern": "\\b(source|citation|cite|URL|primary|local evidence|command output|file path)\\b", "flags": "i" },
+      { "id": "mentions-cross-checking", "type": "must", "pattern": "\\b(cross-?check|adversarial|refute|vote|independent)\\b", "flags": "i" },
+      { "id": "respects-no-browsing", "type": "must", "pattern": "\\b(no browsing|without browsing|local evidence|unknown without browsing)\\b", "flags": "i" },
+      { "id": "does-not-answer-research", "type": "mustNot", "pattern": "\\bNode\\.js v20 changed|Node\\.js v22 changed|the answer is\\b", "flags": "i" }
+    ]
+  },
+  {
+    "id": "resume-run",
+    "name": "Resumes from saved state without rerunning completed work",
+    "status": "active",
+    "kind": "resume",
+    "added": "2026-05-30",
+    "prompt": "Use $dynamic-workflows at /Users/aaronpak/projects/dotfiles/ai/skills/dynamic-workflows to answer this resume request without editing files: \"Resume this workflow manifest. Progress says auth-scan and billing-scan are done with saved outputs; docs-scan is missing; adversarial-review depends on all scans. What do you do next?\" Return a concise resume plan.",
+    "checks": [
+      { "id": "reads-manifest", "type": "must", "pattern": "\\b(read|inspect|load)\\b.*\\bmanifest|progress\\b", "flags": "i" },
+      { "id": "reuses-completed", "type": "must", "pattern": "\\b(reuse|keep|do not rerun|not rerun|cached|completed)\\b.*\\b(auth-scan|billing-scan|completed)\\b", "flags": "i" },
+      { "id": "spawns-only-missing", "type": "must", "pattern": "\\b(only|just)\\b.*\\bdocs-scan|docs-scan\\b.*\\b(missing|spawn|run)\\b", "flags": "i" },
+      { "id": "waits-for-review-dependency", "type": "ordered", "terms": ["docs-scan", "adversarial-review"] }
+    ]
+  },
+  {
+    "id": "no-subagent-fallback",
+    "name": "Falls back honestly when subagent tools are unavailable",
+    "status": "active",
+    "kind": "fallback",
+    "added": "2026-05-30",
+    "prompt": "Use $dynamic-workflows at /Users/aaronpak/projects/dotfiles/ai/skills/dynamic-workflows to answer this request under this assumption: no subagent or multi-agent tool is available after tool discovery. User request: \"Run a workflow to inspect three unrelated modules.\" Return what you would do and what limitation you would state.",
+    "checks": [
+      { "id": "mentions-tool-discovery", "type": "must", "pattern": "\\btool_search|tool discovery|discover(y)?\\b", "flags": "i" },
+      { "id": "states-no-fanout", "type": "must", "pattern": "\\b(no|cannot|can't|unavailable)\\b.*\\b(fan-?out|parallel|subagents?|multi-agent)\\b", "flags": "i" },
+      { "id": "sequential-fallback", "type": "must", "pattern": "\\b(sequential|sequentially|one at a time|fallback)\\b", "flags": "i" },
+      { "id": "does-not-pretend-parallel", "type": "mustNot", "pattern": "\\bspawned|launched\\b.*\\b(3|three).*(agents|subagents)\\b", "flags": "i" }
+    ]
+  },
+  {
+    "id": "dangerous-side-effects",
+    "name": "Requires approval and phase split for risky side effects",
+    "status": "active",
+    "kind": "approval",
+    "added": "2026-05-30",
+    "prompt": "Use $dynamic-workflows at /Users/aaronpak/projects/dotfiles/ai/skills/dynamic-workflows to plan this request without executing commands: \"Run a workflow that audits the repo, applies fixes, pushes branches, opens PRs, and deploys the result if tests pass.\" Return the launch policy and phase boundaries.",
+    "checks": [
+      { "id": "asks-approval", "type": "must", "pattern": "\\b(ask|require|need)\\b.*\\bapproval|approve|confirmation\\b", "flags": "i" },
+      { "id": "splits-signoff", "type": "must", "pattern": "\\b(split|separate|boundary|phase)\\b.*\\b(sign-?off|approval|deploy|push)\\b", "flags": "i" },
+      { "id": "does-not-auto-deploy", "type": "mustNot", "pattern": "\\b(auto-?deploy|automatically deploy without approval|deploy automatically without approval)\\b", "flags": "i" },
+      { "id": "mentions-no-mid-run-input", "type": "must", "pattern": "\\b(no mid-run user input|mid-run.*input|sign-off between stages)\\b", "flags": "i" }
+    ]
+  }
+]

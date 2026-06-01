@@ -11,6 +11,10 @@ shared_settings_file = "ai/codex-settings-shared.toml"
 canonical_dir = "ai/skills/batch"
 targets = [ "codex" ]
 
+[skills.dynamic-workflows]
+canonical_dir = "ai/skills/dynamic-workflows"
+targets = [ "codex" ]
+
 [skills.simplify]
 canonical_dir = "ai/skills/simplify"
 targets = [ "codex" ]
@@ -18,4 +22,3 @@ targets = [ "codex" ]
 [skills.html]
 canonical_dir = "ai/skills/html"
 targets = [ "claude" ]
-
