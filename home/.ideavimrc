@@ -1,0 +1,518 @@
+let mapleader=" "
+let maplocalleader="\\"
+
+" IdeaVim Behavior
+" Confirm to save changes before exiting modified buffer
+set formatoptions=jcroqlnt
+set number
+set scrolloff=10
+set shiftround
+set sidescrolloff=1
+set timeoutlen=10000
+set notimeout
+set nowrap
+set ideaglobalmode
+set ideamarks
+set clipboard+=unnamed
+set clipboard+=ideaput
+set relativenumber
+set visualbell
+set showcmd
+set ignorecase
+set smartcase
+set incsearch
+set hlsearch
+set peekaboo
+set ideajoin
+set lookupkeys+="<C-j>,<C-k>"
+set mini-ai
+set functiontextobj
+set switch
+filetype plugin indent on
+
+" Neovim settings that differ from Vim
+" I have no idea what these do and if these even work
+set backspace=indent,eol,start
+set formatoptions=tcqj
+set listchars=tab:>\ ,trail:-,nbsp:+
+set shortmess=filnxtToOF
+
+
+Plug 'tpope/vim-surround'
+Plug 'machakann/vim-highlightedyank'
+
+packadd matchit
+
+" Argument as text objects
+Plug 'vim-scripts/argtextobj.vim'
+let g:argtextobj_pairs="(:),{:},<:>"
+
+" Flash/sneak plugin binding
+" Must come before quickscope in order for them to work together
+" These don't really seem to work right for some reason
+"Plug 'justinmk/vim-sneak'
+"let g:sneak#label = 1
+"map s <Plug>sneak-s
+"map S <Plug>sneak-S
+"nmap s <action>(flash.search)
+
+
+Plug 'easymotion/vim-easymotion'
+nmap s <Plug>(easymotion-s)
+xmap s <Plug>(easymotion-s)
+
+set quickscope
+let g:qs_highlight_on_keys = ['f', 'F', 't', 'T']
+
+set which-key
+let g:WhichKey_ShowVimActions = "true"
+let g:WhichKey_DefaultDelay = 500
+let g:WhichKey_SortCaseSensitive = "false"
+let g:WhichKey_CommandStyle = "default"
+let g:WhichKey_CommandColor = "default"
+let g:WhichKeyDesc_disable_left_bracket_prefix = "["
+let g:WhichKeyDesc_disable_right_bracket_prefix = "]"
+
+" General Remaps
+" [j]ust [k]idding
+inoremap jk <Esc>
+map <C-s> <action>(SaveAll)
+nmap K <action>(ShowHoverInfo)
+noremap <C-d> <C-d>zz
+noremap <C-u> <C-u>zz
+" Escape and Clear hlsearch
+nmap <esc> :nohlsearch<CR>
+nmap <leader>ur :nohlsearch<CR>
+" Keywordprg
+nmap <leader>K :map
+let g:WhichKeyDesc_plugins = "<leader>l P[l]ugins"
+nmap <leader>l <Action>(WelcomeScreen.Plugins)
+" Quit All
+nmap <leader>qq <Action>(Exit)
+nnoremap Y y$
+inoremap <C-U> <C-G>u<C-U>
+inoremap <C-W> <C-G>u<C-W>
+" Q isn't exactly the same.
+nnoremap Q @@
+
+" Selecting
+" Preserve C-Space for code suggestions in insert mode
+sethandler <C-Space> n-v:vim i:ide
+vmap <BS> <Action>(EditorUnSelectWord)
+nmap <C-Space> <Action>(EditorSelectWord)
+vmap <C-Space> <Action>(EditorSelectWord)
+
+"" Multicursor Selecting
+Plug 'terryma/vim-multiple-cursors'
+let g:multi_cursor_quit_key = '<Esc>'
+nmap <C-n> <Plug>NextWholeOccurrence
+xmap <C-n> <Plug>NextWholeOccurrence
+nmap g<C-n> <Plug>NextOccurrence
+xmap g<C-n> <Plug>NextOccurrence
+xmap <C-x> <Plug>SkipOccurrence
+xmap <C-p> <Plug>RemoveOccurrence
+" Note that the default <A-n> and g<A-n> shortcuts don't work on Mac due to dead keys.
+nmap <leader><C-n> <Plug>AllWholeOccurrences
+xmap <leader><C-n> <Plug>AllWholeOccurrences
+nmap <leader>g<C-n> <Plug>AllOccurrences
+xmap <leader>g<C-n> <Plug>AllOccurrences
+
+
+" Editing
+nmap <A-d> <action>(EditorDuplicate)
+vmap <A-d> <action>(EditorDuplicate)
+vmap <A-d> <action>(EditorDuplicate)
+nmap <A-j> <Action>(MoveLineDown)
+nmap <A-k> <Action>(MoveLineUp)
+imap <A-j> <Esc><Action>(MoveLineDown)i
+imap <A-k> <Esc><Action>(MoveLineUp)i
+xmap <A-j> <Action>(MoveLineDown)
+xmap <A-k> <Action>(MoveLineUp)
+
+
+" Code Actions
+nmap <leader>ca <Action>(ShowIntentionActions)
+vmap <leader>ca <Action>(ShowIntentionActions)
+" Source Action
+nmap <leader>cA <Action>(ShowIntentionActions)
+" Generate
+nmap <leader>cg <action>(Generate)
+" Create constant
+nmap <leader>cc <action>(IntroduceConstant)
+" Create variable
+nmap <leader>cv <action>(IntroduceVariable)
+" Refresh & Display Codelens
+nmap <leader>cC :echo 'There is no equivalent mapping for Refresh & Display Codelens.'<cr>
+" Rename File
+nmap <leader>cR <Action>(RenameFile)
+" Rename
+nmap <leader>cr <Action>(RenameElement)
+" Move
+nmap <leader>cm <action>(Move)
+" Code Format
+if &ide =~? 'webstorm'
+    nmap <leader>cf <Action>(ReformatWithPrettierAction)
+    vmap <leader>cf <Action>(ReformatWithPrettierAction)
+    nmap <leader>cF <Action>(ReformatCode)
+    vmap <leader>cF <Action>(ReformatCode)
+else
+    nmap <leader>cf <Action>(ReformatCode)
+    vmap <leader>cf <Action>(ReformatCode)
+    nmap <leader>cF <Action>(ReformatWithPrettierAction)
+    vmap <leader>cF <Action>(ReformatWithPrettierAction)
+endif
+let g:WhichKeyDesc_file = "<leader>co [C]ode/[O]ptimize"
+nmap <leader>co <Action>(OptimizeImports)
+
+
+" Navigation
+
+
+" Find/Files
+let g:WhichKeyDesc_file = "<leader>f [F]ind/[F]ile"
+nmap <leader><space> <Action>(GotoFile)
+
+"let g:WhichKeyDesc_find_file = "<leader>ff Find [F]ile"
+"nmap <leader>/ <Action>(FindInPath)
+
+nmap <leader>ff <Action>(GotoFile)
+
+let g:WhichKeyDesc_file_new = "<leader>fn File [N]ew"
+nmap <leader>fn <Action>(NewFile)
+
+let g:WhichKeyDesc_move_file = "<leader>fm File [M]ove"
+nmap <leader>fm <action>(Move)
+
+let g:WhichKeyDesc_delete_file = "<leader>fd File [D]elete"
+nmap <leader>fd <action>($Delete)
+
+" Command History
+nmap <leader>: :history<cr>
+" Find Buffers
+nmap <leader>fb <Action>(Switcher)
+" Find Config
+nmap <leader>fc :e ~/.ideavimrc<cr>
+" Find Files (git-files)
+nmap <leader>fg <Action>(GotoFile)
+" File Recent
+nmap <leader>fr <Action>(RecentFiles)
+nmap <leader>fR <Action>(RecentLocations)
+
+
+" Searching
+let g:WhichKeyDesc_search = "<leader>s [S]earch"
+
+let g:WhichKeyDesc_search_in_files = "<leader>sg Search [G]rep"
+nmap <leader>sg <Action>(FindInPath)
+let g:WhichKeyDesc_search_in_files_alt = "<leader>sG Search [G]rep"
+nmap <leader>sG <Action>(FindInPath)
+
+nmap <leader>sr <action>(Replace)
+" Search Actions
+nmap <leader>sa <Action>(GotoAction)
+" Search Classes
+nmap <leader>sc <Action>(GotoClass)
+nmap <leader>sC <Action>(GotoClass)
+" Search Symbols
+nmap <leader>ss <Action>(GotoSymbol)
+nmap <leader>sS <Action>(GotoSymbol)
+" Search Buffers
+nmap <leader>sb <Action>(Switcher)
+" Search Registers
+nmap <leader>s" :registers<cr>
+" Document Diagnostics
+nmap <leader>sd <Action>(ActivateProblemsViewToolWindow)
+" Workspace Diagnostics
+nmap <leader>sD <Action>(ActivateProblemsViewToolWindow)
+" Help Pages
+nmap <leader>sh <Action>(HelpTopics)
+" Search Highlight Groups
+nmap <leader>sH <Action>(HighlightUsagesInFile)
+" Jumplist
+nmap <leader>sj <Action>(RecentLocations)
+" Key Maps
+nmap <leader>sk :map<cr>
+" Location List
+nmap <leader>sl <Action>(ActivateProblemsViewToolWindow)
+" Jump to Mark
+nmap <leader>sm :marks<cr>
+" Man Pages
+nmap <leader>sM <Action>(ShowDocumentation)
+" Options
+nmap <leader>so <Action>(ShowSettings)
+" Quickfix List
+nmap <leader>sq <Action>(ActivateProblemsViewToolWindow)
+" Resume
+nmap <leader>sR :echo 'Not yet implemented.'<cr>
+" Word (Root Dir)
+nmap <leader>sw <Action>(Find)
+" Word (cwd)
+nmap <leader>sW <Action>(FindWordAtCaret)
+" Selection (Root Dir)
+vmap <leader>sw <Action>(FindWordAtCaret)
+" Selection (cwd)
+vmap <leader>sW <Action>(FindWordAtCaret)
+
+" Goto/General keymaps
+" Goto Definition
+nmap gd <Action>(GotoDeclaration)
+" References
+nmap gr <Action>(FindUsages)
+" Goto Implementation
+nmap gI <Action>(GotoImplementation)
+" Goto Type Definition
+nmap gy <Action>(GotoTypeDeclaration)
+" Goto Declaration
+nmap gD <Action>(GotoDeclaration)
+" Signature Help
+nmap gK <Action>(ParameterInfo)
+" Signature Help in Insert Mode
+imap <C-k> <C-o><Action>(ParameterInfo)
+" Next/Prev Reference
+nmap ]] <Action>(GotoNextElementUnderCaretUsage)
+nmap <a-n> <Action>(GotoNextElementUnderCaretUsage)
+nmap [[ <Action>(GotoPrevElementUnderCaretUsage)
+nmap <a-p> <Action>(GotoPrevElementUnderCaretUsage)
+
+
+" Commenting
+Plug 'tpope/vim-commentary'
+nmap gcc <action>(CommentByLineComment)
+imap <C-/> <action>(CommentByLineComment)
+nmap gco o<c-o>gcc
+nmap gcO O<c-o>gcc
+nmap gch <action>(CollapseDocComments)
+
+
+" Tab Management
+nmap <leader>bd <Action>(CloseContent)
+nmap <leader>bD <Action>(HideActiveWindow)
+nmap <leader>bo <Action>(CloseAllEditorsButActive)
+" Tab Navigation
+nmap <S-h> <Action>(PreviousTab)
+nmap <S-l> <Action>(NextTab)
+nmap [b <Action>(PreviousTab)
+nmap ]b <Action>(NextTab)
+nmap [B <Action>(com.mnw.tabmover.actions.MoveTabUpAction)
+nmap ]B <Action>(com.mnw.tabmover.actions.MoveTabDownAction)
+" Switch to Other Tab
+nnoremap <leader>bb <C-^>
+nnoremap <leader>` <C-^>
+" Delete tabs
+nmap <leader>bl <Action>(CloseAllToTheLeft)
+nmap <leader>br <Action>(CloseAllToTheRight)
+" Tab pinning
+nmap <leader>bp <Action>(PinActiveTabToggle)
+nmap <leader>bP <Action>(CloseAllUnpinnedEditors)
+" Switch Buffer
+nmap <leader>, <Action>(Switcher)
+
+
+" Window Management
+nmap <C-h> <C-w>h
+nmap <C-j> <C-w>j
+nmap <C-k> <C-w>k
+nmap <C-l> <C-w>l
+" Split Window Below.  :split<cr> doesn't work.
+nmap <leader>- <c-w>s
+" Split Window Right
+nmap <leader><bar> <c-w>v
+" Delete Window
+nmap <leader>wd <Action>(HideActiveWindow)
+" Delete Window
+nmap <leader>wo <Action>(HideAllWindows)
+" Last Window
+nmap <leader>wl <Action>(JumpToLastWindow)
+
+" Toggle Maximize
+nmap <leader>wm <Action>(ToggleDistractionFreeMode)
+" Resize Windows
+nmap <C-Up> <Action>(IncrementWindowHeight)
+nmap <C-Down> <Action>(DecrementWindowHeight)
+nmap <C-Left> <Action>(DecrementWindowWidth)
+nmap <C-Right> <Action>(IncrementWindowWidth)
+
+
+" Errors and Diagnostics
+nmap <leader>xl <Action>(ActivateProblemsViewToolWindow)
+nmap <leader>xq <Action>(ActivateProblemsViewToolWindow)
+nmap [q <Action>(GotoPreviousError)
+nmap ]q <Action>(GotoNextError)
+nmap <leader>cd <Action>(ActivateProblemsViewToolWindow)
+nmap ]d <Action>(GotoNextError)
+nmap [d <Action>(GotoPreviousError)
+nmap ]e <Action>(GotoNextError)
+nmap [e <Action>(GotoPreviousError)
+nmap ]w <Action>(GotoNextError)
+nmap [w <Action>(GotoPreviousError)
+
+
+" Git
+nmap <leader>gg <Action>(ActivateCommitToolWindow)
+nmap <leader>gG <Action>(ActivateCommitToolWindow)
+" Git Blame Line
+nmap <leader>gb <Action>(Annotate)
+" Git Browse
+nmap <leader>gB <Action>(Vcs.Show.Log)
+nmap <leader>gf <Action>(LocalHistory.ShowHistory)
+nmap <leader>gl <Action>(Vcs.Show.Log)
+nmap <leader>gL <Action>(Vcs.Show.Log)
+nmap <leader>gu <Action>(Vcs.UpdateProject)
+nmap <leader>gc <Action>(Git.Commit.And.Push.Executor)
+nmap <leader>gC <Action>(Git.Commit)
+" Status
+nmap <leader>gs <Action>(Vcs.Show.Log)
+
+
+" Project Structure
+nmap <leader>ui <Action>(ActivateStructureToolWindow)
+nmap <leader>uI <Action>(ActivateStructureToolWindow)
+
+
+" Terminal
+nmap <leader>ft <Action>(ActivateTerminalToolWindow)
+nmap <leader>fT <Action>(ActivateTerminalToolWindow)
+nmap <C-/> <S-Esc>
+
+
+" Should be switching between projects
+"" Last Tab
+"map <leader><tab>l <Action>(StoreDefaultLayout)<Action>(ChangeToolWindowLayout)
+" Close Other Tabs
+"map <leader><tab>o :<cr>
+" First Tab
+"map <leader><tab>f <Action>(StoreDefaultLayout)<Action>(ChangeToolWindowLayout)
+" New Tab
+"map <leader><tab>f <Action>(StoreDefaultLayout)<Action>(StoreNewLayout)
+" Next Tab
+"map <leader><tab>] <Action>(StoreDefaultLayout)<Action>(ChangeToolWindowLayout)
+" Previous Tab
+"map <leader><tab>[ <Action>(StoreDefaultLayout)<Action>(ChangeToolWindowLayout)
+" Close Tab
+"map <leader><tab>f <Action>(StoreDefaultLayout)<Action>(ChangeToolWindowLayout)
+
+
+Plug 'preservim/nerdtree'
+" Explorer
+nmap <leader>be <Action>(Switcher)
+" Explorer NeoTree (Root Dir)
+nmap <leader>e <Action>(ActivateProjectToolWindow)
+" Explorer NeoTree (cwd)
+nmap <leader>E <Action>(SelectInProjectView)
+" Explorer NeoTree (Root Dir) (alternative)
+nmap <leader>fe <Action>(ActivateProjectToolWindow)
+" Explorer NeoTree (cwd) (alternative)
+nmap <leader>fE <Action>(ActivateProjectToolWindow)
+" Git Explorer
+nmap <leader>ge <Action>(ActivateCommitToolWindow)
+
+
+" Debug
+" Run with Args
+nmap <leader>da <Action>(ChooseRunConfiguration)
+" Toggle Breakpoint
+nmap <leader>db <Action>(ToggleLineBreakpoint)
+" Breakpoint Condition
+nmap <leader>dB <Action>(AddConditionalBreakpoint)
+" Continue
+nmap <leader>dc <Action>(Resume)
+" Run to Cursor
+nmap <leader>dC <Action>(ForceRunToCursor)
+" Go to Line (No Execute)
+nmap <leader>dg :echo 'Not yet implemented.'<cr>
+" Step Into
+nmap <leader>di <Action>(StepInto)
+" Down
+nmap <leader>dj <Action>(GotoNextError)
+" Up
+nmap <leader>dk <Action>(GotoPreviousError)
+" Run Last
+nmap <leader>dl <Action>(Run)
+" Step Out
+nmap <leader>do <Action>(StepOut)
+" Step Over
+nmap <leader>dO <Action>(StepOver)
+" Pause
+nmap <leader>dp <Action>(Pause)
+" Toggle REPL
+nmap <leader>dr <Action>(ActivateRunToolWindow)
+" Session
+nmap <leader>ds :echo 'Not yet implmented.'<cr>
+" Terminate
+nmap <leader>dt <Action>(Stop)
+" Widgets
+nmap <leader>dw :echo 'There is no equivalent mapping for Widgets.'<cr>
+" Eval
+nmap <leader>de <Action>(EvaluateExpression)
+vmap <leader>de <Action>(EvaluateExpression)
+" Dap UI
+nmap <leader>du <Action>(ActivateRunToolWindow)
+nmap <leader>dU <Action>(ActivateDebugToolWindow)
+
+" Test
+" Test Last
+nmap <leader>tl <Action>(Run)
+" Test Output
+nmap <leader>to :echo 'Not yet implemented.'<cr>
+" Toggle Output Panel
+nmap <leader>tO :echo 'Not yet implemented.'<cr>
+" Run Nearest
+nmap <leader>tr <Action>(RunClass)
+" Toggle Summary
+nmap <leader>ts <Action>(ShowTestSummary)
+" Test Stop
+nmap <leader>tS <Action>(Stop)
+" Run File
+nmap <leader>tt <Action>(RunClass)
+" Run All Test Files
+nmap <leader>tT <Action>(RunAllTests)
+" Toggle Watch
+nmap <leader>tw <Action>(ToggleTestWatch)
+" Debug Nearest
+nmap <leader>td <Action>(ChooseDebugConfiguration)
+
+
+" Todo
+nmap <leader>st oTODO<esc>gcc
+" Todo/Fix/Fixme
+nmap <leader>sT :echo 'Not yet implemented.'<cr>
+" Todo (Trouble)
+nmap <leader>xt :echo 'Not yet implemented.'<cr>
+" Todo/Fix/Fixme (Trouble)
+nmap <leader>xT :echo 'Not yet implemented.'<cr>
+" Previous Todo Comment
+nmap [t ?TODO<cr>
+" Next Todo Comment
+nmap ]t /TODO<cr>
+
+
+" Misc LazyVim Configs
+nmap <leader>ua <action>(VimFindActionIdAction)
+" Toggle Auto Format (Global)
+nmap <leader>ub :echo 'There is no equivalent mapping for Toggle Auto Format.'<cr>
+" Toggle Auto Format (Buffer)
+nmap <leader>uB :echo 'There is no equivalent mapping for Toggle Auto Format.'<cr>
+" Toggle Spelling
+nmap <leader>us <action>(ShowSettings)
+" Show Plugins
+nmap <leader>up <action>(WelcomeScreen.Plugins)
+" Toggle Wrap
+nmap <leader>uw :setlocal wrap!<CR>
+" Toggle Relative Number
+nmap <leader>uL :set relativenumber!<CR>
+" Toggle Diagnostics
+nmap <leader>ud <Action>(ActivateProblemsViewToolWindow)
+" Toggle Line Numbers
+nmap <leader>ul :set number!<CR>
+" Toggle conceallevel
+nmap <leader>uc :echo 'There is no equivalent mapping for Toggle Conceallevel.'<cr>
+" Toggle [T]ab Guidelines
+nmap <leader>ut <action>(EditorGutterToggleGlobalIndentLines)
+" Toggle Treesitter Highlight
+nmap <leader>uT :echo 'There is no equivalent mapping for Toggle Treesitter Highlight.'<cr>
+" Toggle Background
+nmap <leader>ub <Action>(QuickChangeScheme)
+" Toggle Inlay Hints
+nmap <leader>uh :echo 'There is no equivalent mapping for Toggle Inlay Hints.'<cr>
+
+
