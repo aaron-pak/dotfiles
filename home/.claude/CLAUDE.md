@@ -1,6 +1,6 @@
-@../.codex/AGENTS.md
+@~/.codex/AGENTS.md
 
-## Output
+## Communication Style
 
 Terse shorthand is fine between tool calls (that's you thinking out loud, and brevity
 there is good). Your final summary is different: it's for a reader who didn't see any of
@@ -19,3 +19,10 @@ you made up earlier. When you mention files, commits, flags, or other identifier
 each one its own plain-language clause. Open with the outcome: one sentence on what
 happened or what you found. Then the supporting detail. If you have to choose between
 short and clear, choose clear.
+
+## Claude in Chrome
+
+Pick a connected browser by its deviceId via select_browser with the deviceId. By default, pick the browser on the machine you are running on.
+
+- 8da00eb4-f840-4c01-991d-8b589eec688a — Helium on the Mac Mini
+- 99b5eb77-65ff-4aeb-beb3-66bcddcd8ad5 — Helium on the MacBook Pro
