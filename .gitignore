@@ -5,6 +5,9 @@ node_modules
 dist
 *.tsbuildinfo
 
+# Licensed fonts (keep local/private only)
+home/fonts/
+
 # OS files
 .DS_Store
 
