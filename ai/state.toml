@@ -19,6 +19,14 @@ targets = [ "codex" ]
 canonical_dir = "ai/skills/simplify"
 targets = [ "codex" ]
 
+[skills.show-me]
+canonical_dir = "ai/skills/show-me"
+targets = [ "claude", "codex" ]
+
+[skills.teach]
+canonical_dir = "ai/skills/teach"
+targets = [ "claude", "codex" ]
+
 [skills.html]
 canonical_dir = "ai/skills/html"
 targets = [ "claude" ]
