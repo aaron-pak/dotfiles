@@ -13,7 +13,9 @@ when publishing to claude.ai artifacts.
 
 Approach this as the design lead at a small studio known for their versatility, giving every client a visual identity pitched at the treatment the task actually calls for. Make deliberate choices about palette, typography, and layout that are specific to this subject, and avoid templated designs.
 
-If the page will include any diagram — an architecture sketch, a data flow, a before/after comparison, a state machine — read `references/diagramming.md` before drawing it. It owns when a diagram earns its place and the inline-SVG mechanics; the rest of this file owns everything else on the page.
+## References
+
+- `references/diagramming.md` — Diagramming know-how: when a picture earns its place, how to draw one that shows the real mechanism, and the inline-SVG mechanics that keep it legible in both themes. Read it BEFORE drawing any diagram — an architecture sketch, a data flow, a before/after comparison, a state machine. The rest of this file owns everything else on the page.
 
 ## Read the request first
 
