@@ -7,6 +7,10 @@ shared_settings_file = "ai/claude-settings-shared.json"
 [tools.codex.settings]
 shared_settings_file = "ai/codex-settings-shared.toml"
 
+[skills.artifact-design]
+canonical_dir = "ai/skills/artifact-design"
+targets = [ "codex" ]
+
 [skills.batch]
 canonical_dir = "ai/skills/batch"
 targets = [ "codex" ]
