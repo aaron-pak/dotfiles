@@ -1,21 +1,22 @@
 ---
 name: "artifact-design"
-description: "Design guidance and fundamentals for standalone HTML pages and artifacts (reports, explainers, memos, mockups, dashboards, landing pages). Load before writing any such deliverable. Covers treatment calibration, typography, theming, layout, copy, and naming; if the page will include a diagram, its companion reference references/diagramming.md owns that."
+description: "Design guidance and fundamentals for Artifacts. Load before writing any artifact, including a skill-instructed Markdown one - Markdown is never a shortcut past the design pass."
 ---
 
 <!--
-Adapted from Anthropic's Claude Code built-in `artifact-design` and `artifact-diagramming`
-skills (captured from Claude Code 2.1.250, 2026-08-28), restructured as one skill with the
-diagramming guidance as a progressively-disclosed reference. Platform-specific notes
-(claude.ai Artifact CSP, publish `description`) are kept and marked where they only apply
-when publishing to claude.ai artifacts.
+Anthropic's Claude Code built-in `artifact-design` skill (captured verbatim from Claude
+Code 2.1.250, 2026-08-28), with its sibling `artifact-diagramming` skill carried as
+`references/diagramming.md`. All guidance text and both descriptions are the originals,
+unmodified. The only addition is the References section below, which replaces the routing
+that originally lived in the Artifact tool's description (Claude Code loads these as two
+separate built-in skills; this recreation merges them via progressive disclosure).
 -->
 
 Approach this as the design lead at a small studio known for their versatility, giving every client a visual identity pitched at the treatment the task actually calls for. Make deliberate choices about palette, typography, and layout that are specific to this subject, and avoid templated designs.
 
 ## References
 
-- `references/diagramming.md` — Diagramming know-how: when a picture earns its place, how to draw one that shows the real mechanism, and the inline-SVG mechanics that keep it legible in both themes. Read it BEFORE drawing any diagram — an architecture sketch, a data flow, a before/after comparison, a state machine. The rest of this file owns everything else on the page.
+- `references/diagramming.md` — Diagramming know-how for Artifacts - when a picture earns its place, how to draw one that shows the real mechanism, and the inline-SVG mechanics that keep it legible in both themes. Read it before drawing any diagram.
 
 ## Read the request first
 
@@ -31,11 +32,11 @@ Fundamentals below apply to everything. The editorial process after that runs on
 
 ## Fundamentals for every artifact
 
-**Honor what's already there** Look for an existing design system first - CLAUDE.md/AGENTS.md, a tokens or theme file, existing component styles. When one exists, apply it; everything below fills gaps and never overrides. Precedence is always: the user's own words, then the project's existing system, then your choices.
+**Honor what's already there** Look for an existing design system first - CLAUDE.md, a tokens or theme file, existing component styles. When one exists, apply it; everything below fills gaps and never overrides. Precedence is always: the user's own words, then the project's existing system, then your choices.
 
 **Ground it in the subject.** If the subject isn't already clear, pin it: one concrete subject, its audience, and the page's single job. The subject's own world - its materials, instruments, vernacular - is where distinctive choices come from. Build with real content throughout, never lorem.
 
-**Pair typefaces** Typography carries the page even when the page isn't about typography. Link Google Fonts directly (`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">`); on claude.ai artifacts it is the one font host the CSP admits, and a face from anywhere else must be inlined as a @font-face data URI or it falls back silently. Either way, declare a real fallback stack. Keep running text near 65 characters wide; set a type scale and stay on it; give headings `text-wrap: balance`, body text room to breathe, and uppercase labels a touch of letter-spacing.
+**Pair typefaces** Typography carries the page even when the page isn't about typography. Google Fonts is the one font host the Artifact CSP admits - link it directly (`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">`); a face from anywhere else must be inlined as a @font-face data URI or it falls back silently. Either way, declare a real fallback stack. Keep running text near 65 characters wide; set a type scale and stay on it; give headings `text-wrap: balance`, body text room to breathe, and uppercase labels a touch of letter-spacing.
 
 **Choose neutrals, don't default to them.** A pure mid-grey reads as unconsidered; a grey with a slight hue bias toward the page's accent reads as chosen. Pure white and near-black are fine grounds when they suit the subject - the point is that the neutral was picked, not inherited.
 
@@ -51,7 +52,7 @@ Fundamentals below apply to everything. The editorial process after that runs on
 
 **Writing the copy** Words are design material, not decoration. Write from the user's side of the screen - name things by what people recognize, not how the system is built (a person manages *notifications*, not *webhook config*). Active voice; a control says exactly what happens ("Publish", then a toast that says "Published"). Errors explain what went wrong and how to fix it - no apologies, no vagueness. Specific beats clever.
 
-**Name the page like a product, not a caption.** The `<title>` is the artifact's name in the gallery and the browser tab, and it sets the reader's first impression of care. Give the page a real name: a short noun phrase, typically two to four words, specific to the subject - or, for a page that exists to answer one question, that question itself, which is then the page's name. Stop at the name - a title that carries its own explainer after a dash or colon reads as generated filler. The name must also identify the page among many: in a gallery it sits beside dozens of other pages, and a generic category label that could sit on any of them fails as a name just as surely as an appended explainer. When a candidate title pairs the name with a generic word - a greeting, a category, a page-type label - the name is the half to keep; a trim that drops the identity and keeps the generic word produces exactly the title that could sit on any page. And the rule removes explainers, it does not impose brevity: a multi-word title that already reads as one specific name is finished, and shortening it further only makes it generic. On claude.ai artifacts, the one-sentence publish `description` is where the explanation belongs; the gallery shows it right under the title.
+**Name the page like a product, not a caption.** The `<title>` is the artifact's name in the gallery and the browser tab, and it sets the reader's first impression of care. Give the page a real name: a short noun phrase, typically two to four words, specific to the subject - or, for a page that exists to answer one question, that question itself, which is then the page's name. Stop at the name - a title that carries its own explainer after a dash or colon reads as generated filler. The name must also identify the page among many: in the gallery it sits beside dozens of other artifacts, and a generic category label that could sit on any of them fails as a name just as surely as an appended explainer. When a candidate title pairs the name with a generic word - a greeting, a category, a page-type label - the name is the half to keep; a trim that drops the identity and keeps the generic word produces exactly the title that could sit on any page. And the rule removes explainers, it does not impose brevity: a multi-word title that already reads as one specific name is finished, and shortening it further only makes it generic. The one-sentence publish `description` is where the explanation belongs; the gallery shows it right under the title.
 
 **Structure is information** Structural devices, numbering, eyebrows, dividers, labels, should encode something true about the content, not decorate it. Many generic designs use numbered markers (01 / 02 / 03), but that's only appropriate if the content actually is a sequence - like a real process or a typed timeline where order carries information the reader needs. Question if choices like numbered markers actually make sense before incorporating them.
 

@@ -1,8 +1,8 @@
 # Diagramming
 
 <!--
-Adapted from Anthropic's Claude Code built-in `artifact-diagramming` skill (captured from
-Claude Code 2.1.250, 2026-08-28). Read this before drawing any diagram on a page built
+Anthropic's Claude Code built-in `artifact-diagramming` skill, captured verbatim from
+Claude Code 2.1.250 (2026-08-28). Read this before drawing any diagram on a page built
 with the artifact-design skill.
 -->
 
