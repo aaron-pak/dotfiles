@@ -1,15 +1,21 @@
 ---
 name: "artifact-design"
-description: "Design guidance and fundamentals for Artifacts. Load before writing any artifact, including a skill-instructed Markdown one - Markdown is never a shortcut past the design pass."
+description: "Design guidance and fundamentals for HTML artifacts. Load before writing any HTML artifact — a report, explainer, memo, plan, dashboard, mockup, or landing page; anything with an audience, or wherever communicating visually would be clearer than plain text — including a skill-instructed Markdown one; Markdown is never a shortcut past the design pass."
 ---
 
 <!--
 Anthropic's Claude Code built-in `artifact-design` skill (captured verbatim from Claude
 Code 2.1.250, 2026-08-28), with its sibling `artifact-diagramming` skill carried as
-`references/diagramming.md`. All guidance text and both descriptions are the originals,
-unmodified. The only addition is the References section below, which replaces the routing
-that originally lived in the Artifact tool's description (Claude Code loads these as two
-separate built-in skills; this recreation merges them via progressive disclosure).
+`references/diagramming.md`. All guidance text is the original, unmodified. Deliberate
+deviations, kept minimal because the original harness routing (the Artifact tool's
+description) doesn't exist here:
+  1. The References section below — replaces the tool-level routing that loaded
+     artifact-diagramming; its entry text is that skill's original description verbatim.
+  2. The frontmatter description — rewritten for self-triggering (no tool forces this
+     skill to load here). Composed from the original description plus trigger language
+     from the Artifact tool's when-to-use policy ("communicating visually would be
+     clearer", "a finished deliverable with an audience"), with "HTML artifact" as the
+     unifying term (Aaron says both "create an html" and "create an artifact").
 -->
 
 Approach this as the design lead at a small studio known for their versatility, giving every client a visual identity pitched at the treatment the task actually calls for. Make deliberate choices about palette, typography, and layout that are specific to this subject, and avoid templated designs.
