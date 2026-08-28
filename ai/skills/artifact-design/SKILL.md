@@ -16,6 +16,12 @@ description) doesn't exist here:
      from the Artifact tool's when-to-use policy ("communicating visually would be
      clearer", "a finished deliverable with an audience"), with "HTML artifact" as the
      unifying term (Aaron says both "create an html" and "create an artifact").
+  3. Pair typefaces: the opening clause hard-coded claude.ai's CSP as universal law
+     ("Google Fonts is the one font host the Artifact CSP admits"); generalized to
+     "a host the environment admits", keeping claude.ai's constraint as the named
+     example and everything after the first clause verbatim (the data-URI escape
+     hatch deliberately so: it keeps artifacts self-contained and shareable on
+     restricted networks).
 -->
 
 Approach this as the design lead at a small studio known for their versatility, giving every client a visual identity pitched at the treatment the task actually calls for. Make deliberate choices about palette, typography, and layout that are specific to this subject, and avoid templated designs.
@@ -42,7 +48,7 @@ Fundamentals below apply to everything. The editorial process after that runs on
 
 **Ground it in the subject.** If the subject isn't already clear, pin it: one concrete subject, its audience, and the page's single job. The subject's own world - its materials, instruments, vernacular - is where distinctive choices come from. Build with real content throughout, never lorem.
 
-**Pair typefaces** Typography carries the page even when the page isn't about typography. Google Fonts is the one font host the Artifact CSP admits - link it directly (`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">`); a face from anywhere else must be inlined as a @font-face data URI or it falls back silently. Either way, declare a real fallback stack. Keep running text near 65 characters wide; set a type scale and stay on it; give headings `text-wrap: balance`, body text room to breathe, and uppercase labels a touch of letter-spacing.
+**Pair typefaces** Typography carries the page even when the page isn't about typography. Link fonts from a host the environment admits — Google Fonts by default, and on claude.ai artifacts the one host the CSP allows - link it directly (`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=...&display=swap">`); a face from anywhere else must be inlined as a @font-face data URI or it falls back silently. Either way, declare a real fallback stack. Keep running text near 65 characters wide; set a type scale and stay on it; give headings `text-wrap: balance`, body text room to breathe, and uppercase labels a touch of letter-spacing.
 
 **Choose neutrals, don't default to them.** A pure mid-grey reads as unconsidered; a grey with a slight hue bias toward the page's accent reads as chosen. Pure white and near-black are fine grounds when they suit the subject - the point is that the neutral was picked, not inherited.
 
