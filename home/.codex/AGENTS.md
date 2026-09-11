@@ -22,7 +22,7 @@ When the user's prompt indicates a request for action, such as "can you...", "I 
 
 If at any point you can parallelize work by delegating tasks to another agent (no matter if you are the root or subagent), you should do so using collaboration tools if it could save time or improve quality.
 
-## Test and verification
+## Testing and verification
 
 Do not write tests for reversible, low-impact changes that mirror the implementation. If you do choose to verify your work with tests, make sure that the tests are meaningful and necessary to verify implementation.
 
