@@ -1,51 +1,39 @@
 # Dotfiles
 
-This repository holds Aaron's native dotfiles, global agent instructions, and personal skills. Work with the user conversationally; there is no interactive configuration manager.
+This repository holds Aaron's native dotfiles, global agent instructions, and distributable personal skills. Work with the user conversationally.
 
-For machine setup, installing a personal skill, repairing links, or changing agent configuration, use `.codex/skills/configure-machine/SKILL.md`. Ordinary edits to an owned config usually need only the context below.
+For machine setup, installing a skill, repairing links, or changing agent configuration, use `.codex/skills/configure-machine/SKILL.md`.
 
 ## Ownership
 
-- `home/` mirrors `~/`. It contains files we own entirely and link into the home directory.
-- `home/.codex/AGENTS.md` owns shared global instructions. `home/.claude/CLAUDE.md` imports that file and may add Claude-only guidance.
-- This root `AGENTS.md` is for maintaining dotfiles, not for installation as global instructions. Root `CLAUDE.md` imports it.
-- `.codex/skills/<name>/` is the canonical copy of each personal skill, including the configuration skill. `.claude/skills/configure-machine` exposes the configuration skill in this repo. Global installations are individual links selected for each machine.
-- Claude and Codex settings, plugins, credentials, caches, sessions, and application-generated integration wiring stay local. There are no shared settings, settings merges, or installation manifests.
-- `Brewfile` records the desired Homebrew packages. Use Homebrew itself to inspect and install them.
+- `home/` mirrors `~/` and contains native configuration we own. Inspect and link the selected files or wholly owned directories; it is not a blanket installation manifest.
+- `home/.codex/AGENTS.md` owns shared global instructions. `home/.claude/CLAUDE.md` imports it and may add Claude-only guidance.
+- Root `AGENTS.md` describes this repository. Root `CLAUDE.md` imports it. Neither is the global instruction file.
+- `.codex/skills/configure-machine/` is this repository's maintenance skill; `.claude/skills/configure-machine` links to it for Claude discovery.
+- `skills/<name>/` is the distributable library. Storage does not activate a skill. Install separately for the requested tool and user or project scope. A project installation must not silently become a global installation.
+- Settings, plugins, credentials, caches, sessions, and generated harness wiring stay local. There is no shared-settings baseline or installation registry.
+- `Brewfile` records portable Homebrew packages. Use Homebrew directly.
 
-The stable checkout is normally `~/projects/dotfiles`. Inspect Git status and live link targets before editing or installing. Worktrees are for development; live links must point to a stable checkout. Preserve changes already present there when integrating work.
+The stable checkout is normally `~/projects/dotfiles`. Inspect Git status and live links before changing it. Links installed for ongoing use must point to a stable checkout, not an ephemeral worktree. Preserve existing local edits when integrating work.
 
-## Small filesystem helper
+## Filesystem operations
 
-Use `bun run dev` (or `./dot` after `bun run build`) for these operations:
+There is no dedicated dotfiles CLI or Stow dependency. The agent chooses sources and destinations and resolves conflicts from actual file contents. Use the standard-library Python helper `.codex/skills/configure-machine/scripts/link.py` when creating a link: it previews, treats an existing correct link as a no-op, and refuses occupied destinations or symlinked parents. See the skill for examples and scope decisions.
 
-```sh
-bun run dev link .config/ghostty/config --dry
-bun run dev link .config/ghostty/config
-bun run dev skill eli5 --tool codex --dry
-bun run dev skill eli5 --tool codex
-bun run dev sync --dry
-bun run dev sync
-```
-
-`link` installs explicitly named files from `home/`. `skill` installs one skill for one harness. `sync` runs GNU Stow with an explicit target and `--no-folding`, and applies only `home/`. All commands are noninteractive; conflicts fail without replacement. `--home /absolute/path` supports isolated test homes. No command pulls Git, installs packages, modifies harness settings, or chooses which skills should be installed.
-
-Use the helper for Stow operations rather than running Stow directly. To bring a file into the repository or stop tracking one, inspect it and its links, then perform the specific copy/move/unlink operation. Keep a recoverable copy before replacing user content. Uninstalling a skill removes only its selected installation link, not its canonical directory.
+Keep real directories for app homes such as `~/.codex` and `~/.claude`, and for skill discovery directories. Native shell/file operations are appropriate for inspected copies, moves, and unlinks; preserve unique local content before replacing it. Removing one installation must not delete its library source or other installations.
 
 ## Verification
 
+Run the helper's isolated filesystem tests after changing it:
+
 ```sh
-bun install
-bun run typecheck
-bun run test
-bun run test:e2e
-bun run lint
+python3 -W error -m unittest discover -s .codex/skills/configure-machine/tests -v
 git diff --check
 ```
 
-Typechecking and tests must pass without warnings or failures. Run E2E checks when changing filesystem operations, command parsing, build paths, or installation layout. The E2E checks use isolated homes and the compiled helper; never test migrations against the real home directory.
+Tests must pass without warnings or failures. They cover file and directory links, arbitrary project destinations, previews, conflicts, and symlinked parents using temporary directories. There is no TypeScript build or package installation step.
 
-Verify instruction imports and actual harness skill discovery after installing agent files. Report the files changed, installation targets, verification results, and any unresolved conflicts.
+After installation, verify link targets and actual discovery in the intended harness and scope. Report what changed and anything still requiring user action. For application configuration, check the relevant behavior when practical.
 
 ## Config details worth preserving
 

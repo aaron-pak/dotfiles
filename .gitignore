@@ -1,22 +1,19 @@
-# dependencies
-node_modules
+# Local dependencies and retired build artifacts
+node_modules/
+dist/
+dot
 
-# build output
-dist
-*.tsbuildinfo
+# Python caches
+__pycache__/
+*.py[cod]
 
 # Licensed fonts (keep local/private only)
 home/fonts/
 
-# OS files
+# OS and editor files
 .DS_Store
-
-# Editor swap files
 *.swp
 *.swo
-
-# CLI binary
-dot
 
 # Harness settings and runtime files stay local
 home/.claude/settings.json

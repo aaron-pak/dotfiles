@@ -1,45 +1,27 @@
 # Dotfiles
 
-Personal configuration maintained with an agent. Open this repository in Codex or Claude Code and ask for the change you want—for example, “install eli5 for Claude,” “update my global instructions,” or “set up this Mac.”
+Personal configuration maintained with an agent. Open this repository in Codex or Claude Code and ask for the change you want: “install eli5 for Claude in this project,” “update my global instructions,” or “set up this Mac.”
 
-The harness reads the repository instructions and discovers the `configure-machine` skill. On a new Mac, install and sign into a harness, clone this repository to `~/projects/dotfiles`, open it as the working directory, and ask the agent to finish setup. The skill is also readable directly at [.codex/skills/configure-machine/SKILL.md](.codex/skills/configure-machine/SKILL.md).
+On a new Mac, install and sign into the intended harness, clone this repository to `~/projects/dotfiles`, open it as the working directory, and ask the agent to finish setup. [AGENTS.md](AGENTS.md) and the [configure-machine skill](.codex/skills/configure-machine/SKILL.md) explain the ownership and workflow.
 
 ## Where things live
 
-- `AGENTS.md`: instructions for maintaining this repository. `CLAUDE.md` imports it.
-- `home/`: native dotfiles linked into the home directory.
-- `home/.codex/AGENTS.md`: shared global agent instructions, imported by `home/.claude/CLAUDE.md`.
-- `.codex/skills/`: canonical personal skills. Being in the repository does not install a skill globally. Selected skills get individual links under `~/.codex/skills/` or `~/.claude/skills/`.
-- `Brewfile`: Homebrew packages.
-- `scripts/dot.ts`: a small noninteractive helper for dotfile and skill links.
+- `.codex/skills/configure-machine/`: the skill for maintaining this repository, also exposed to Claude through a link in `.claude/skills/`.
+- `skills/`: distributable skills, currently `artifact-design` and `eli5`. Install each for the selected tool and user or project scope. Keeping a skill here does not activate it in this project.
+- `home/`: native application configs and global instructions. `home/.claude/CLAUDE.md` imports `home/.codex/AGENTS.md`.
+- `Brewfile`: portable Homebrew packages.
 
-Harness settings and plugin installations are configured locally when needed. This repository does not store or synchronize them.
+Harness settings, plugin installations, and authentication stay local. There is no settings synchronization, installation registry, compiled CLI, or GNU Stow requirement.
 
-## Helper commands
+## Linking and verification
 
-These are available to an agent or for occasional direct use:
+The agent inspects existing files and chooses explicit sources and destinations. A small [Python helper](.codex/skills/configure-machine/scripts/link.py) handles link creation with conflict checks; its usage and examples live in the configuration skill. Python 3 is its only runtime requirement, with no third-party packages.
 
-```sh
-bun install
-bun run dev link .tmux.conf --dry       # preview one owned file
-bun run dev link .tmux.conf             # link it
-bun run dev skill eli5 --tool claude    # install one personal skill
-bun run dev sync --dry                  # preview all owned dotfiles
-bun run dev sync                        # link home/ using GNU Stow
-```
+Linked skills follow updates to this checkout. A project that needs a portable, committed skill can carry a copy instead. Installation scope and update behavior are chosen for the request.
 
-Conflicting files are left in place and reported as errors. `sync` only links dotfiles; it does not configure agents, install skills, fetch Git changes, or install packages. Use the stable checkout when installing into the real home directory. `--home /absolute/path` targets an isolated home for testing.
-
-`bun run build` creates the optional `./dot` executable with the same commands. Old interactive `ai`, settings, `init`, `add`, and `remove` commands have been retired. Tell the agent what you want to change instead.
-
-## Development
+To test the helper:
 
 ```sh
-bun run typecheck
-bun run test
-bun run test:e2e
-bun run lint
-bun run format:check
+python3 -W error -m unittest discover -s .codex/skills/configure-machine/tests -v
+git diff --check
 ```
-
-Filesystem tests use temporary homes. See [AGENTS.md](AGENTS.md) for ownership and verification requirements.
