@@ -7,7 +7,7 @@ On a new Mac, install and sign into the intended harness, clone this repository 
 ## Where things live
 
 - `.codex/skills/configure-machine/`: the skill for maintaining this repository, also exposed to Claude through a link in `.claude/skills/`.
-- `skills/`: distributable skills, currently `artifact-design` and `eli5`. Install each for the selected tool and user or project scope. Keeping a skill here does not activate it in this project.
+- `skills/`: distributable skills, currently `artifact-design`, `eli5`, and `show-me`. Install each for the selected tool and user or project scope. Keeping a skill here does not activate it in this project.
 - `home/`: native application configs and global instructions. `home/.claude/CLAUDE.md` imports `home/.codex/AGENTS.md`.
 - `Brewfile`: portable Homebrew packages.
 
