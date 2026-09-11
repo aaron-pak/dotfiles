@@ -28,4 +28,4 @@ Run tests appropriate to the change and complete required checks. Once those pas
 
 ## HTML Artifacts
 
-Default to light mode.
+Use light mode unless I explicitly request otherwise. My system uses dark mode; explicitly set the artifact's color scheme, background, and text colors so it stays light regardless of system preferences.
