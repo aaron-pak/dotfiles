@@ -21,5 +21,7 @@ dot
 # Harness settings and runtime files stay local
 home/.claude/settings.json
 home/.codex/config.toml
+.claude/settings.json
 .claude/settings.local.json
+.claude/state/
 .codex/config.toml
