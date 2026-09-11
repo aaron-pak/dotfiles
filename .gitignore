@@ -18,8 +18,8 @@ home/fonts/
 # CLI binary
 dot
 
-# CLI state
-state/
-
-# Machine-specific Claude settings (synced via dot claude pull/push)
+# Harness settings and runtime files stay local
 home/.claude/settings.json
+home/.codex/config.toml
+.claude/settings.local.json
+.codex/config.toml

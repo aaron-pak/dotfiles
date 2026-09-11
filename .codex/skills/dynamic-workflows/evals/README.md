@@ -11,7 +11,7 @@ against the bundled state ledger.
 ## Run
 
 ```bash
-cd ai/skills/dynamic-workflows/evals
+cd .codex/skills/dynamic-workflows/evals
 node run.js --prompts          # print exact forward-test prompts
 node run.js --validate         # registry sanity checks
 node run.js --fixtures         # self-test the grader on included fixtures

@@ -7,14 +7,14 @@ set formatoptions=jcroqlnt
 set number
 set scrolloff=10
 set shiftround
-set sidescrolloff=1
+set sidescrolloff=3
 set timeoutlen=10000
 set notimeout
 set nowrap
 set ideaglobalmode
 set ideamarks
-set clipboard+=unnamed
 set clipboard+=ideaput
+set clipboard+=unnamed
 set relativenumber
 set visualbell
 set showcmd
@@ -25,9 +25,6 @@ set hlsearch
 set peekaboo
 set ideajoin
 set lookupkeys+="<C-j>,<C-k>"
-set mini-ai
-set functiontextobj
-set switch
 filetype plugin indent on
 
 " Neovim settings that differ from Vim
@@ -46,20 +43,6 @@ packadd matchit
 " Argument as text objects
 Plug 'vim-scripts/argtextobj.vim'
 let g:argtextobj_pairs="(:),{:},<:>"
-
-" Flash/sneak plugin binding
-" Must come before quickscope in order for them to work together
-" These don't really seem to work right for some reason
-"Plug 'justinmk/vim-sneak'
-"let g:sneak#label = 1
-"map s <Plug>sneak-s
-"map S <Plug>sneak-S
-"nmap s <action>(flash.search)
-
-
-Plug 'easymotion/vim-easymotion'
-nmap s <Plug>(easymotion-s)
-xmap s <Plug>(easymotion-s)
 
 set quickscope
 let g:qs_highlight_on_keys = ['f', 'F', 't', 'T']
@@ -133,22 +116,18 @@ xmap <A-k> <Action>(MoveLineUp)
 " Code Actions
 nmap <leader>ca <Action>(ShowIntentionActions)
 vmap <leader>ca <Action>(ShowIntentionActions)
-" Source Action
-nmap <leader>cA <Action>(ShowIntentionActions)
 " Generate
 nmap <leader>cg <action>(Generate)
-" Create constant
-nmap <leader>cc <action>(IntroduceConstant)
-" Create variable
-nmap <leader>cv <action>(IntroduceVariable)
+" Run Codelens
+nmap <leader>cc :echo 'There is no equivalent mapping for Run Codelens.'<cr>
 " Refresh & Display Codelens
 nmap <leader>cC :echo 'There is no equivalent mapping for Refresh & Display Codelens.'<cr>
 " Rename File
 nmap <leader>cR <Action>(RenameFile)
 " Rename
 nmap <leader>cr <Action>(RenameElement)
-" Move
-nmap <leader>cm <action>(Move)
+" Source Action
+nmap <leader>cA <Action>(ShowIntentionActions)
 " Code Format
 if &ide =~? 'webstorm'
     nmap <leader>cf <Action>(ReformatWithPrettierAction)
@@ -161,28 +140,19 @@ else
     nmap <leader>cF <Action>(ReformatWithPrettierAction)
     vmap <leader>cF <Action>(ReformatWithPrettierAction)
 endif
-let g:WhichKeyDesc_file = "<leader>co [C]ode/[O]ptimize"
-nmap <leader>co <Action>(OptimizeImports)
-
-
-" Navigation
-
 
 " Find/Files
 let g:WhichKeyDesc_file = "<leader>f [F]ind/[F]ile"
-nmap <leader><space> <Action>(GotoFile)
 
+nmap <leader><space> <Action>(GotoFile)
 "let g:WhichKeyDesc_find_file = "<leader>ff Find [F]ile"
 "nmap <leader>/ <Action>(FindInPath)
 
 nmap <leader>ff <Action>(GotoFile)
-
 let g:WhichKeyDesc_file_new = "<leader>fn File [N]ew"
 nmap <leader>fn <Action>(NewFile)
-
 let g:WhichKeyDesc_move_file = "<leader>fm File [M]ove"
 nmap <leader>fm <action>(Move)
-
 let g:WhichKeyDesc_delete_file = "<leader>fd File [D]elete"
 nmap <leader>fd <action>($Delete)
 
@@ -196,7 +166,7 @@ nmap <leader>fc :e ~/.ideavimrc<cr>
 nmap <leader>fg <Action>(GotoFile)
 " File Recent
 nmap <leader>fr <Action>(RecentFiles)
-nmap <leader>fR <Action>(RecentLocations)
+nmap <leader>fR <Action>(RecentFiles)
 
 
 " Searching
@@ -281,7 +251,6 @@ nmap gcc <action>(CommentByLineComment)
 imap <C-/> <action>(CommentByLineComment)
 nmap gco o<c-o>gcc
 nmap gcO O<c-o>gcc
-nmap gch <action>(CollapseDocComments)
 
 
 " Tab Management
@@ -357,7 +326,6 @@ nmap <leader>gB <Action>(Vcs.Show.Log)
 nmap <leader>gf <Action>(LocalHistory.ShowHistory)
 nmap <leader>gl <Action>(Vcs.Show.Log)
 nmap <leader>gL <Action>(Vcs.Show.Log)
-nmap <leader>gu <Action>(Vcs.UpdateProject)
 nmap <leader>gc <Action>(Git.Commit.And.Push.Executor)
 nmap <leader>gC <Action>(Git.Commit)
 " Status
@@ -493,9 +461,7 @@ nmap <leader>ub :echo 'There is no equivalent mapping for Toggle Auto Format.'<c
 " Toggle Auto Format (Buffer)
 nmap <leader>uB :echo 'There is no equivalent mapping for Toggle Auto Format.'<cr>
 " Toggle Spelling
-nmap <leader>us <action>(ShowSettings)
-" Show Plugins
-nmap <leader>up <action>(WelcomeScreen.Plugins)
+nmap <leader>us :setlocal spell!<CR>
 " Toggle Wrap
 nmap <leader>uw :setlocal wrap!<CR>
 " Toggle Relative Number
@@ -514,5 +480,4 @@ nmap <leader>uT :echo 'There is no equivalent mapping for Toggle Treesitter High
 nmap <leader>ub <Action>(QuickChangeScheme)
 " Toggle Inlay Hints
 nmap <leader>uh :echo 'There is no equivalent mapping for Toggle Inlay Hints.'<cr>
-
 

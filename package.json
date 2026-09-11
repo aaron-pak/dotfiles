@@ -1,38 +1,26 @@
 {
-  "name": "dotfiles-cli",
-  "version": "0.1.0",
+  "name": "dotfiles",
+  "version": "0.2.0",
   "private": true,
-  "description": "CLI for managing dotfiles - syncing, checking differences, and initializing on new devices",
+  "description": "Personal dotfiles and skills maintained with an agent",
   "bin": {
     "dot": "./dot"
   },
   "type": "module",
   "scripts": {
-    "build": "bun build src/main.ts --compile --outfile dot",
-    "build:dev": "tsc -p tsconfig.build.json",
-    "lint": "oxlint",
-    "lint:fix": "oxlint --fix",
+    "dev": "bun run scripts/dot.ts",
+    "build": "bun build scripts/dot.ts --compile --outfile dot",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "test:e2e:ai": "bun run build && bash scripts/test-ai-e2e.sh",
-    "format": "oxfmt --write .",
-    "format:check": "oxfmt --check .",
-    "prepare": "effect-language-service patch",
-    "dev": "bun run src/main.ts",
-    "sync": "git pull && bun run build && ./dot sync"
-  },
-  "dependencies": {
-    "@effect/platform-bun": "4.0.0-beta.35",
-    "effect": "4.0.0-beta.35",
-    "smol-toml": "^1.6.0"
+    "test": "vitest run --exclude '**/*.e2e.test.ts'",
+    "test:e2e": "bun run build && vitest run tests/dot.e2e.test.ts",
+    "lint": "oxlint --deny-warnings scripts tests",
+    "format": "oxfmt --write scripts tests package.json tsconfig.json vitest.config.ts",
+    "format:check": "oxfmt --check scripts tests package.json tsconfig.json vitest.config.ts"
   },
   "devDependencies": {
-    "@effect/language-service": "^0.80.0",
-    "@effect/vitest": "4.0.0-beta.35",
-    "@types/bun": "latest",
+    "@types/bun": "1.3.7",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.56.0",
-    "oxlint-tsgolint": "^0.17.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.0"
   }
