@@ -4,4 +4,4 @@ Mannered prose substitutes metaphor and flourish for direct statement. Instead o
 
 ## HTML Artifacts
 
-Default to light mode. Dark backgrounds are hard for me to read. Paint a light background and dark text explicitly through the page's own tokens, and do not add a `prefers-color-scheme: dark` block or `data-theme="dark"` overrides, so the page stays light regardless of the viewer or OS theme. Build a dark or dual-theme page only when I ask for one.
+Default to light mode.
