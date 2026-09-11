@@ -7,11 +7,13 @@ On a new Mac, install and sign into the intended harness, clone this repository 
 ## Where things live
 
 - `.codex/skills/configure-machine/`: the skill for maintaining this repository, also exposed to Claude through a link in `.claude/skills/`.
-- `skills/`: distributable skills, currently `artifact-design`, `eli5`, and `show-me`. Install each for the selected tool and user or project scope. Keeping a skill here does not activate it in this project.
+- `skills/`: distributable skills, currently `artifact-design`, `create-verification-skill`, `eli5`, `maintain-verification-skill`, and `show-me`. Install each for the selected tool and user or project scope. Keeping a skill here does not activate it in this project.
 - `home/`: native application configs and global instructions. `home/.claude/CLAUDE.md` imports `home/.codex/AGENTS.md`.
 - `Brewfile`: portable Homebrew packages.
 
 Harness settings, plugin installations, and authentication stay local. There is no settings synchronization, installation registry, compiled CLI, or GNU Stow requirement.
+
+`create-verification-skill` and `maintain-verification-skill` come from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/f5bdd6826fd0a0d9cbc4347134c3a74a200b9d9d/pstack), revision `f5bdd6826fd0a0d9cbc4347134c3a74a200b9d9d`, under the MIT licenses included in their directories. Only the hardcoded Cursor skill paths are generalized to the project's skills directory; the remaining skill text and feature-map examples match upstream.
 
 ## Linking and verification
 
