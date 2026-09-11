@@ -13,7 +13,7 @@ On a new Mac, install and sign into the intended harness, clone this repository 
 
 Harness settings, plugin installations, and authentication stay local. There is no settings synchronization, installation registry, compiled CLI, or GNU Stow requirement.
 
-`create-verification-skill` and `maintain-verification-skill` come from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/f5bdd6826fd0a0d9cbc4347134c3a74a200b9d9d/pstack), revision `f5bdd6826fd0a0d9cbc4347134c3a74a200b9d9d`, under the MIT licenses included in their directories. Only the hardcoded Cursor skill paths are generalized to the project's skills directory; the remaining skill text and feature-map examples match upstream.
+`create-verification-skill` and `maintain-verification-skill` come from Lauren Tan's [pstack](https://github.com/cursor/plugins/tree/f5bdd6826fd0a0d9cbc4347134c3a74a200b9d9d/pstack), revision `f5bdd6826fd0a0d9cbc4347134c3a74a200b9d9d`, under the MIT licenses included in their directories. The hardcoded Cursor skill paths are generalized to the project's skills directory, and `disable-model-invocation` is set to `false`; the remaining skill text and feature-map examples match upstream.
 
 ## Linking and verification
 
