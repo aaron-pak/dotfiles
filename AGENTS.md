@@ -10,7 +10,7 @@ For machine setup, installing a personal plugin, repairing links, or changing ag
 - Shared global instructions live in `agent-plugins/instructions/AGENTS.md`, linked to `~/.codex/AGENTS.md`. `instructions/CLAUDE.md` imports `~/.codex/AGENTS.md`, is linked to `~/.claude/CLAUDE.md`, and may add Claude-only guidance.
 - Root `AGENTS.md` describes this repository. Root `CLAUDE.md` imports it. Neither is the global instruction file.
 - `.codex/skills/configure-machine/` is this repository's maintenance skill; `.claude/skills/configure-machine` links to it for Claude discovery.
-- Personal skills are plugins in the `agent-plugins` marketplace, one plugin per skill. Install each with the harness's plugin commands for the requested tool and scope. A project installation must not silently become a global installation.
+- Personal skills are plugins in the `agent-plugins` marketplace; a plugin holds one skill or a few that are used together. Install each with the harness's plugin commands for the requested tool and scope. A project installation must not silently become a global installation.
 - Settings, plugins, credentials, caches, sessions, and generated harness wiring stay local. There is no shared-settings baseline or installation registry.
 - `Brewfile` records portable Homebrew packages. Use Homebrew directly.
 
