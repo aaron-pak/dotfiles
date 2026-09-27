@@ -11,7 +11,7 @@ Read the repository's root `AGENTS.md` for ownership. This skill lives at `.code
 
 - Application configuration lives under `home/`. An edit to an already-linked file is live. Inspect local files before adopting them or resolving conflicts. Choose individual files or wholly owned directories; keep app homes and skill discovery directories real. Skip repository documentation, Git metadata, and runtime files when selecting a new-machine installation.
 - Shared global instructions live in `~/projects/agent-plugins/instructions/`: link `AGENTS.md` to `~/.codex/AGENTS.md` and the Claude wrapper `CLAUDE.md`, which imports it, to `~/.claude/CLAUDE.md`. Nothing installs them automatically. Root `AGENTS.md` and `CLAUDE.md` govern this repository.
-- Personal skills are plugins in the `agent-plugins` marketplace ([aaron-pak/agent-plugins](https://github.com/aaron-pak/agent-plugins)), one plugin per skill. This maintenance skill stays in this repository's own discovery directories.
+- Personal skills are plugins in the `agent-plugins` marketplace ([aaron-pak/agent-plugins](https://github.com/aaron-pak/agent-plugins)); a plugin holds one skill or a few that are used together, and its README describes the layout. This maintenance skill stays in this repository's own discovery directories.
 - Harness settings, MCP connections, and plugins are configured locally with supported tools or scoped edits. Keep credentials and generated wiring out of Git. Plugin-owned skills stay owned by their plugin.
 - Portable packages belong in `Brewfile`; install them with Homebrew directly.
 
@@ -29,7 +29,7 @@ codex plugin marketplace add aaron-pak/agent-plugins
 codex plugin add eli5@agent-plugins
 ```
 
-Check `claude plugin marketplace list` and `codex plugin marketplace list` first; a marketplace added once serves every install. Updates follow the Git commit: `claude plugin marketplace update agent-plugins` then `claude plugin update <plugin>@agent-plugins`, and `codex plugin marketplace upgrade agent-plugins`. Uninstall with `claude plugin uninstall` or `codex plugin remove`. A project that needs committed, self-contained skill content can copy the skill directory from `agent-plugins/plugins/<name>/skills/<name>/` instead.
+Check `claude plugin marketplace list` and `codex plugin marketplace list` first; a marketplace added once serves every install. Updates follow the Git commit: `claude plugin marketplace update agent-plugins` then `claude plugin update <plugin>@agent-plugins`, and `codex plugin marketplace upgrade agent-plugins`. Uninstall with `claude plugin uninstall` or `codex plugin remove`. A project that needs committed, self-contained skill content can copy the skill directory from `agent-plugins/plugins/<plugin>/skills/<skill>/` instead.
 
 ## Mechanical linking
 

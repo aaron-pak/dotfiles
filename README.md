@@ -10,7 +10,7 @@ On a new Mac, install and sign into the intended harness, clone this repository 
 - `home/`: native application configs.
 - `Brewfile`: portable Homebrew packages.
 
-Personal skills and the global agent instructions live in [aaron-pak/agent-plugins](https://github.com/aaron-pak/agent-plugins), cloned to `~/projects/agent-plugins`. Each skill there is its own plugin that Claude Code and Codex install from the marketplace, one plugin and one harness at a time. Its `instructions/AGENTS.md` and `instructions/CLAUDE.md` are linked by hand to `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md`. Its README also carries the pstack credit for the verification skills.
+Personal skills and the global agent instructions live in [aaron-pak/agent-plugins](https://github.com/aaron-pak/agent-plugins), cloned to `~/projects/agent-plugins`. Claude Code and Codex install those skills as plugins from its marketplace, one plugin and one harness at a time. Its `instructions/AGENTS.md` and `instructions/CLAUDE.md` are linked by hand to `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md`. Its README also carries the pstack credit for the verification skills.
 
 Harness settings, plugin installations, and authentication stay local. There is no settings synchronization, installation registry, compiled CLI, or GNU Stow requirement.
 
