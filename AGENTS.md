@@ -1,16 +1,16 @@
 # Dotfiles
 
-This repository holds Aaron's native dotfiles, global agent instructions, and distributable personal skills. Work with the user conversationally.
+This repository holds Aaron's native dotfiles. Personal skills and global agent instructions live in `~/projects/agent-plugins` ([aaron-pak/agent-plugins](https://github.com/aaron-pak/agent-plugins)). Work with the user conversationally.
 
-For machine setup, installing a skill, repairing links, or changing agent configuration, use `.codex/skills/configure-machine/SKILL.md`.
+For machine setup, installing a personal plugin, repairing links, or changing agent configuration, use `.codex/skills/configure-machine/SKILL.md`.
 
 ## Ownership
 
 - `home/` mirrors `~/` and contains native configuration we own. Inspect and link the selected files or wholly owned directories; it is not a blanket installation manifest.
-- `home/.codex/AGENTS.md` owns shared global instructions. `home/.claude/CLAUDE.md` imports it and may add Claude-only guidance.
+- Shared global instructions live in `agent-plugins/instructions/AGENTS.md`, linked to `~/.codex/AGENTS.md`. `instructions/CLAUDE.md` imports `~/.codex/AGENTS.md`, is linked to `~/.claude/CLAUDE.md`, and may add Claude-only guidance.
 - Root `AGENTS.md` describes this repository. Root `CLAUDE.md` imports it. Neither is the global instruction file.
 - `.codex/skills/configure-machine/` is this repository's maintenance skill; `.claude/skills/configure-machine` links to it for Claude discovery.
-- `skills/<name>/` is the distributable library. Storage does not activate a skill. Install separately for the requested tool and user or project scope. A project installation must not silently become a global installation.
+- Personal skills are plugins in the `agent-plugins` marketplace, one plugin per skill. Install each with the harness's plugin commands for the requested tool and scope. A project installation must not silently become a global installation.
 - Settings, plugins, credentials, caches, sessions, and generated harness wiring stay local. There is no shared-settings baseline or installation registry.
 - `Brewfile` records portable Homebrew packages. Use Homebrew directly.
 
