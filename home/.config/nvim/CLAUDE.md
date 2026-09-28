@@ -29,6 +29,7 @@ Each file returns a plugin spec table for lazy.nvim. Key pattern: use `vscode = 
 - `noice.lua` - folke/noice.nvim UI replacement (cmdline, messages, popupmenu)
 - `flash.lua` - folke/flash.nvim navigation
 - `tiny-inline-diagnostic.lua` - rachartier/tiny-inline-diagnostic.nvim
+- `markdown.lua` - Markdown tooling: prettier formatting, markdownlint-cli2 disabled for lint, format and Mason
 - `example.lua` - Example spec (disabled via `if true then return {} end`)
 
 ### Environment Detection
